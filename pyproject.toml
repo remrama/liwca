@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "liwca"
+dynamic = ["version"]
+description = "LIWC Assistant"
+authors = [
+  {name = "Remington Mallett", email = "mallett.remy@gmail.com"},
+]
+maintainers = [
+  {name = "Remington Mallett", email = "mallett.remy@gmail.com"},
+]
+requires-python = ">=3.8"
+dependencies = [
+  "pandas>=2.0",
+  "pandera>=0.20",
+  "pooch>=1.8",
+  "psutil>=6.0",
+]
+readme = "README.md"
+keywords = ["LIWC", "text", "language", "datasets"]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/remrama/liwca"
+
+[project.optional-dependencies]
+dev = [
+  "ruff",
+  "pydata-sphinx-theme",  # needs to be in requirements.txt also (for docs.yml)
+  "sphinx",
+  "sphinx_copybutton",  # needs to be in requirements.txt also (for docs.yml)
+  "sphinx-design",  # more options for pydatasphinx theme, eg, dropdowns, tabs
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "liwca.__version__"}
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+namespaces = false
+where = ["src"]
+
+[tool.setuptools.package-data]
+liwca = ["liwca/data/registry.txt"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]  # Ignore star and unused import violations for __init__.py files
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 20

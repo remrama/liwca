@@ -1,0 +1,3 @@
+Honor-Dictionary-English_2017.dic md5:83c2648f39136a1625fbdc1120d465fc https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h
+threat.txt md5:e634f376208fafef4161fcf20ee3e571 https://www.michelegelfand.com/_files/ugd/6df109_fe3dfb71a3d24fbeb16a26e32b07738a.txt?dn=threat.txt
+ladis2023-table1.tsv md5:f8f4fd718a73618fa4b2720d0855e76d https://zenodo.org/records/13941010/files/table1.tsv
