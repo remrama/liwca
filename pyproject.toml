@@ -19,7 +19,7 @@ dependencies = [
   "pooch>=1.8",
   "psutil>=6.0",
 ]
-readme = "README.md"
+readme = "README.rst"
 keywords = ["LIWC", "text", "language", "datasets"]
 classifiers = [
   "Development Status :: 1 - Planning",
