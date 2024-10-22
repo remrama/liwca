@@ -3,8 +3,10 @@ Load various dictionary files
 """
 
 from pathlib import Path
+from typing import Any, Callable
 
 import pandas as pd
+import pooch
 
 from .io import write_dx
 
@@ -14,12 +16,12 @@ __all__ = [
 ]
 
 
-def dicx_processor(func):
+def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooch], str]:
     """
     Decorator to convert a non-DICX file to DICX.
     """
 
-    def wrapper(fname, action, pup, *args, **kwargs):
+    def wrapper(fname: str, action: str, pup: pooch.Pooch, *args: Any, **kwargs: Any) -> str:
         """
         Parameters
         ----------

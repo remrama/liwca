@@ -42,7 +42,8 @@ Homepage = "https://github.com/remrama/liwca"
 
 [project.optional-dependencies]
 dev = [
-  "ruff",
+  "mypy>=1.12",
+  "ruff>=0.6",
   "pydata-sphinx-theme",  # needs to be in requirements.txt also (for docs.yml)
   "sphinx",
   "sphinx_copybutton",  # needs to be in requirements.txt also (for docs.yml)
@@ -62,8 +63,14 @@ where = ["src"]
 [tool.setuptools.package-data]
 liwca = ["liwca/data/registry.txt"]
 
+[tool.mypy]
+files = ["src/"]
+ignore_missing_imports = true
+strict = true
+
 [tool.ruff]
 line-length = 88
+select = ["E", "F", "I", "W", "C90"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]  # Ignore star and unused import violations for __init__.py files

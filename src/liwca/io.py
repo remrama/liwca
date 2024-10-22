@@ -6,6 +6,7 @@ import csv
 import re
 from importlib.resources import files
 from pathlib import Path
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
@@ -97,7 +98,7 @@ dx_schema = pa.DataFrameSchema(
 #######################################################################################
 
 
-def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
+def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
     Read a dictionary from a LIWC DIC file.
 
@@ -121,9 +122,9 @@ def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
     m = re.match(
         r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE
     )
-    header = m.group("header").strip()
-    body = m.group("body").strip()
-
+    if m is not None:
+        header = m.group("header").strip()
+        body = m.group("body").strip()
     cat_names, cat_ids = zip(*[row.split() for row in header.split("\n")])
     columns = pd.Index(cat_names, name="Category").astype("string")
     # id2cat =p {int(row.split()[1]): row.split()[0] for row in header.split("\n")}
@@ -138,7 +139,6 @@ def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
         # row_data = np.isin(list(id2term), ids).astype(int)
         # row_data = [1 if x in ids else 0 for x in id2cat]
         data[entry] = row_data
-
     df = pd.DataFrame.from_dict(
         data, columns=columns, dtype="int", orient="index"
     ).rename_axis("DictTerm")
@@ -146,7 +146,7 @@ def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
     return df
 
 
-def _read_dicx(fp: Path, **kwargs) -> pd.DataFrame:
+def _read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
     Read a dictionary from a DICX file.
 
@@ -175,7 +175,7 @@ def _read_dicx(fp: Path, **kwargs) -> pd.DataFrame:
 
 
 @pa.check_output(schema=dx_schema)
-def read_dx(fp: Path, **kwargs) -> pd.DataFrame:
+def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
     Read a dictionary from a LIWC DIC or DICX file.
 
@@ -191,12 +191,12 @@ def read_dx(fp: Path, **kwargs) -> pd.DataFrame:
     pd.DataFrame
         The dictionary read from the file.
     """
-    if Path(fp).suffix == ".dic":
+    if (suffix := Path(fp).suffix) == ".dic":
         return _read_dic(fp, **kwargs)
-    elif Path(fp).suffix == ".dicx":
+    elif suffix == ".dicx":
         return _read_dicx(fp, **kwargs)
     else:
-        raise ValueError(f"Unsupported file extension: {fp.suffix}")
+        raise ValueError(f"Unsupported file extension: {suffix}")
 
 
 #######################################################################################
@@ -204,7 +204,7 @@ def read_dx(fp: Path, **kwargs) -> pd.DataFrame:
 #######################################################################################
 
 
-def _write_to_dicx(dic: pd.DataFrame, fp: Path, **kwargs) -> None:
+def _write_to_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
     """
     Write a dictionary to a DICX file.
 
@@ -222,10 +222,11 @@ def _write_to_dicx(dic: pd.DataFrame, fp: Path, **kwargs) -> None:
     kwargs.setdefault("encoding", "utf-8")
     kwargs.setdefault("index_label", "DicTerm")
     kwargs.setdefault("lineterminator", "\n")
-    dic.rename_axis(None, axis=1).replace({1: "X", 0: ""}).to_csv(fp, **kwargs)
+    dx.rename_axis(None, axis=1).replace({1: "X", 0: ""}).to_csv(fp, **kwargs)
+    return None
 
 
-def _write_to_dic(dic: pd.DataFrame, fp: Path) -> None:
+def _write_to_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
     """
     Write a dictionary to a LIWC DIC file.
 
@@ -239,35 +240,36 @@ def _write_to_dic(dic: pd.DataFrame, fp: Path) -> None:
     with open(fp, "wt", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow("%")
-        writer.writerows([col, i] for i, col in enumerate(dic.columns, 1))
+        writer.writerows([col, i] for i, col in enumerate(dx.columns, 1))
         writer.writerow("%")
         writer.writerows(
-            dic.apply(
+            dx.apply(
                 lambda row: [row.name] + (np.flatnonzero(row) + 1).tolist(), axis=1
             ).tolist()
         )
+    return None
 
 
 @pa.check_input(schema=dx_schema)
-def write_dx(dic: pd.DataFrame, fp: Path, **kwargs) -> None:
+def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
     """
     Write a dictionary to a LIWC DIC or DICX file.
 
     Parameters
     ----------
-    dic : pd.DataFrame
+    dx : pd.DataFrame
         The dictionary to write.
     fp : Path
         The filepath to write the dictionary to.
     kwargs : dict
         Additional keyword arguments to pass to `pd.DataFrame.to_csv`.
     """
-    if fp.suffix == ".dic":
-        _write_to_dic(dic, fp)
-    elif fp.suffix == ".dicx":
-        _write_to_dicx(dic, fp, **kwargs)
+    if (suffix := Path(fp).suffix) == ".dic":
+        return _write_to_dic(dx, fp)
+    elif suffix == ".dicx":
+        return _write_to_dicx(dx, fp, **kwargs)
     else:
-        raise ValueError(f"Unsupported file extension: {fp.suffix}")
+        raise ValueError(f"Unsupported file extension: {suffix}")
 
 
 #######################################################################################
@@ -276,7 +278,7 @@ def write_dx(dic: pd.DataFrame, fp: Path, **kwargs) -> None:
 
 
 @pa.check_output(schema=dx_schema)
-def fetch_dx(dic_name: str, **kwargs) -> pd.DataFrame:
+def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     """
     Fetch a remote dictionary and load as a :class:`~pandas.DataFrame`.
 
