@@ -12,7 +12,6 @@ import pandas as pd
 import pandera as pa
 import pooch
 
-
 __all__ = [
     "fetch_dx",
     "read_dx",
@@ -76,10 +75,7 @@ dx_schema = pa.DataFrameSchema(
         #     pa.Parser(lambda i: i.str.lower()),
         #     pa.Parser(lambda i: i.str.strip()),
         # ],
-        checks=[
-            pa.Check.str_length(min_value=1),
-            pa.Check(lambda s: s.str.islower())
-        ],
+        checks=[pa.Check.str_length(min_value=1), pa.Check(lambda s: s.str.islower())],
     ),
     parsers=[
         pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0)),
@@ -99,6 +95,7 @@ dx_schema = pa.DataFrameSchema(
 #######################################################################################
 # LIWC dictionary DIC[X] file reading
 #######################################################################################
+
 
 def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
     """
@@ -121,7 +118,9 @@ def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
         data = f.read()
 
     # Use regex to get everything between the first and last '%' character (both starting on new lines)
-    m = re.match(r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE)
+    m = re.match(
+        r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE
+    )
     header = m.group("header").strip()
     body = m.group("body").strip()
 
@@ -140,7 +139,9 @@ def _read_dic(fp: Path, **kwargs) -> pd.DataFrame:
         # row_data = [1 if x in ids else 0 for x in id2cat]
         data[entry] = row_data
 
-    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int", orient="index").rename_axis("DictTerm")
+    df = pd.DataFrame.from_dict(
+        data, columns=columns, dtype="int", orient="index"
+    ).rename_axis("DictTerm")
     df.index = df.index.astype("string")
     return df
 
@@ -163,7 +164,13 @@ def _read_dicx(fp: Path, **kwargs) -> pd.DataFrame:
     """
     kwargs.setdefault("index_col", "DicTerm")
     kwargs.setdefault("dtype", {"DicTerm": "string"})
-    dic = pd.read_csv(fp, **kwargs).rename_axis("Category", axis=1).fillna(False).astype(bool).astype(int)
+    dic = (
+        pd.read_csv(fp, **kwargs)
+        .rename_axis("Category", axis=1)
+        .fillna(False)
+        .astype(bool)
+        .astype(int)
+    )
     return dic
 
 
@@ -195,6 +202,7 @@ def read_dx(fp: Path, **kwargs) -> pd.DataFrame:
 #######################################################################################
 # LIWC dictionary DIC[X] file writing
 #######################################################################################
+
 
 def _write_to_dicx(dic: pd.DataFrame, fp: Path, **kwargs) -> None:
     """
@@ -233,7 +241,11 @@ def _write_to_dic(dic: pd.DataFrame, fp: Path) -> None:
         writer.writerow("%")
         writer.writerows([col, i] for i, col in enumerate(dic.columns, 1))
         writer.writerow("%")
-        writer.writerows(dic.apply(lambda row: [row.name] + (np.flatnonzero(row) + 1).tolist(), axis=1).tolist())
+        writer.writerows(
+            dic.apply(
+                lambda row: [row.name] + (np.flatnonzero(row) + 1).tolist(), axis=1
+            ).tolist()
+        )
 
 
 @pa.check_input(schema=dx_schema)
@@ -256,7 +268,6 @@ def write_dx(dic: pd.DataFrame, fp: Path, **kwargs) -> None:
         _write_to_dicx(dic, fp, **kwargs)
     else:
         raise ValueError(f"Unsupported file extension: {fp.suffix}")
-
 
 
 #######################################################################################
@@ -290,8 +301,10 @@ def fetch_dx(dic_name: str, **kwargs) -> pd.DataFrame:
     name_in_registry = _dicname_to_registry[dic_name]
     # Get the processor function for the dictionary, if available
     from . import _remoteprocessors
-    kwargs.setdefault("processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None))
+
+    kwargs.setdefault(
+        "processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None)
+    )
     fp = _pup.fetch(name_in_registry, **kwargs)
     df = read_dx(fp)
     return df
-

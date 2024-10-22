@@ -8,7 +8,6 @@ import pandas as pd
 
 from .io import write_dx
 
-
 __all__ = [
     "read_raw_sleep",
     "read_raw_threat",
@@ -19,6 +18,7 @@ def dicx_processor(func):
     """
     Decorator to convert a non-DICX file to DICX.
     """
+
     def wrapper(fname, action, pup, *args, **kwargs):
         """
         Parameters
@@ -38,13 +38,16 @@ def dicx_processor(func):
             The full path to the unzipped file. (Return the same fname is your
             processor doesn't modify the file).
         """
-        assert not Path(fname).suffix == ".dicx", "File is already a DICX file. New file will overlap."
+        assert (
+            not Path(fname).suffix == ".dicx"
+        ), "File is already a DICX file. New file will overlap."
         out_fp = Path(fname).with_suffix(".dicx")
         # if action in ("update", "download") or not out_fp.exists():
-            # Apply custom processing to convert the raw file to a DataFrame and write to DICX
+        # Apply custom processing to convert the raw file to a DataFrame and write to DICX
         df = func(fname, *args, **kwargs)
         write_dx(df, out_fp)
         return str(out_fp)
+
     return wrapper
 
 
@@ -190,7 +193,3 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
 #     for k, v in words.items():
 #         df.loc[k, v] = True
 #     return df
-
-
-
-

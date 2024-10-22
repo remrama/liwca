@@ -11,7 +11,6 @@ import time
 
 import psutil
 
-
 __all__ = [
     "cli",
 ]
@@ -111,11 +110,11 @@ def _terminate_liwc(app_name: str = "LIWC-22") -> psutil.Process:
 
 def cli(shell_kwargs: dict = {}, **kwargs) -> int:
     """
-    Run LIWC-22-cli from Python.
- -m,--mode <arg>   Selects type of analysis: word count (wc), word frequency (freq), mean extraction method (mem),
-                   contextualizer (context), arc of narrative (arc), convert separate transcript files to spreadsheet
-                   (ct), language style matching (lsm).
-                   Possible values: wc, freq, mem, context, arc, ct, lsm
+       Run LIWC-22-cli from Python.
+    -m,--mode <arg>   Selects type of analysis: word count (wc), word frequency (freq), mean extraction method (mem),
+                      contextualizer (context), arc of narrative (arc), convert separate transcript files to spreadsheet
+                      (ct), language style matching (lsm).
+                      Possible values: wc, freq, mem, context, arc, ct, lsm
     """
     assert _is_liwc_running(), "LIWC-22 is not running."
     # assert mode in ["wc", "freq", "mem", "context", "arc", "ct", "lsm"], f"Invalid mode: {mode}"
