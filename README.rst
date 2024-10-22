@@ -1,11 +1,24 @@
-=====
+
+.. image:: https://badge.fury.io/py/liwca.svg
+   :target: https://badge.fury.io/py/liwca
+   :alt: PyPI
+
+.. image:: https://img.shields.io/pypi/l/liwca.svg
+   :target: https://github.com/remrama/liwca/blob/main/LICENSE.txt
+   :alt: License
+
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+   :target: https://github.com/astral-sh/ruff
+   :alt: Ruff
+
+----
+
+
 LIWCA
 =====
 
 
-
 LIWCA is a `LIWC <https://liwc.app>`_ assistant. It is not a copy of LIWC (they don't like that), it is just helper functions that I've found useful.
-
 
 Stuff like:
 
