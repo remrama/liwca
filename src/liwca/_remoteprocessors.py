@@ -13,6 +13,7 @@ from .io import write_dx
 __all__ = [
     "read_raw_sleep",
     "read_raw_threat",
+    # "read_raw_bigtwo",
 ]
 
 
@@ -40,17 +41,26 @@ def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooc
             The full path to the unzipped file. (Return the same fname is your
             processor doesn't modify the file).
         """
-        assert (
-            not Path(fname).suffix == ".dicx"
-        ), "File is already a DICX file. New file will overlap."
-        out_fp = Path(fname).with_suffix(".dicx")
-        # if action in ("update", "download") or not out_fp.exists():
-        # Apply custom processing to convert the raw file to a DataFrame and write to DICX
-        df = func(fname, *args, **kwargs)
-        write_dx(df, out_fp)
-        return str(out_fp)
+        fp = Path(fname)
+        assert not fp.suffix == ".dicx", "File is already a DICX file. New file will overlap."
+        out_fp = fp.with_suffix(".dicx")
+        if action in ("update", "download") or not out_fp.exists():
+            # Apply custom processing to convert the raw file to a DataFrame and write to DICX
+            df = func(fname, *args, **kwargs)
+            write_dx(df, out_fp)
+        out_fname = str(out_fp)
+        return out_fname
 
     return wrapper
+
+
+# @dicx_processor
+# def read_raw_bigtwo(fname: str) -> pd.DataFrame:
+#     """
+#     Read/parse the Big Two dictionary.
+#     """
+#     dx = read_dx(fname).rename(columns={"1": "Agency", "2": "Communion"})
+#     return dx
 
 
 @dicx_processor

@@ -28,6 +28,8 @@ _dicname_to_registry = {
     "honor": "Honor-Dictionary-English_2017.dic",  # Gelfand 2015
     "threat": "threat.txt",  # Gelfand 2022
     "sleep": "ladis2023-table1.tsv",  # Ladis 2023
+    "bigtwo_a": "a_AgencyCommunion.dic",  # Pietraszkiewicz 2018
+    "bigtwo_b": "b_AgencyCommunion.dic",  # Pietraszkiewicz 2018
     # "behav": "behavioral-activation-dictionary.dicx",
     # "bigtwo": "big-two-agency-communion-dictionary.dicx",
     # "bodytype": "body-type-dictionary.dicx",
@@ -59,7 +61,7 @@ dx_schema = pa.DataFrameSchema(
         "\S+": pa.Column(
             dtype="int64",
             regex=True,
-            checks=[pa.Check.isin([0, 1])],
+            checks=[pa.Check.isin([0, 1]), pa.Check(lambda s: s.any())],
             required=True,
             nullable=False,
             description="The column name of the dictionary.",
@@ -126,8 +128,8 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     if m is not None:
         header = m.group("header").strip()
         body = m.group("body").strip()
-    cat_names, cat_ids = zip(*[row.split() for row in header.split("\n")])
-    columns = pd.Index(cat_names, name="Category").astype("string")
+    cat_ids, cat_names = zip(*[row.split() for row in header.split("\n")])
+    columns = pd.Index(cat_names, name="Category")  #.astype("string") Can't use bc of bug when pandera checks for unique column names
     # id2cat =p {int(row.split()[1]): row.split()[0] for row in header.split("\n")}
     # cat2id = {v: k for k, v in col2id.items()}
     # columns = pd.Index(cat2id, name="Category").astype("string")
@@ -298,8 +300,9 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
     """
     kwargs.setdefault("axis", 1)
     kwargs.setdefault("join", "outer")
-    kwargs.setdefault("sort", True)
-    return pd.concat(dxs, **kwargs).sort_index(axis=1).fillna(0)
+    # kwargs.setdefault("sort", True)  # Should not need to sort, but pandera bug requires it
+    # return pd.concat(dxs, **kwargs).sort_index(axis=1).fillna(0)
+    return pd.concat(dxs, **kwargs).fillna(0)
 
 
 #######################################################################################
@@ -333,10 +336,7 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     name_in_registry = _dicname_to_registry[dic_name]
     # Get the processor function for the dictionary, if available
     from . import _remoteprocessors
-
-    kwargs.setdefault(
-        "processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None)
-    )
+    kwargs.setdefault("processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None))
     fp = _pup.fetch(name_in_registry, **kwargs)
     df = read_dx(fp)
     return df
