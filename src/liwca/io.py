@@ -15,6 +15,7 @@ import pooch
 
 __all__ = [
     "fetch_dx",
+    "merge_dx",
     "read_dx",
     "write_dx",
 ]
@@ -270,6 +271,35 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
         return _write_to_dicx(dx, fp, **kwargs)
     else:
         raise ValueError(f"Unsupported file extension: {suffix}")
+
+
+#######################################################################################
+# DX DataFrame processing
+#######################################################################################
+
+
+@pa.check_output(schema=dx_schema)
+def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
+    """
+    Merge multiple dictionaries into a single dictionary.
+
+    Parameters
+    ----------
+    dxs : list of pd.DataFrame
+        The list of dictionaries to merge.
+    kwargs : dict
+        Additional keyword arguments to pass to `pd.concat`.
+
+    Returns
+    -------
+
+    pd.DataFrame
+        The merged dictionary.
+    """
+    kwargs.setdefault("axis", 1)
+    kwargs.setdefault("join", "outer")
+    kwargs.setdefault("sort", True)
+    return pd.concat(dxs, **kwargs).sort_index(axis=1).fillna(0)
 
 
 #######################################################################################

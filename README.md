@@ -7,6 +7,7 @@ Stuff like:
 - Reading and writing dictionary files (`.dic[x]`)
 - Converting between `.dic` and `.dicx` files
 - Converting between dictionary (`.dic[x]`) and tabular (`.[ct]sv`) files
+- Merging dictionary files
 - Fetching public dictionary files from remote repositories
 - Calling `liwc-22-cli` from Python
 
