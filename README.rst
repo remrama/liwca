@@ -1,11 +1,15 @@
 
 .. image:: https://www.repostatus.org/badges/latest/wip.svg
-   :alt: Project Status
    :target: https://www.repostatus.org/#wip
+   :alt: Project Status
 
-.. image:: https://badge.fury.io/py/liwca.svg
-   :target: https://badge.fury.io/py/liwca
+.. image:: https://img.shields.io/pypi/v/liwca.svg
+   :target: https://pypi.python.org/pypi/liwca
    :alt: PyPI
+
+.. image:: https://img.shields.io/pypi/pyversions/liwca.svg
+   :target: https://pypi.python.org/pypi/ruff
+   :alt: Python Versions
 
 .. image:: https://img.shields.io/pypi/l/liwca.svg
    :target: https://github.com/remrama/liwca/blob/main/LICENSE.txt
@@ -15,7 +19,6 @@
    :target: https://github.com/astral-sh/ruff
    :alt: Ruff
 
-----
 
 
 LIWCA
