@@ -31,7 +31,6 @@ _dicname_to_registry = {
     "bigtwo_a": "a_AgencyCommunion.dic",  # Pietraszkiewicz 2018
     "bigtwo_b": "b_AgencyCommunion.dic",  # Pietraszkiewicz 2018
     # "behav": "behavioral-activation-dictionary.dicx",
-    # "bigtwo": "big-two-agency-communion-dictionary.dicx",
     # "bodytype": "body-type-dictionary.dicx",
     # "eprime": "english-prime-dictionary.dicx",
     # "foresight": "foresight-lexicon.dicx",
@@ -40,8 +39,6 @@ _dicname_to_registry = {
     # "physio": "physiological-sensations-dictionary.dicx",
     # "qualia": "qualia-dictionary.dicx",
     # "self": "self-determinationself-talk-dictionary.dicx",
-    # "sleep": "sleep-dictionary.dicx",
-    # "threat": "threat-dictionary.dicx",
     # "vestibular": "vestibular.dic",
     # "weiref": "weighted-referential-activity-dictionary.dicx",
     # "wellbeing": "well-being-dictionary.dicx",
@@ -58,7 +55,7 @@ dx_schema = pa.DataFrameSchema(
     title="LIWC dictionary DataFrame schema",
     description="Schema for LIWC dictionary DataFrames",
     columns={
-        "\S+": pa.Column(
+        r"\S+": pa.Column(
             dtype="int64",
             regex=True,
             checks=[pa.Check.isin([0, 1]), pa.Check(lambda s: s.any())],
@@ -121,7 +118,7 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     with open(fp, "rt", **kwargs) as f:
         data = f.read()
 
-    # Use regex to get everything between the first and last '%' character (both starting on new lines)
+    # Use regex to get everything between the first and last '%' character (both start on new lines)
     m = re.match(
         r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE
     )
@@ -129,7 +126,8 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         header = m.group("header").strip()
         body = m.group("body").strip()
     cat_ids, cat_names = zip(*[row.split() for row in header.split("\n")])
-    columns = pd.Index(cat_names, name="Category")  #.astype("string") Can't use bc of bug when pandera checks for unique column names
+    columns = pd.Index(cat_names, name="Category")
+    #.astype("string") Can't use bc of bug when pandera checks for unique column names
     # id2cat =p {int(row.split()[1]): row.split()[0] for row in header.split("\n")}
     # cat2id = {v: k for k, v in col2id.items()}
     # columns = pd.Index(cat2id, name="Category").astype("string")
@@ -318,7 +316,8 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     This will first use :mod:`pooch` to download raw file to local cache if not already downloaded.
     Then it will read the file, applying any custom corrections, into a :class:`~pandas.DataFrame`.
 
-    If raw file is not a readable `.dic` or `.dicx` file, it will be unpacked, processed, and rewritten as `.dicx`.
+    If raw file is not a readable `.dic` or `.dicx` file, it will be unpacked, processed, and
+    rewritten as `.dicx`.
 
     Fetch/retrieve a dictionary from the registry.
     Download the dictionary file if it is not already downloaded.

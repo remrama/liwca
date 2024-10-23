@@ -1,4 +1,8 @@
 
+.. image:: https://www.repostatus.org/badges/latest/wip.svg
+   :alt: Project Status
+   :target: https://www.repostatus.org/#wip
+
 .. image:: https://badge.fury.io/py/liwca.svg
    :target: https://badge.fury.io/py/liwca
    :alt: PyPI
@@ -27,7 +31,7 @@ Stuff like:
 * Converting between dictionary (``.dic[x]``) and tabular (``.[c|t]sv``) files
 * Merging dictionary files
 * Fetching public dictionary files from remote repositories
-* Calling ``liwc-22-cli`` from Python
+* Calling ``liwc-22-cli`` from Python (opens/closes the LIWC-22 app in background as needed)
 
 
 
@@ -36,7 +40,7 @@ Installation
 
 .. code-block:: shell
 
-   pip install liwca
+   pip install --upgrade liwca
 
 
 
@@ -47,18 +51,22 @@ Usage
 
    import liwca
 
-   # Download and read a public dictionary
+   # Download and read a public dictionary files
    dx = liwca.fetch_dx("sleep")
+
+   # Read local dictionary files
+   dx = liwca.read_dx("./sleep.dic")
+   dx = liwca.read_dx("./sleep.dicx")
 
    # Write local dictionary files
    liwca.write_dx(dx, "./sleep.dic")
    liwca.write_dx(dx, "./sleep.dicx")
 
-   # Read local dictionaries
-   dx = liwca.read_dic("./sleep.dic")
-   dx = liwca.read_dicx("./sleep.dicx")
 
-   dx.to_dicx("./moral-foundations.dicx")
 
-   # Load local dictionary
-   dic = liwca.read_dx("./sleep.dicx")
+Similar Projects
+----------------
+
+* `liwc-python <https://github.com/chbrown/liwc-python>`_
+* `lingmatch <https://github.com/miserman/lingmatch>`_
+* `sentibank <https://github.com/socius-org/sentibank>`_
