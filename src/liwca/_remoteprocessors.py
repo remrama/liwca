@@ -19,6 +19,23 @@ __all__ = [
 def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooch], str]:
     """
     Decorator to convert a non-DICX file to DICX.
+
+    Parameters
+    ----------
+    func : Callable[[str], str]
+        A function that takes a file path as input and returns a DataFrame.
+
+    Returns
+    -------
+    Callable[[str, str, pooch.Pooch], str]
+        A wrapped function that processes the file and converts it to DICX format.
+
+    Notes
+    -----
+    The wrapped function will check if the file is already in DICX format and will raise an
+    assertion error if it is. If the file needs to be processed (based on the action or if the
+    output file does not exist), the function will apply the provided processing function to
+    convert the raw file to a DataFrame and write it to a DICX file.
     """
 
     def wrapper(fname: str, action: str, pup: pooch.Pooch, *args: Any, **kwargs: Any) -> str:
@@ -37,8 +54,7 @@ def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooc
         Returns
         -------
         fname : str
-            The full path to the unzipped file. (Return the same fname is your
-            processor doesn't modify the file).
+            The full path to the modified file.
         """
         fp = Path(fname)
         assert not fp.suffix == ".dicx", "File is already a DICX file. New file will overlap."
@@ -53,15 +69,6 @@ def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooc
     return wrapper
 
 
-# @dicx_processor
-# def read_raw_bigtwo(fname: str) -> pd.DataFrame:
-#     """
-#     Read/parse the Big Two dictionary.
-#     """
-#     dx = read_dx(fname).rename(columns={"1": "Agency", "2": "Communion"})
-#     return dx
-
-
 @dicx_processor
 def read_raw_sleep(fname: str) -> pd.DataFrame:
     """
@@ -74,26 +81,6 @@ def read_raw_sleep(fname: str) -> pd.DataFrame:
     Scrapable PDF: https://www.suicideinfo.ca/wp-content/uploads/2023/02/Inferring-sleep-disturbance-from-text-messages-of-suicide-attempt-survivors-A.pdf
     Short table: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817/table/sltb12920-tbl-0001/?report=objectonly
     Short table: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817/table/sltb12920-tbl-0001
-
-    Post-processing hook to unzip a file and return the unzipped file name.
-
-    Parameters
-    ----------
-    fname : str
-       Full path of the zipped file in local storage
-    action : str
-       One of "download" (file doesn't exist and will download),
-       "update" (file is outdated and will download), and
-       "fetch" (file exists and is updated so no download).
-    pup : Pooch
-       The instance of Pooch that called the processor function.
-
-    Returns
-    -------
-    fname : str
-       The full path to the unzipped file. (Return the same fname is your
-       processor doesn't modify the file).
-
     """
     words = pd.read_table(fname, skiprows=1, header=None).stack().str.lower().tolist()
     # Some duplicates, and based on SI table I think they were autocorrected during publication.
@@ -131,76 +118,3 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
         words = f.read().splitlines()
     dx = pd.Series(1, name="threat", index=words).to_frame()
     return dx
-
-
-# def _read_raw_honor(**kwargs):
-#     """
-#     Fetch and read the Honor LIWC dictionary.
-
-#     Dictionary details
-#     ^^^^^^^^^^^^^^^^^^
-#     * **Name:** ``honor``
-#     * **Language:** English
-#     * **Source:** https://www.michelegelfand.com/honor-dictionary
-#     * **Citation:** `doi:10.1002/job.2026 <https://doi.org/10.1002/job.2026>`_
-
-#     .. note::
-#         This .dic file has lots of weird and inconsistent spacing.
-#         For example, different numbers of tabs between "columns",
-#         some spaces thrown in, and different number of tabs ending each line.
-
-#     Parameters
-#     ----------
-#     version : str or None
-#         Name of version. If ``None`` (default), fetches the latest version.
-#     load : bool or callable
-#         If ``True`` (default), fetch the file and load it as a :class:`~pandas.DataFrame`.
-#         If ``False``, fetch the file and return the local filepath.
-#         If a callable, fetch the file an load it with the custom callable.
-#     **kwargs : dict, optional
-#         Additional keyword arguments are passed to :func:`pooch.retrieve`.
-
-#     Returns
-#     -------
-#     Filepath or DataFrame
-
-#     See Also
-#     --------
-#     :func:`liwca.fetch_gelfand`
-#     """
-#     # dataset = inspect.stack()[0][3].split("_")[-1]
-#     # fp = _retrieve_lexicon(dataset=dataset, version=version, **kwargs)
-#     fp = fetch_dic("honor", **kwargs)
-#     ## Custom loader ##
-#     data = _read_txt(fp)  # windows-1251/latin1
-#     # data = data.replace("“Honor”", '"Honor"')
-#     ## Fix tab-separation ##
-#     # First remove any end-of-line tabs or spaces
-#     data1 = re.sub(r"\s+$", r"\n", data, flags=re.MULTILINE).strip()
-#     # Replace any tabs followed by additional spacing with a single tab
-#     data2 = re.sub(r"\t\s+", r"\t", data1, flags=re.MULTILINE)
-#     # This pattern is slightly different than the more generic one,
-#     # because the file has lots of weird/inconsistent formatting.
-#     categories = re.findall(r"^([0-9]+)\t(.*)$", data, flags=re.MULTILINE)
-#     # categories = re.findall(r"^(\d+)\t(.*)$", data, flags=re.MULTILINE)
-#     # categories = re.findall(r"^(\d+)\s+([^\t]+)$", data, flags=re.MULTILINE)
-#     categories = {k: v.strip() for k, v in categories}
-#     # words = re.findall(r"^([^\t%0-9]+)((?:\s+\d+)*)", data, flags=re.MULTILINE)
-#     # words = re.findall(r"^([^\t\%0-9]+)((?:\s+\d+)*)", data, flags=re.MULTILINE)
-#     # words = re.findall(r"^([a-zA-Z\*]+)((?:\s+\d+)*)", data, flags=re.MULTILINE)
-#     words = re.findall(r"^([^\s\%0-9][^\t]+)((?:\s+\d+)*)", data, flags=re.MULTILINE)
-#     words = {k: v.strip().split() for k, v in words}
-#     unknown_category_ids = ["800", "999"]
-#     words = {
-#         k: [categories[x] for x in v if x not in unknown_category_ids]
-#         for k, v in words.items()
-#     }
-#     # words = {k: re.findall(r"\d+", a) for k, v in categories}
-#     # dictionary = {catname: catkey for catkey, catname in categories.items()}
-#     df = pd.DataFrame(
-#         data=False, index=list(words), columns=list(categories.values()), dtype=bool
-#     )
-#     df = df.sort_index(axis=0).sort_index(axis=1)  # Speeding loop up?
-#     for k, v in words.items():
-#         df.loc[k, v] = True
-#     return df

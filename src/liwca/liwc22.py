@@ -5,9 +5,9 @@ https://www.liwc.app/help/cli
 https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py
 """
 
-# import argparse
 import subprocess
 import time
+from typing import Any, Optional
 
 import psutil
 
@@ -18,17 +18,25 @@ __all__ = [
 
 def _return_liwc_process(app_name: str = "LIWC-22") -> psutil.Process:
     """
-    Return a process object for a running application.
+    Find and return the process for the specified application name.
+
+    This function iterates over all running processes and returns the process
+    that matches the given application name and is currently running.
 
     Parameters
     ----------
-    app_name : str
-        The name of the application to return the process object for.
+    app_name : str, optional
+        The name of the application to search for (default is "LIWC-22").
 
     Returns
     -------
     psutil.Process
-        The process object for the running application.
+        The process object for the specified application.
+
+    Raises
+    ------
+    AssertionError
+        If the process is found but is not in a running state.
     """
     for proc in psutil.process_iter(["name"]):
         if proc.name().split(".")[0] == app_name:
@@ -38,12 +46,16 @@ def _return_liwc_process(app_name: str = "LIWC-22") -> psutil.Process:
 
 def _is_liwc_running(app_name: str = "LIWC-22") -> bool:
     """
-    Check if an application is running on the computer.
+    Check if a specific application is currently running.
+
+    This function iterates through all running processes and checks if any
+    process matches the given application name. It asserts that the process
+    status is running.
 
     Parameters
     ----------
-    app_name : str
-        The name of the application to check.
+    app_name : str, optional
+        The name of the application to check for (default is "LIWC-22").
 
     Returns
     -------
@@ -57,24 +69,21 @@ def _is_liwc_running(app_name: str = "LIWC-22") -> bool:
     return False
 
 
-def _open_liwc(app_name: str = "LIWC-22", wait: int = 30) -> subprocess.Popen:
+def _open_liwc(app_name: str = "LIWC-22", wait: int = 30) -> Optional[subprocess.Popen]:
     """
-    Open an application and wait until it is fully loaded.
-    C:/Program Files/LIWC-22/LIWC-22.exe
-
+    Opens the LIWC application if it is not already running.
     Parameters
     ----------
     app_name : str, optional
-        The name of the application to check. Defaults to LIWC-22.
-    timeout : int, optional
-        The maximum time to wait for the application to load, in seconds (default is 30).
-        If None, don't wait.
-
+        The name of the LIWC application to open. Default is "LIWC-22".
+    wait : int, optional
+        The maximum time to wait (in seconds) for the application to start. Default is 30 seconds.
     Returns
     -------
-    bool
-        True if the application is fully loaded within the timeout period, False otherwise.
+    Optional[subprocess.Popen]
+        A Popen object if the application was started successfully, None if the application is already running or could not be started.
     """
+
     if _return_liwc_process(app_name) is None:
         popen = subprocess.Popen(app_name)
         if wait is not None:
@@ -85,22 +94,22 @@ def _open_liwc(app_name: str = "LIWC-22", wait: int = 30) -> subprocess.Popen:
                     return popen
                 time.sleep(1)  # Wait for 1 second before checking again
         return popen
-    return
+    return None
 
 
 def _terminate_liwc(app_name: str = "LIWC-22") -> psutil.Process:
     """
-    Terminate a running application.
+    Terminates the LIWC application process if it is running.
 
     Parameters
     ----------
-    app_name : str
-        The name of the application to terminate.
+    app_name : str, optional
+        The name of the LIWC application to terminate. Default is "LIWC-22".
 
     Returns
     -------
-    bool
-        True if the application was terminated, False otherwise.
+    psutil.Process
+        The process object of the terminated LIWC application, or None if the process was not found.
     """
     if (proc := _return_liwc_process(app_name)) is not None:
         proc.terminate()
@@ -108,17 +117,28 @@ def _terminate_liwc(app_name: str = "LIWC-22") -> psutil.Process:
     return proc
 
 
-def cli(shell_kwargs: dict = {}, **kwargs) -> int:
+def cli(shell_kwargs: dict[str, Any] = {}, **kwargs: Any) -> int:
     """
-       Run LIWC-22-cli from Python.
-    -m,--mode <arg>   Selects type of analysis: word count (wc), word frequency (freq), mean extraction method (mem),
-                      contextualizer (context), arc of narrative (arc), convert separate transcript files to spreadsheet
-                      (ct), language style matching (lsm).
-                      Possible values: wc, freq, mem, context, arc, ct, lsm
+    Execute the LIWC-22 command line interface with the given arguments.
+
+    Parameters
+    ----------
+    shell_kwargs : dict[str, Any], optional
+        Additional keyword arguments to pass to the subprocess call.
+    **kwargs : Any
+        Command line arguments to pass to the LIWC-22 CLI.
+
+    Returns
+    -------
+    int
+        The return code from the subprocess call.
+
+    Raises
+    ------
+    AssertionError
+        If LIWC-22 is not running.
     """
     assert _is_liwc_running(), "LIWC-22 is not running."
-    # assert mode in ["wc", "freq", "mem", "context", "arc", "ct", "lsm"], f"Invalid mode: {mode}"
-    # command = ["liwc-22-cli", "--mode", mode]
     command = ["liwc-22-cli"]
     for key, value in kwargs.items():
         command.extend([f"--{key}", value])

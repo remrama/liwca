@@ -100,19 +100,29 @@ dx_schema = pa.DataFrameSchema(
 
 def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
-    Read a dictionary from a LIWC DIC file.
+    Reads a dictionary file and returns a pandas DataFrame.
+    The file is expected to have a specific format where the header and body are
+    separated by '%' characters. The header contains category IDs and names,
+    while the body contains entries and their associated category IDs.
 
     Parameters
     ----------
-    fp : Path
-        The filepath to read the dictionary from.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.read_csv`.
+    fp : Union[str, Path]
+        The file path to the dictionary file.
+    **kwargs : Any
+        Additional keyword arguments to pass to the `open` function.
 
     Returns
     -------
     pd.DataFrame
-        The dictionary read from the file.
+        A DataFrame with the dictionary terms as the index and categories as columns.
+        The values are binary (1 or 0) indicating the presence of a term in a category.
+
+    Notes
+    -----
+    - The file is read with UTF-8 encoding by default.
+    - The header and body are extracted using regular expressions.
+    - The DataFrame's index is of type string.
     """
     kwargs.setdefault("encoding", "utf-8")
     with open(fp, "rt", **kwargs) as f:
