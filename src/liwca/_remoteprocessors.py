@@ -118,3 +118,15 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
         words = f.read().splitlines()
     dx = pd.Series(1, name="threat", index=words).to_frame()
     return dx
+
+
+@dicx_processor
+def read_raw_mystical(fname: str) -> pd.DataFrame:
+    """
+    Read/parse the Mystical LIWC dictionary.
+
+    OSF repo: https://osf.io/6ph8z
+    """
+    df = pd.read_excel(fname, sheet_name="List1", header=None, usecols=[0, 1], names=["DicTerm", "Mystical"], skiprows=79, index_col="DicTerm")
+    df.index = df.index.str.lower()  # should handle in pandera parser once bug is fixed
+    return df

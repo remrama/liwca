@@ -30,6 +30,8 @@ _dicname_to_registry = {
     "sleep": "ladis2023-table1.tsv",  # Ladis 2023
     "bigtwo_a": "a_AgencyCommunion.dic",  # Pietraszkiewicz 2018
     "bigtwo_b": "b_AgencyCommunion.dic",  # Pietraszkiewicz 2018
+    "qualia": "qualia.dicx",
+    "mystical": "2022-8-24_Mystical_Dictionary_Final.xlsx",  # Žuljević 2023
     # "behav": "behavioral-activation-dictionary.dicx",
     # "bodytype": "body-type-dictionary.dicx",
     # "eprime": "english-prime-dictionary.dicx",
@@ -37,7 +39,6 @@ _dicname_to_registry = {
     # "imagination": "imagination-lexicon.dicx",
     # "mind": "mind-perception-dictionary.dicx",
     # "physio": "physiological-sensations-dictionary.dicx",
-    # "qualia": "qualia-dictionary.dicx",
     # "self": "self-determinationself-talk-dictionary.dicx",
     # "vestibular": "vestibular.dic",
     # "weiref": "weighted-referential-activity-dictionary.dicx",
@@ -76,7 +77,7 @@ dx_schema = pa.DataFrameSchema(
         #     pa.Parser(lambda i: i.str.lower()),
         #     pa.Parser(lambda i: i.str.strip()),
         # ],
-        checks=[pa.Check.str_length(min_value=1), pa.Check(lambda s: s.str.islower())],
+        checks=[pa.Check.str_length(min_value=1), pa.Check(lambda s: s.str.islower(), name="islower")],
     ),
     parsers=[
         pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0)),

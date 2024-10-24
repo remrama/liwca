@@ -3,3 +3,4 @@ threat.txt md5:e634f376208fafef4161fcf20ee3e571 https://www.michelegelfand.com/_
 ladis2023-table1.tsv md5:f8f4fd718a73618fa4b2720d0855e76d https://zenodo.org/records/13941010/files/table1.tsv
 a_AgencyCommunion.dic md5:d2240a5eb36568d9eefaa428130a0577 https://osf.io/download/62txv
 b_AgencyCommunion.dic md5:cf9eecd70a3c2b7c9930cabfa2f95684 https://osf.io/download/y59eb
+2022-8-24_Mystical_Dictionary_Final.xlsx md5:fe2d77b9bdff9c96508847b4819e7726 https://osf.io/download/qdcfs

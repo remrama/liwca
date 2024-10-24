@@ -14,6 +14,7 @@ maintainers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
+  "openpyxl>=3.0",
   "pandas>=2.0",
   "pandera>=0.20",
   "pooch>=1.8",
