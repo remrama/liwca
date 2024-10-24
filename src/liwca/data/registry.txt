@@ -1,6 +1,6 @@
-Honor-Dictionary-English_2017.dic md5:83c2648f39136a1625fbdc1120d465fc https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h
+bigtwo_a.dic md5:d2240a5eb36568d9eefaa428130a0577 https://osf.io/download/62txv
+bigtwo_b.dic md5:cf9eecd70a3c2b7c9930cabfa2f95684 https://osf.io/download/y59eb
+honor.dic md5:83c2648f39136a1625fbdc1120d465fc https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h
+mystical.xlsx md5:fe2d77b9bdff9c96508847b4819e7726 https://osf.io/download/qdcfs
+sleep.tsv md5:f8f4fd718a73618fa4b2720d0855e76d https://zenodo.org/records/13941010/files/table1.tsv
 threat.txt md5:e634f376208fafef4161fcf20ee3e571 https://www.michelegelfand.com/_files/ugd/6df109_fe3dfb71a3d24fbeb16a26e32b07738a.txt?dn=threat.txt
-ladis2023-table1.tsv md5:f8f4fd718a73618fa4b2720d0855e76d https://zenodo.org/records/13941010/files/table1.tsv
-a_AgencyCommunion.dic md5:d2240a5eb36568d9eefaa428130a0577 https://osf.io/download/62txv
-b_AgencyCommunion.dic md5:cf9eecd70a3c2b7c9930cabfa2f95684 https://osf.io/download/y59eb
-2022-8-24_Mystical_Dictionary_Final.xlsx md5:fe2d77b9bdff9c96508847b4819e7726 https://osf.io/download/qdcfs

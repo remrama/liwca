@@ -24,26 +24,21 @@ __all__ = [
 _pup = pooch.create(path=pooch.os_cache("liwca"), base_url="")
 _pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
 
-_dicname_to_registry = {
-    "honor": "Honor-Dictionary-English_2017.dic",  # Gelfand 2015
-    "threat": "threat.txt",  # Gelfand 2022
-    "sleep": "ladis2023-table1.tsv",  # Ladis 2023
-    "bigtwo_a": "a_AgencyCommunion.dic",  # Pietraszkiewicz 2018
-    "bigtwo_b": "b_AgencyCommunion.dic",  # Pietraszkiewicz 2018
-    "qualia": "qualia.dicx",
-    "mystical": "2022-8-24_Mystical_Dictionary_Final.xlsx",  # Žuljević 2023
-    # "behav": "behavioral-activation-dictionary.dicx",
-    # "bodytype": "body-type-dictionary.dicx",
-    # "eprime": "english-prime-dictionary.dicx",
-    # "foresight": "foresight-lexicon.dicx",
-    # "imagination": "imagination-lexicon.dicx",
-    # "mind": "mind-perception-dictionary.dicx",
-    # "physio": "physiological-sensations-dictionary.dicx",
-    # "self": "self-determinationself-talk-dictionary.dicx",
-    # "vestibular": "vestibular.dic",
-    # "weiref": "weighted-referential-activity-dictionary.dicx",
-    # "wellbeing": "well-being-dictionary.dicx",
-}
+# _dicname_to_registry = {
+#     "honor": "Honor-Dictionary-English_2017.dic",  # Gelfand 2015
+#     "qualia": "qualia.dicx",
+#     # "behav": "behavioral-activation-dictionary.dicx",
+#     # "bodytype": "body-type-dictionary.dicx",
+#     # "eprime": "english-prime-dictionary.dicx",
+#     # "foresight": "foresight-lexicon.dicx",
+#     # "imagination": "imagination-lexicon.dicx",
+#     # "mind": "mind-perception-dictionary.dicx",
+#     # "physio": "physiological-sensations-dictionary.dicx",
+#     # "self": "self-determinationself-talk-dictionary.dicx",
+#     # "vestibular": "vestibular.dic",
+#     # "weiref": "weighted-referential-activity-dictionary.dicx",
+#     # "wellbeing": "well-being-dictionary.dicx",
+# }
 
 
 #######################################################################################
@@ -59,7 +54,10 @@ dx_schema = pa.DataFrameSchema(
         r"\S+": pa.Column(
             dtype="int64",
             regex=True,
-            checks=[pa.Check.isin([0, 1]), pa.Check(lambda s: s.any())],
+            checks=[
+                pa.Check.isin([0, 1], name="Only binary values (0 or 1)"),
+                pa.Check(lambda s: s.any(), name="Term present in at least one category"),
+            ],
             required=True,
             nullable=False,
             description="The column name of the dictionary.",
@@ -77,18 +75,22 @@ dx_schema = pa.DataFrameSchema(
         #     pa.Parser(lambda i: i.str.lower()),
         #     pa.Parser(lambda i: i.str.strip()),
         # ],
-        checks=[pa.Check.str_length(min_value=1), pa.Check(lambda s: s.str.islower(), name="islower")],
+        checks=[
+            pa.Check.str_length(min_value=1, name="Term length > 0"),
+            pa.Check(lambda s: s.str.islower(), name="Term all lowercase"),
+        ],
     ),
     parsers=[
-        pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0)),
-        pa.Parser(lambda df: df.rename_axis("Category", axis=1)),
-        pa.Parser(lambda df: df.sort_index(axis=0).sort_index(axis=1)),
+        pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0), name="Name index 'DicTerm'"),
+        pa.Parser(lambda df: df.rename_axis("Category", axis=1), name="Name columns 'Category'"),
+        pa.Parser(lambda df: df.sort_index(axis=0), name="Sort index"),
+        pa.Parser(lambda df: df.sort_index(axis=1), name="Sort columns"),
     ],
     strict=True,
     coerce=True,
     unique_column_names=True,
     checks=[
-        pa.Check(lambda df: df.columns.name == "Category"),
+        pa.Check(lambda df: df.columns.name == "Category", name="Column index is named 'Category'"),
         # pa.Check(lambda df: df.columns.isunique),
     ],
 )
@@ -216,7 +218,7 @@ def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 #######################################################################################
 
 
-def _write_to_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
+def _write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
     """
     Write a dictionary to a DICX file.
 
@@ -238,7 +240,7 @@ def _write_to_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> Non
     return None
 
 
-def _write_to_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
+def _write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
     """
     Write a dictionary to a LIWC DIC file.
 
@@ -277,9 +279,9 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
         Additional keyword arguments to pass to `pd.DataFrame.to_csv`.
     """
     if (suffix := Path(fp).suffix) == ".dic":
-        return _write_to_dic(dx, fp)
+        return _write_dic(dx, fp)
     elif suffix == ".dicx":
-        return _write_to_dicx(dx, fp, **kwargs)
+        return _write_dicx(dx, fp, **kwargs)
     else:
         raise ValueError(f"Unsupported file extension: {suffix}")
 
@@ -343,10 +345,12 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     dict
         The dictionary local filepath.
     """
-    name_in_registry = _dicname_to_registry[dic_name]
-    # Get the processor function for the dictionary, if available
-    from . import _remoteprocessors
-    kwargs.setdefault("processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None))
-    fp = _pup.fetch(name_in_registry, **kwargs)
-    df = read_dx(fp)
-    return df
+    for fname in _pup.registry_files:
+        if Path(fname).stem == dic_name:
+            # Get the processor function for the dictionary, if available
+            from . import _remoteprocessors
+            kwargs.setdefault("processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None))
+            fp = _pup.fetch(fname, **kwargs)
+            df = read_dx(fp)
+            return df
+    raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
