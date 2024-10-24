@@ -3,10 +3,11 @@ IO module
 """
 
 import csv
+import os
 import re
 from importlib.resources import files
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -321,6 +322,48 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
 #######################################################################################
 
 
+def _get_processor(dic_name: str) -> Optional[Callable[[str], pd.DataFrame]]:
+    """
+    Get the processor function for a dictionary.
+
+    Parameters
+    ----------
+    dic_name : str
+        The name of the dictionary.
+
+    Returns
+    -------
+    Optional[Callable[[str], pd.DataFrame]]
+        The processor function for the dictionary, if available.
+    """
+    from . import _remoteprocessors
+    return getattr(_remoteprocessors, f"read_raw_{dic_name}", None)
+
+def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
+    """
+    Get the downloader for a dictionary.
+
+    Parameters
+    ----------
+    dic_name : str
+        The name of the dictionary.
+
+    Returns
+    -------
+    Optional[pooch.HTTPDownloader]
+        The downloader for the dictionary, if available.
+    """
+    _requires_github_auth = ["tbd"]
+    if dic_name in _requires_github_auth:
+        # Get user's GitHub personal access token
+        # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+        evar = "GITHUB_TOKEN"
+        if (token := os.getenv(evar)) is not None:
+            return pooch.HTTPDownloader(auth=("token", token))
+        raise ValueError(f"Must set `{evar}` environment variable fetch '{dic_name}' dictionary.")
+    return None
+
+
 @pa.check_output(schema=dx_schema)
 def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     """
@@ -347,9 +390,8 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     """
     for fname in _pup.registry_files:
         if Path(fname).stem == dic_name:
-            # Get the processor function for the dictionary, if available
-            from . import _remoteprocessors
-            kwargs.setdefault("processor", getattr(_remoteprocessors, f"read_raw_{dic_name}", None))
+            kwargs.setdefault("processor", _get_processor(dic_name=dic_name))
+            kwargs.setdefault("downloader", _get_downloader(dic_name=dic_name))
             fp = _pup.fetch(fname, **kwargs)
             df = read_dx(fp)
             return df
