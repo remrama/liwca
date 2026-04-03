@@ -30,11 +30,22 @@ html_theme = "bizstyle"
 # html_static_path = ["_static"]
 html_title = liwca.__name__
 html_show_sphinx = False
+html_show_copyright = False
+
+html_use_index = False
+html_permalinks = True
+
+html_copy_source = False
+html_show_sourcelink = False
+
+add_function_parentheses = False
 
 # -- Extension configuration -------------------------------------------------
 
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
+
+autosummary_generate = True
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True

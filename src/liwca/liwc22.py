@@ -736,7 +736,7 @@ def _make_auto_open_parser() -> argparse.ArgumentParser:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Construct the full argument parser from :data:`MODE_DEFS`."""
+    """Construct the full :class:`~argparse.ArgumentParser` from :data:`MODE_DEFS`."""
     auto_open = _make_auto_open_parser()
 
     parser = argparse.ArgumentParser(
@@ -779,7 +779,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_command(args: argparse.Namespace) -> list[str]:
-    """Translate parsed args into a LIWC-22-cli command list."""
+    """Translate parsed :class:`~argparse.Namespace` into a LIWC-22-cli command list."""
     cmd: list[str] = [LIWC_CLI, "-m", args.mode]
 
     defn = MODE_DEFS[args.mode]
@@ -823,32 +823,32 @@ def cli(
 
     Parameters
     ----------
-    mode : str
+    mode : :class:`str`
         Analysis mode — one of ``"wc"``, ``"freq"``, ``"mem"``,
         ``"context"``, ``"arc"``, ``"ct"``, ``"lsm"``.
-    auto_open : bool, optional
+    auto_open : :class:`bool`, optional
         If LIWC-22 is not running, launch it before analysis and close
         it afterwards (default ``False``).
-    use_gui : bool, optional
+    use_gui : :class:`bool`, optional
         When auto-opening, prefer the GUI app over the headless license
         server (default ``False``).
-    dry_run : bool, optional
+    dry_run : :class:`bool`, optional
         Print the CLI command without executing it (default ``False``).
-    **kwargs : Any
+    **kwargs : :class:`~typing.Any`
         Mode-specific arguments.  Use the Python ``dest`` names from the
         argument catalogue (underscored, e.g. ``input="data.txt"``,
         ``output="results.csv"``, ``output_format="xlsx"``).
 
     Returns
     -------
-    int
+    :class:`int`
         Return code from the LIWC-22 CLI process (0 = success).
 
     Raises
     ------
-    ValueError
+    :class:`ValueError`
         If *mode* is not a recognised analysis mode.
-    SystemExit
+    :class:`SystemExit`
         If LIWC-22 is not running and *auto_open* is ``False``.
 
     Examples
@@ -933,7 +933,13 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    """Console script entrypoint (``liwca`` command)."""
+    """Console script entrypoint for the ``liwca`` command.
+
+    Returns
+    -------
+    :class:`int`
+        Return code from the LIWC-22 CLI process (0 = success).
+    """
     parser = build_parser()
     args = parser.parse_args()
     return _run(args)

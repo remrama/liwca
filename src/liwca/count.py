@@ -2,8 +2,8 @@
 Pure-Python LIWC-style word counting using scikit-learn.
 
 Provides :func:`count`, which takes an iterable of text documents and a
-LIWC dictionary DataFrame (as produced by :func:`liwca.read_dx`) and returns
-a documents × categories DataFrame of either raw counts or proportions.
+LIWC dictionary :class:`~pandas.DataFrame` (as produced by :func:`liwca.read_dx`) and returns
+a documents × categories :class:`~pandas.DataFrame` of either raw counts or proportions.
 
 No LIWC application installation is required — this module operates entirely
 on the dictionary file and the texts you provide.
@@ -71,19 +71,19 @@ def _expand_wildcards(
 
     Parameters
     ----------
-    dx : pd.DataFrame
+    dx : :class:`~pandas.DataFrame`
         Dictionary DataFrame (index = DicTerm, may contain ``*`` suffixes).
-    corpus_vocab : set[str]
+    corpus_vocab : :class:`set` of :class:`str`
         Set of unique lowercased tokens observed in the corpus.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`~pandas.DataFrame`
         A new dictionary DataFrame with wildcards replaced by their matching
         corpus tokens.  Exact-match entries are preserved as-is (even if they
-        don't appear in the corpus — ``CountVectorizer`` will simply ignore
-        them).  If a corpus token matches both an exact entry and a wildcard,
-        category memberships are merged (logical OR).
+        don't appear in the corpus — :class:`~sklearn.feature_extraction.text.CountVectorizer`
+        will simply ignore them).  If a corpus token matches both an exact entry
+        and a wildcard, category memberships are merged (logical OR).
     """
     wildcard_mask = dx.index.str.endswith("*")
     exact = dx.loc[~wildcard_mask]
@@ -134,26 +134,26 @@ def count(
 
     Parameters
     ----------
-    texts : iterable of str or pd.Series
+    texts : :class:`~collections.abc.Iterable` of :class:`str` or :class:`~pandas.Series`
         The documents to analyse.  Each element is a single document string.
-    dx : pd.DataFrame
+    dx : :class:`~pandas.DataFrame`
         A LIWC dictionary DataFrame as returned by :func:`liwca.read_dx`.
         Index contains dictionary terms (may include ``*`` wildcards),
         columns are category names, values are binary (0/1).
-    tokenizer : callable, optional
+    tokenizer : :class:`~collections.abc.Callable`, optional
         A function ``str -> list[str]`` used to split each document into
         lowercase tokens.  Defaults to a regex tokenizer that preserves
         contractions (``don't`` → ``["don't"]``).
-    as_proportion : bool, optional
+    as_proportion : :class:`bool`, optional
         If ``True`` (default), return category values as proportions of total
         word count per document (matching LIWC's default output).  If
         ``False``, return raw category counts.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`~pandas.DataFrame`
         A *documents × categories* DataFrame.  Index matches the input order
-        (or the Series index if a Series was passed).  Columns are the
+        (or the :class:`~pandas.Series` index if a Series was passed).  Columns are the
         dictionary category names.  An additional ``"WC"`` column contains
         the total word count for each document.
 

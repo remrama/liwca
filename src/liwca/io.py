@@ -104,21 +104,21 @@ dx_schema = pa.DataFrameSchema(
 
 def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
-    Reads a dictionary file and returns a pandas DataFrame.
+    Reads a dictionary file and returns a pandas :py:class:`~pandas.DataFrame`.
     The file is expected to have a specific format where the header and body are
     separated by '%' characters. The header contains category IDs and names,
     while the body contains entries and their associated category IDs.
 
     Parameters
     ----------
-    fp : Union[str, Path]
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The file path to the dictionary file.
     **kwargs : Any
         Additional keyword arguments to pass to the `open` function.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         A DataFrame with the dictionary terms as the index and categories as columns.
         The values are binary (1 or 0) indicating the presence of a term in a category.
 
@@ -157,14 +157,14 @@ def _read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
     Parameters
     ----------
-    fp : Path
+    fp : Union[:class:`~str`, :class:`~pathlib.Path`]
         The filepath to read the dictionary from.
-    kwargs : dict
+    kwargs : Any
         Additional keyword arguments to pass to `pd.read_csv`.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         The dictionary read from the file.
     """
     kwargs.setdefault("index_col", "DicTerm")
@@ -186,14 +186,14 @@ def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
     Parameters
     ----------
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to read the dictionary from.
-    kwargs : dict
+    kwargs : Any
         Additional keyword arguments to pass to `pd.read_csv`.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         The dictionary read from the file.
     """
     if (suffix := Path(fp).suffix) == ".dic":
@@ -215,12 +215,12 @@ def _write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
     Parameters
     ----------
-    dic : pd.DataFrame
+    dx : :class:`pandas.DataFrame`
         The dictionary to write.
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to write the dictionary to.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.DataFrame.to_csv`.
+    kwargs : any
+        Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
     """
     kwargs.setdefault("sep", ",")
     kwargs.setdefault("index", True)
@@ -237,9 +237,9 @@ def _write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
 
     Parameters
     ----------
-    dic : pd.DataFrame
+    dx : :class:`pandas.DataFrame`
         The dictionary to write.
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to write the dictionary to.
     """
     with open(fp, "wt", encoding="utf-8", newline="") as f:
@@ -260,12 +260,12 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
     Parameters
     ----------
-    dx : pd.DataFrame
+    dx : :class:`pandas.DataFrame`
         The dictionary to write.
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to write the dictionary to.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.DataFrame.to_csv`.
+    kwargs : Any
+        Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
     """
     if (suffix := Path(fp).suffix) == ".dic":
         return _write_dic(dx, fp)
@@ -287,15 +287,15 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
 
     Parameters
     ----------
-    dxs : list of pd.DataFrame
+    dxs : list of :class:`pandas.DataFrame`
         The list of dictionaries to merge.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.concat`.
+    kwargs : Any
+        Additional keyword arguments to pass to :func:`pandas.concat`.
 
     Returns
     -------
 
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         The merged dictionary.
     """
     kwargs.setdefault("axis", 1)
@@ -314,12 +314,12 @@ def _get_processor(dic_name: str) -> Optional[Callable[[str], pd.DataFrame]]:
 
     Parameters
     ----------
-    dic_name : str
+    dic_name : :py:class:`str`
         The name of the dictionary.
 
     Returns
     -------
-    Optional[Callable[[str], pd.DataFrame]]
+    Optional[Callable[[:class:`str`], :class:`pandas.DataFrame`]]
         The processor function for the dictionary, if available.
     """
     from . import _remoteprocessors
@@ -333,12 +333,12 @@ def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
 
     Parameters
     ----------
-    dic_name : str
+    dic_name : :py:class:`str`
         The name of the dictionary.
 
     Returns
     -------
-    Optional[pooch.HTTPDownloader]
+    Optional[:class:`pooch.HTTPDownloader`]
         The downloader for the dictionary, if available.
     """
     _requires_github_auth = ["tbd"]
@@ -359,20 +359,20 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     Then it will read the file, applying any custom corrections, into a :class:`~pandas.DataFrame`.
 
     If raw file is not a readable `.dic` or `.dicx` file, it will be unpacked, processed, and
-    rewritten as `.dicx`.
+    rewritten as `.dicx` for faster loading in the future.
 
     Fetch/retrieve a dictionary from the registry.
     Download the dictionary file if it is not already downloaded.
 
     Parameters
     ----------
-    dic_name : str
+    dic_name : :class:`str`
         The name of the dictionary to fetch.
 
     Returns
     -------
-    dict
-        The dictionary local filepath.
+    :class:`pandas.DataFrame`
+        The dictionary as a pandas :class:`~pandas.DataFrame`.
     """
     for fname in _pup.registry_files:
         if Path(fname).stem == dic_name:
