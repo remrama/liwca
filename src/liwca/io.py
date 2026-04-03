@@ -11,7 +11,7 @@ from typing import Any, Callable, Optional, Union
 
 import numpy as np
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 import pooch
 
 __all__ = [
