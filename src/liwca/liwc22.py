@@ -145,8 +145,7 @@ _register_args(
         ["-curls", "--count-urls"],
         "count_urls",
         choices=["yes", "no"],
-        help="Count URLs as a single word (default: yes). "
-        "Only meaningful if url-regexp is set.",
+        help="Count URLs as a single word (default: yes). Only meaningful if url-regexp is set.",
     ),
     _a(
         ["-dec", "--precision"],
@@ -169,12 +168,9 @@ _register_args(
         ["-prep", "--preprocess-cjk-text"],
         "preprocess_cjk",
         choices=["chinese", "japanese", "none"],
-        help="Preprocess CJK text with Jieba (Chinese) or "
-        "Kuromoji (Japanese) tokeniser.",
+        help="Preprocess CJK text with Jieba (Chinese) or Kuromoji (Japanese) tokeniser.",
     ),
-    _a(
-        ["-quote", "--csv-quote"], "csv_quote", help='CSV quote character (default: ").'
-    ),
+    _a(["-quote", "--csv-quote"], "csv_quote", help='CSV quote character (default: ").'),
     _a(
         ["-sh", "--skip-header"],
         "skip_header",
@@ -238,8 +234,7 @@ _register_args(
     _a(
         ["-s", "--segmentation"],
         "segmentation",
-        help="Split text into segments. Syntax varies by mode — "
-        "see mode help for details.",
+        help="Split text into segments. Syntax varies by mode — see mode help for details.",
     ),
     _a(
         ["-skip", "--skip-wc"],
@@ -374,8 +369,7 @@ _register_args(
         ["-memot", "--mem-output-type"],
         "mem_output_type",
         choices=["binary", "relative-freq", "raw-counts"],
-        help="Document-term matrix format: binary (default), "
-        "relative-freq, or raw-counts.",
+        help="Document-term matrix format: binary (default), relative-freq, or raw-counts.",
     ),
     _a(
         ["-ttype", "--threshold-type"],
@@ -458,8 +452,7 @@ _register_args(
         ["-clsm", "--calculate-lsm"],
         "calculate_lsm",
         choices=["1", "2", "3"],
-        help="LSM calculation type: 1 = person-level, 2 = group-level, "
-        "3 = both (default: 3).",
+        help="LSM calculation type: 1 = person-level, 2 = group-level, 3 = both (default: 3).",
     ),
     _a(
         ["-gc", "--group-column"],
@@ -709,9 +702,7 @@ MODE_DEFS: dict[str, dict] = {
 # ---------------------------------------------------------------------------
 
 
-def _add_arg(
-    parser: argparse.ArgumentParser, dest: str, *, required: bool = False
-) -> None:
+def _add_arg(parser: argparse.ArgumentParser, dest: str, *, required: bool = False) -> None:
     """Add a single argument from the catalogue to *parser*."""
     entry = ARG_CATALOGUE[dest]
     kw = dict(entry["kw"])  # copy so we don't mutate the catalogue
@@ -727,8 +718,7 @@ def _make_auto_open_parser() -> argparse.ArgumentParser:
         "--auto-open",
         action="store_true",
         default=False,
-        help="If LIWC-22 is not running, launch it before analysis "
-        "and close it afterwards.",
+        help="If LIWC-22 is not running, launch it before analysis and close it afterwards.",
     )
     p.add_argument(
         "--use-gui",
@@ -869,9 +859,7 @@ def cli(
     0
     """
     if mode not in MODE_DEFS:
-        raise ValueError(
-            f"Unknown mode {mode!r}. Choose from: {', '.join(MODE_DEFS)}"
-        )
+        raise ValueError(f"Unknown mode {mode!r}. Choose from: {', '.join(MODE_DEFS)}")
 
     # Build a namespace that looks like argparse output.
     ns = argparse.Namespace(

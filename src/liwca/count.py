@@ -11,9 +11,9 @@ on the dictionary file and the texts you provide.
 Wildcard Handling
 -----------------
 LIWC dictionaries use trailing wildcards (e.g., ``abandon*``) to match any
-token that starts with a given prefix.  Because :class:`~sklearn.feature_extraction.text.CountVectorizer`
-requires a flat vocabulary, wildcards are **expanded against the actual corpus
-vocabulary** before vectorisation:
+token that starts with a given prefix.
+Because :class:`~sklearn.feature_extraction.text.CountVectorizer` requires a flat vocabulary,
+wildcards are **expanded against the actual corpus vocabulary** before vectorisation:
 
 1. Tokenise all documents to collect unique corpus tokens.
 2. For each wildcard entry, find every corpus token that starts with the prefix.
@@ -107,9 +107,7 @@ def _expand_wildcards(
     if not expanded_rows:
         return exact
 
-    expanded_df = pd.DataFrame.from_dict(
-        expanded_rows, orient="index", columns=exact.columns
-    )
+    expanded_df = pd.DataFrame.from_dict(expanded_rows, orient="index", columns=exact.columns)
     expanded_df.index.name = "DicTerm"
 
     # Merge with exact entries (exact takes precedence via OR).
@@ -190,29 +188,40 @@ def count(
     vocab_map = {tok: i for i, tok in enumerate(vocab_tokens)}
 
     # -- Step 3: build document-term matrix via CountVectorizer --------------
-    vectorizer = CountVectorizer(
-        analyzer=tokenizer,  # type: ignore[arg-type]
-        vocabulary=vocab_map,
-        lowercase=False,  # tokenizer already lowercases
-    )
-    dtm: sparse.csr_matrix = vectorizer.fit_transform(docs)  # (n_docs, n_vocab)
+    n_docs = len(docs)
+    n_cats = dx_expanded.shape[1]
 
-    # -- Step 4: map token counts to category counts -------------------------
-    # category_matrix: (n_vocab, n_categories), binary
-    category_matrix = dx_expanded.loc[vocab_tokens].values  # aligned to vocab order
+    if not vocab_map:
+        # No dictionary terms matched any corpus tokens — all counts are zero.
+        cat_counts = np.zeros((n_docs, n_cats), dtype=int)
+    else:
+        vectorizer = CountVectorizer(
+            analyzer=tokenizer,  # type: ignore[arg-type]
+            vocabulary=vocab_map,
+            lowercase=False,  # tokenizer already lowercases
+        )
+        dtm: sparse.csr_matrix = vectorizer.fit_transform(docs)  # (n_docs, n_vocab)
 
-    # (n_docs, n_vocab) @ (n_vocab, n_categories) = (n_docs, n_categories)
-    cat_counts = dtm @ category_matrix  # result is a dense ndarray
+        # -- Step 4: map token counts to category counts ---------------------
+        # category_matrix: (n_vocab, n_categories), binary
+        category_matrix = dx_expanded.loc[vocab_tokens].values  # aligned to vocab order
+
+        # (n_docs, n_vocab) @ (n_vocab, n_categories) = (n_docs, n_categories)
+        cat_counts = dtm @ category_matrix  # result is a dense ndarray
 
     # -- Step 5: compute word counts (total tokens per doc, not just matched)
     # We need a separate pass because the vocab-restricted DTM only counts
-    # dictionary tokens.
-    wc_vectorizer = CountVectorizer(
-        analyzer=tokenizer,  # type: ignore[arg-type]
-        lowercase=False,
-    )
-    wc_dtm = wc_vectorizer.fit_transform(docs)
-    word_counts = np.asarray(wc_dtm.sum(axis=1)).ravel()
+    # dictionary tokens.  If the corpus has zero unique tokens (all docs
+    # empty), CountVectorizer would raise — short-circuit to zeros.
+    if not corpus_vocab:
+        word_counts = np.zeros(len(docs), dtype=int)
+    else:
+        wc_vectorizer = CountVectorizer(
+            analyzer=tokenizer,  # type: ignore[arg-type]
+            lowercase=False,
+        )
+        wc_dtm = wc_vectorizer.fit_transform(docs)
+        word_counts = np.asarray(wc_dtm.sum(axis=1)).ravel()
 
     # -- Step 6: assemble output DataFrame -----------------------------------
     result = pd.DataFrame(

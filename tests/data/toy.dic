@@ -1,0 +1,21 @@
+%
+1	Basketball
+2	Baseball
+3	Football
+%
+hoop	1
+dunk*	1
+rebound*	1
+layup	1
+basket*	1
+pitch*	2
+homer*	2
+dugout	2
+inning*	2
+batter	2
+touchdown*	3
+quarterback	3
+tackle*	3
+huddle	3
+fumbl*	3
+coach	1	2	3

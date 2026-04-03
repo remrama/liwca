@@ -56,7 +56,7 @@ dx_schema = pa.DataFrameSchema(
             dtype="int64",
             regex=True,
             checks=[
-                pa.Check.isin([0, 1], name="Only binary values (0 or 1)"),
+                pa.Check(lambda s: s.isin([0, 1]).all(), name="Only binary values (0 or 1)"),
                 pa.Check(lambda s: s.any(), name="Term present in at least one category"),
             ],
             required=True,
@@ -133,30 +133,20 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         data = f.read()
 
     # Use regex to get everything between the first and last '%' character (both start on new lines)
-    m = re.match(
-        r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE
-    )
+    m = re.match(r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE)
     if m is not None:
         header = m.group("header").strip()
         body = m.group("body").strip()
     cat_ids, cat_names = zip(*[row.split() for row in header.split("\n")])
     columns = pd.Index(cat_names, name="Category")
-    #.astype("string") Can't use bc of bug when pandera checks for unique column names
-    # id2cat =p {int(row.split()[1]): row.split()[0] for row in header.split("\n")}
-    # cat2id = {v: k for k, v in col2id.items()}
-    # columns = pd.Index(cat2id, name="Category").astype("string")
     data = {}
     for row in body.split("\n"):
-        entry, *ids = row.split("\t", 1)
+        entry, *ids = row.split("\t")
         row_data = [1 if x in ids else 0 for x in cat_ids]
-        # ids = np.asarray(ids, dtype=int)
-        # ids = [int(x) for x in ids]
-        # row_data = np.isin(list(id2term), ids).astype(int)
-        # row_data = [1 if x in ids else 0 for x in id2cat]
         data[entry] = row_data
-    df = pd.DataFrame.from_dict(
-        data, columns=columns, dtype="int", orient="index"
-    ).rename_axis("DictTerm")
+    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int", orient="index").rename_axis(
+        "DictTerm"
+    )
     df.index = df.index.astype("string")
     return df
 
@@ -255,12 +245,10 @@ def _write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
     with open(fp, "wt", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow("%")
-        writer.writerows([col, i] for i, col in enumerate(dx.columns, 1))
+        writer.writerows([i, col] for i, col in enumerate(dx.columns, 1))
         writer.writerow("%")
         writer.writerows(
-            dx.apply(
-                lambda row: [row.name] + (np.flatnonzero(row) + 1).tolist(), axis=1
-            ).tolist()
+            dx.apply(lambda row: [row.name] + (np.flatnonzero(row) + 1).tolist(), axis=1).tolist()
         )
     return None
 
@@ -312,8 +300,6 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
     """
     kwargs.setdefault("axis", 1)
     kwargs.setdefault("join", "outer")
-    # kwargs.setdefault("sort", True)  # Should not need to sort, but pandera bug requires it
-    # return pd.concat(dxs, **kwargs).sort_index(axis=1).fillna(0)
     return pd.concat(dxs, **kwargs).fillna(0)
 
 
@@ -337,7 +323,9 @@ def _get_processor(dic_name: str) -> Optional[Callable[[str], pd.DataFrame]]:
         The processor function for the dictionary, if available.
     """
     from . import _remoteprocessors
+
     return getattr(_remoteprocessors, f"read_raw_{dic_name}", None)
+
 
 def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     """
@@ -355,8 +343,6 @@ def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     """
     _requires_github_auth = ["tbd"]
     if dic_name in _requires_github_auth:
-        # Get user's GitHub personal access token
-        # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
         evar = "GITHUB_TOKEN"
         if (token := os.getenv(evar)) is not None:
             return pooch.HTTPDownloader(auth=("token", token))

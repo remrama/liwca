@@ -1,0 +1,17 @@
+DicTerm,Basketball,Baseball,Football
+hoop,X,,
+dunk*,X,,
+rebound*,X,,
+layup,X,,
+basket*,X,,
+pitch*,,X,
+homer*,,X,
+dugout,,X,
+inning*,,X,
+batter,,X,
+touchdown*,,,X
+quarterback,,,X
+tackle*,,,X
+huddle,,,X
+fumbl*,,,X
+coach,X,X,X

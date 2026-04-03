@@ -16,7 +16,7 @@ requires-python = ">=3.10"
 dependencies = [
   "openpyxl>=3.0",
   "pandas>=2.0",
-  "pandera>=0.20",
+  "pandera>=0.27",
   "pooch>=1.8",
   "scikit-learn>=1.3",
 ]
@@ -46,6 +46,9 @@ liwca = "liwca.liwc22:main"
 [project.optional-dependencies]
 dev = [
   "mypy>=1.12",
+  "pre-commit>=3.0",
+  "pytest>=8.0",
+  "pytest-cov>=6.0",
   "ruff>=0.6",
   "pydata-sphinx-theme",  # needs to be in requirements.txt also (for docs.yml)
   "sphinx",
@@ -71,10 +74,16 @@ files = ["src/"]
 ignore_missing_imports = true
 strict = true
 
+[tool.pytest.ini_options]
+addopts = "--cov=liwca --cov-report=term-missing"
+testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 100
-select = ["E", "F", "I", "W", "C90", "NPY201"]  # ["E4", "E7", "E9"]
 target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "C90", "NPY201"]  # ["E4", "E7", "E9"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]  # Ignore star and unused import violations for __init__.py file
