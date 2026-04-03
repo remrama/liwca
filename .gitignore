@@ -1,7 +1,11 @@
 __pycache__/
 .DS_Store
 
+*.code-workspace
 .conda/
+.mypy_cache/
 .ruff_cache/
 
 *.egg-info/
+build/
+dist/
