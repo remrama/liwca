@@ -18,7 +18,6 @@ dependencies = [
   "pandas>=2.0",
   "pandera>=0.20",
   "pooch>=1.8",
-  "psutil>=6.0",
 ]
 readme = "README.rst"
 keywords = ["LIWC", "text", "language", "datasets"]
@@ -39,6 +38,9 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/remrama/liwca"
+
+[project.scripts]
+liwca = "liwca.liwc22:main"
 
 [project.optional-dependencies]
 dev = [
