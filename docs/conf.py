@@ -27,7 +27,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = "bizstyle"
-html_static_path = ["_static"]
+# html_static_path = ["_static"]
 html_title = liwca.__name__
 html_show_sphinx = False
 
