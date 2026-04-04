@@ -294,9 +294,17 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
 
     Returns
     -------
-
     :class:`pandas.DataFrame`
         The merged dictionary.
+
+    Examples
+    --------
+    >>> import liwca
+    >>> dx_honor = liwca.fetch_dx("honor")
+    >>> dx_threat = liwca.fetch_dx("threat")
+    >>> merged = liwca.merge_dx([dx_honor, dx_threat])
+    >>> sorted(merged.columns.tolist())
+    ['honor', 'threat']
     """
     kwargs.setdefault("axis", 1)
     kwargs.setdefault("join", "outer")
@@ -373,6 +381,19 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     -------
     :class:`pandas.DataFrame`
         The dictionary as a pandas :class:`~pandas.DataFrame`.
+
+    Examples
+    --------
+    >>> import liwca
+    >>> dx = liwca.fetch_dx("threat")
+    >>> dx.head()
+    Category     threat
+    DicTerm
+    accidents         1
+    accusations       1
+    advised           1
+    afraid            1
+    aftermath         1
     """
     for fname in _pup.registry_files:
         if Path(fname).stem == dic_name:

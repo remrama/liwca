@@ -160,8 +160,18 @@ def count(
     Examples
     --------
     >>> import liwca
-    >>> dx = liwca.read_dx("my_dictionary.dicx")
-    >>> df = liwca.count(["I feel happy today", "This is sad"], dx)
+
+    >>> dx = liwca.fetch_dx("threat")
+    >>> texts = ["This is a grave threat to our safety.", "All is calm today."]
+    >>> liwca.count(texts, dx)
+    Category  WC  threat
+    0          8    12.5
+    1          4     0.0
+
+    >>> liwca.count(texts, dx, as_proportion=False)
+    Category  WC  threat
+    0          8       1
+    1          4       0
     """
     if tokenizer is None:
         tokenizer = _default_tokenize

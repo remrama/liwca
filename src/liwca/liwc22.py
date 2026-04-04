@@ -853,9 +853,9 @@ def cli(
 
     Examples
     --------
-    >>> cli("wc", input="data.txt", output="results.csv")
+    >>> cli("wc", input="data.txt", output="results.csv")  # doctest: +SKIP
     0
-    >>> cli("wc", input="data.txt", output="results.csv", dry_run=True)
+    >>> cli("wc", input="data.txt", output="results.csv", dry_run=True)  # doctest: +SKIP
     0
     """
     if mode not in MODE_DEFS:
