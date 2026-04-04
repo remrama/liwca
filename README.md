@@ -6,7 +6,7 @@
 
 # LIWCA
 
-LIWCA is a [LIWC](https://liwc.app) assistant. It is not a copy of LIWC (they don't like that), it is just helper functions that I've found useful.
+LIWCA is a Linguistic Inquiry Word Count Assistant. It is not a copy of [LIWC](https://liwc.app) (they don't like that), it is just helper functions that I've found useful.
 
 Stuff like:
 

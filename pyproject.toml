@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "liwca"
 dynamic = ["version"]
-description = "LIWC Assistant"
+description = "Linguistic Inquiry Word Count Assistant"
 authors = [
   {name = "Remington Mallett", email = "mallett.remy@gmail.com"},
 ]

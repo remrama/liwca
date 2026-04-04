@@ -1,9 +1,9 @@
 liwca
 =====
 
-**liwca** is a `LIWC <https://liwc.app>`_ assistant with helper functions for
-working with LIWC dictionaries, running word counts, and calling the LIWC-22
-CLI from Python.
+**liwca** is a Linguistic Inquiry Word Count Assistant with helper functions for
+working with `LIWC <https://liwc.app>`_ dictionaries, running word counts, and
+calling the LIWC-22 CLI from Python.
 
 .. toctree::
    :maxdepth: 2
