@@ -1,13 +1,7 @@
 __pycache__/
 .DS_Store
-
-*.code-workspace
-.conda/
 *_cache/
-*.local.*
-
 *.egg-info/
+_build/
 build/
 dist/
-
-docs/_build/
