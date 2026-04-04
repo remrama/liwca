@@ -308,11 +308,15 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
     Examples
     --------
     >>> import liwca
-    >>> dx_honor = liwca.fetch_dx("honor")
+    >>> dx_sleep = liwca.fetch_dx("sleep")
     >>> dx_threat = liwca.fetch_dx("threat")
-    >>> merged = liwca.merge_dx([dx_honor, dx_threat])
-    >>> sorted(merged.columns.tolist())
-    ['honor', 'threat']
+    >>> merged = liwca.merge_dx([dx_sleep, dx_threat])
+    >>> merged.tail(3)
+    Category   sleep  threat
+    DicTerm
+    worse          0       1
+    worst          0       1
+    you awake      1       0
     """
     kwargs.setdefault("axis", 1)
     kwargs.setdefault("join", "outer")
