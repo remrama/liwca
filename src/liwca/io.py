@@ -8,7 +8,7 @@ import os
 import re
 from importlib.resources import files
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ import pooch
 
 __all__ = [
     "fetch_dx",
+    "fetch_path",
     "merge_dx",
     "read_dx",
     "write_dx",
@@ -143,7 +144,7 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         )
     header = m.group("header").strip()
     body = m.group("body").strip()
-    cat_ids, cat_names = zip(*[row.split() for row in header.split("\n")])
+    cat_ids, cat_names = zip(*[row.split("\t") for row in header.split("\n")])
     columns = pd.Index(cat_names, name="Category")
     data = {}
     for row in body.split("\n"):
@@ -318,27 +319,8 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
 
 
 #######################################################################################
-# Pooch remote fetching and processing
+# Pooch remote fetching
 #######################################################################################
-
-
-def _get_processor(dic_name: str) -> Optional[Callable[[str], pd.DataFrame]]:
-    """
-    Get the processor function for a dictionary.
-
-    Parameters
-    ----------
-    dic_name : :py:class:`str`
-        The name of the dictionary.
-
-    Returns
-    -------
-    Optional[Callable[[:class:`str`], :class:`pandas.DataFrame`]]
-        The processor function for the dictionary, if available.
-    """
-    from . import _remoteprocessors
-
-    return _remoteprocessors.PROCESSORS.get(dic_name)
 
 
 def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
@@ -364,18 +346,51 @@ def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     return None
 
 
-def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
+def fetch_path(dic_name: str) -> str:
+    """
+    Fetch a remote dictionary file and return the local cached filepath.
+
+    Downloads the file if it is not already cached locally.
+    No processing or reading is performed on the file.
+
+    Parameters
+    ----------
+    dic_name : :class:`str`
+        The name of the dictionary to fetch (e.g., ``"threat"``).
+
+    Returns
+    -------
+    :class:`str`
+        The absolute path to the cached file.
+
+    Raises
+    ------
+    ValueError
+        If ``dic_name`` is not found in the registry.
+
+    Examples
+    --------
+    >>> import liwca
+    >>> fp = liwca.fetch_path("threat")  # doctest: +SKIP
+    """
+    for fname in _pup.registry_files:
+        if Path(fname).stem == dic_name:
+            downloader = _get_downloader(dic_name)
+            try:
+                fp = _pup.fetch(fname, **({"downloader": downloader} if downloader else {}))
+            except Exception as e:
+                raise type(e)(f"Failed to download dictionary '{dic_name}': {e}") from e
+            logger.debug("Fetched '%s' to %s", dic_name, fp)
+            return fp
+    raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
+
+
+def fetch_dx(dic_name: str) -> pd.DataFrame:
     """
     Fetch a remote dictionary and load as a :class:`~pandas.DataFrame`.
 
-    This will first use :mod:`pooch` to download raw file to local cache if not already downloaded.
-    Then it will read the file, applying any custom corrections, into a :class:`~pandas.DataFrame`.
-
-    If raw file is not a readable `.dic` or `.dicx` file, it will be unpacked, processed, and
-    rewritten as `.dicx` for faster loading in the future.
-
-    Fetch/retrieve a dictionary from the registry.
-    Download the dictionary file if it is not already downloaded.
+    Downloads the raw file to local cache (if not already cached), reads it
+    into a :class:`~pandas.DataFrame`, and validates it against the dictionary schema.
 
     Parameters
     ----------
@@ -400,17 +415,18 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     afraid            1
     aftermath         1
     """
-    for fname in _pup.registry_files:
-        if Path(fname).stem == dic_name:
-            kwargs.setdefault("processor", _get_processor(dic_name=dic_name))
-            kwargs.setdefault("downloader", _get_downloader(dic_name=dic_name))
-            try:
-                logger.debug("Fetching '%s' from registry...", dic_name)
-                fp = _pup.fetch(fname, **kwargs)
-                logger.debug("Downloaded '%s' to %s", dic_name, fp)
-                df = read_dx(fp)
-                logger.debug("Successfully read '%s'", dic_name)
-            except Exception as e:
-                raise type(e)(f"Error fetching dictionary '{dic_name}': {e}") from e
-            return df
-    raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
+    fp = fetch_path(dic_name)
+
+    from . import _remoteprocessors
+
+    reader = _remoteprocessors.READERS.get(dic_name)
+    try:
+        df = reader(fp) if reader is not None else read_dx(fp)
+    except Exception as e:
+        raise type(e)(f"Error reading dictionary '{dic_name}': {e}") from e
+
+    if reader is not None:
+        df = dx_schema.validate(df)
+
+    logger.debug("Successfully fetched '%s' (%d terms)", dic_name, len(df))
+    return df

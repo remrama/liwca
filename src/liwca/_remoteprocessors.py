@@ -1,88 +1,40 @@
 """
-Load various dictionary files
+Reader functions for non-standard remote dictionary formats.
+
+Each function takes a filepath and returns a DataFrame with dictionary terms
+as the index and categories as columns with binary (0/1) values.
 """
 
-from pathlib import Path
-from typing import Any, Callable
-
 import pandas as pd
-import pooch
-
-from .io import write_dx
 
 __all__ = [
-    "PROCESSORS",
+    "READERS",
+    "read_raw_mystical",
     "read_raw_sleep",
     "read_raw_threat",
 ]
 
 
-def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooch], str]:
+def read_raw_sleep(fname: str) -> pd.DataFrame:
     """
-    Decorator to convert a non-DICX file to DICX.
+    Read/parse the Sleep LIWC dictionary.
+
+    Dictionary details
+    ^^^^^^^^^^^^^^^^^^
+    * OSF repository: https://osf.io/9f3v2
+    * Full table: https://osf.io/8hfcs
+    * Paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817
+    * Paper: https://onlinelibrary.wiley.com/doi/10.1111/sltb.12920
 
     Parameters
     ----------
-    func : Callable[[str], str]
-        A function that takes a file path as input and returns a DataFrame.
+    fname : str
+        Path to the raw TSV file.
 
     Returns
     -------
-    Callable[[str, str, pooch.Pooch], str]
-        A wrapped function that processes the file and converts it to DICX format.
-
-    Notes
-    -----
-    The wrapped function will check if the file is already in DICX format and will raise an
-    assertion error if it is. If the file needs to be processed (based on the action or if the
-    output file does not exist), the function will apply the provided processing function to
-    convert the raw file to a DataFrame and write it to a DICX file.
-    """
-
-    def wrapper(fname: str, action: str, pup: pooch.Pooch, *args: Any, **kwargs: Any) -> str:
-        """
-        Parameters
-        ----------
-        fname : str
-            Full path of the zipped file in local storage
-        action : str
-            One of "download" (file doesn't exist and will download),
-            "update" (file is outdated and will download), and
-            "fetch" (file exists and is updated so no download).
-        pup : Pooch
-            The instance of Pooch that called the processor function.
-
-        Returns
-        -------
-        fname : str
-            The full path to the modified file.
-        """
-        fp = Path(fname)
-        if fp.suffix == ".dicx":
-            raise ValueError(f"File '{fp}' is already a DICX file. New file will overlap.")
-        out_fp = fp.with_suffix(".dicx")
-        if action in ("update", "download") or not out_fp.exists():
-            # Apply custom processing to convert the raw file to a DataFrame and write to DICX
-            df = func(fname, *args, **kwargs)
-            write_dx(df, out_fp)
-        out_fname = str(out_fp)
-        return out_fname
-
-    return wrapper
-
-
-@dicx_processor
-def read_raw_sleep(fname: str) -> pd.DataFrame:
-    """
-    OSF repository: https://osf.io/9f3v2
-    Full table: https://osf.io/8hfcs
-    Paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817
-    https://eutils.ncbi.nlm.nih.gov/
-    Paper: https://onlinelibrary.wiley.com/doi/10.1111/sltb.12920
-    Scrapable: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817/bin/SLTB-53-39-s001.docx
-    Scrapable PDF: https://www.suicideinfo.ca/wp-content/uploads/2023/02/Inferring-sleep-disturbance-from-text-messages-of-suicide-attempt-survivors-A.pdf
-    Short table: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817/table/sltb12920-tbl-0001/?report=objectonly
-    Short table: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817/table/sltb12920-tbl-0001
+    :class:`pandas.DataFrame`
+        Dictionary DataFrame with a single ``"sleep"`` category.
     """
     words = pd.read_table(fname, skiprows=1, header=None).stack().str.lower().tolist()
     # Some duplicates, and based on SI table I think they were autocorrected during publication.
@@ -94,7 +46,6 @@ def read_raw_sleep(fname: str) -> pd.DataFrame:
     return dx
 
 
-@dicx_processor
 def read_raw_threat(fname: str) -> pd.DataFrame:
     """
     Read/parse the Threat LIWC dictionary.
@@ -108,13 +59,13 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    **kwargs : dict, optional
-        Additional keyword arguments are passed to :func:`pooch.retrieve`.
+    fname : str
+        Path to the raw text file (one word per line).
 
     Returns
     -------
-    dictionary : dict
-        A dictionary with abbreviated category names as keys and category words as values.
+    :class:`pandas.DataFrame`
+        Dictionary DataFrame with a single ``"threat"`` category.
     """
     with open(fname, "r", encoding="utf-8") as f:
         words = f.read().splitlines()
@@ -122,12 +73,23 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
     return dx
 
 
-@dicx_processor
 def read_raw_mystical(fname: str) -> pd.DataFrame:
     """
     Read/parse the Mystical LIWC dictionary.
 
-    OSF repo: https://osf.io/6ph8z
+    Dictionary details
+    ^^^^^^^^^^^^^^^^^^
+    * OSF repo: https://osf.io/6ph8z
+
+    Parameters
+    ----------
+    fname : str
+        Path to the raw Excel file.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Dictionary DataFrame with a single ``"Mystical"`` category.
     """
     df = pd.read_excel(
         fname,
@@ -142,7 +104,7 @@ def read_raw_mystical(fname: str) -> pd.DataFrame:
     return df
 
 
-PROCESSORS = {
+READERS = {
     "sleep": read_raw_sleep,
     "threat": read_raw_threat,
     "mystical": read_raw_mystical,
