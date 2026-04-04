@@ -1,6 +1,6 @@
 DicTerm,Basketball,Baseball,Football
-HOOP,X,,
-DUNK*,X,,
+,X,,
+dunk*,X,,
 rebound*,X,,
 layup,X,,
 basket*,X,,

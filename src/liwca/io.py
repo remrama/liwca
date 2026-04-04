@@ -88,6 +88,7 @@ dx_schema = pa.DataFrameSchema(
     parsers=[
         pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0), name="Name index 'DicTerm'"),
         pa.Parser(lambda df: df.rename_axis("Category", axis=1), name="Name columns 'Category'"),
+        pa.Parser(lambda df: df.rename(index=str.lower), name="Lowercase index"),
         pa.Parser(lambda df: df.sort_index(axis=0), name="Sort index"),
         pa.Parser(lambda df: df.sort_index(axis=1), name="Sort columns"),
     ],
@@ -152,7 +153,7 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         row_data = [1 if x in ids else 0 for x in cat_ids]
         data[entry] = row_data
     df = pd.DataFrame.from_dict(data, columns=columns, dtype="int", orient="index").rename_axis(
-        "DictTerm"
+        "DicTerm"
     )
     df.index = df.index.astype("string")
     return df

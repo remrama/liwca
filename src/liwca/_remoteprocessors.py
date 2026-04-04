@@ -36,12 +36,12 @@ def read_raw_sleep(fname: str) -> pd.DataFrame:
     :class:`pandas.DataFrame`
         Dictionary DataFrame with a single ``"sleep"`` category.
     """
-    words = pd.read_table(fname, skiprows=1, header=None).stack().str.lower().tolist()
+    words = pd.read_table(fname, skiprows=1, header=None).stack().dropna().tolist()
     # Some duplicates, and based on SI table I think they were autocorrected during publication.
     # Replacing with values from Table S1 (in most cases, otherwise inferred bc term was added)
-    words[words.index("can't sleep")] = "cant sleep"  # from Table S1
-    words[words.index("couldn't sleep")] = "couldnt sleep"  # inferred
-    words[words.index("didn't sleep")] = "didnt sleep"  # inferred
+    words[words.index("Can't sleep")] = "Cant sleep"  # from Table S1
+    words[words.index("Couldn't sleep")] = "Couldnt sleep"  # inferred
+    words[words.index("Didn't sleep")] = "Didnt sleep"  # inferred
     dx = pd.Series(1, name="sleep", index=words).to_frame()
     return dx
 
@@ -100,7 +100,6 @@ def read_raw_mystical(fname: str) -> pd.DataFrame:
         skiprows=79,
         index_col="DicTerm",
     )
-    df.index = df.index.str.lower()  # should handle in pandera parser once bug is fixed
     return df
 
 
