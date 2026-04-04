@@ -11,6 +11,7 @@ CLI from Python.
 
    installation
    quickstart
+   tutorial
    api/index
 
 
