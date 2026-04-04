@@ -3,6 +3,7 @@ IO module
 """
 
 import csv
+import logging
 import os
 import re
 from importlib.resources import files
@@ -21,6 +22,8 @@ __all__ = [
     "write_dx",
 ]
 
+
+logger = logging.getLogger(__name__)
 
 _pup = pooch.create(path=pooch.os_cache("liwca"), base_url="")
 _pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
@@ -134,9 +137,12 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
     # Use regex to get everything between the first and last '%' character (both start on new lines)
     m = re.match(r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE)
-    if m is not None:
-        header = m.group("header").strip()
-        body = m.group("body").strip()
+    if m is None:
+        raise ValueError(
+            f"Failed to parse .dic file '{fp}': expected '%' delimiters separating header and body."
+        )
+    header = m.group("header").strip()
+    body = m.group("body").strip()
     cat_ids, cat_names = zip(*[row.split() for row in header.split("\n")])
     columns = pd.Index(cat_names, name="Category")
     data = {}
@@ -332,7 +338,7 @@ def _get_processor(dic_name: str) -> Optional[Callable[[str], pd.DataFrame]]:
     """
     from . import _remoteprocessors
 
-    return getattr(_remoteprocessors, f"read_raw_{dic_name}", None)
+    return _remoteprocessors.PROCESSORS.get(dic_name)
 
 
 def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
@@ -358,7 +364,6 @@ def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     return None
 
 
-@pa.check_output(schema=dx_schema)
 def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
     """
     Fetch a remote dictionary and load as a :class:`~pandas.DataFrame`.
@@ -399,7 +404,13 @@ def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
         if Path(fname).stem == dic_name:
             kwargs.setdefault("processor", _get_processor(dic_name=dic_name))
             kwargs.setdefault("downloader", _get_downloader(dic_name=dic_name))
-            fp = _pup.fetch(fname, **kwargs)
-            df = read_dx(fp)
+            try:
+                logger.debug("Fetching '%s' from registry...", dic_name)
+                fp = _pup.fetch(fname, **kwargs)
+                logger.debug("Downloaded '%s' to %s", dic_name, fp)
+                df = read_dx(fp)
+                logger.debug("Successfully read '%s'", dic_name)
+            except Exception as e:
+                raise type(e)(f"Error fetching dictionary '{dic_name}': {e}") from e
             return df
     raise ValueError(f"Dictionary '{dic_name}' not found in registry.")

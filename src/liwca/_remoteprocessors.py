@@ -11,6 +11,7 @@ import pooch
 from .io import write_dx
 
 __all__ = [
+    "PROCESSORS",
     "read_raw_sleep",
     "read_raw_threat",
 ]
@@ -57,7 +58,8 @@ def dicx_processor(func: Callable[[str], str]) -> Callable[[str, str, pooch.Pooc
             The full path to the modified file.
         """
         fp = Path(fname)
-        assert not fp.suffix == ".dicx", "File is already a DICX file. New file will overlap."
+        if fp.suffix == ".dicx":
+            raise ValueError(f"File '{fp}' is already a DICX file. New file will overlap.")
         out_fp = fp.with_suffix(".dicx")
         if action in ("update", "download") or not out_fp.exists():
             # Apply custom processing to convert the raw file to a DataFrame and write to DICX
@@ -138,3 +140,10 @@ def read_raw_mystical(fname: str) -> pd.DataFrame:
     )
     df.index = df.index.str.lower()  # should handle in pandera parser once bug is fixed
     return df
+
+
+PROCESSORS = {
+    "sleep": read_raw_sleep,
+    "threat": read_raw_threat,
+    "mystical": read_raw_mystical,
+}
