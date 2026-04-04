@@ -379,7 +379,7 @@ def fetch_path(dic_name: str) -> str:
             try:
                 fp = _pup.fetch(fname, **({"downloader": downloader} if downloader else {}))
             except Exception as e:
-                raise type(e)(f"Failed to download dictionary '{dic_name}': {e}") from e
+                raise ValueError(f"Failed to download dictionary '{dic_name}': {e}") from e
             logger.debug("Fetched '%s' to %s", dic_name, fp)
             return fp
     raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
@@ -423,7 +423,7 @@ def fetch_dx(dic_name: str) -> pd.DataFrame:
     try:
         df = reader(fp) if reader is not None else read_dx(fp)
     except Exception as e:
-        raise type(e)(f"Error reading dictionary '{dic_name}': {e}") from e
+        raise ValueError(f"Error reading dictionary '{dic_name}': {e}") from e
 
     if reader is not None:
         df = dx_schema.validate(df)

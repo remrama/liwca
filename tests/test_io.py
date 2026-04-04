@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
 import liwca
+from liwca import io
 
 # ---------------------------------------------------------------------------
 # Reading
@@ -157,3 +159,42 @@ class TestMergeDx:
         assert merged.loc["hoop", "Baseball"] == 0
         # "dugout" is baseball-only — its Basketball value should be 0
         assert merged.loc["dugout", "Basketball"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Fetching
+# ---------------------------------------------------------------------------
+
+
+class TestFetchPath:
+    """Tests for fetch_path."""
+
+    def test_not_in_registry(self) -> None:
+        with pytest.raises(ValueError, match="not found in registry"):
+            liwca.fetch_path("nonexistent_dictionary_xyz")
+
+    def test_download_error_wraps_as_valueerror(self) -> None:
+        """Download failures are wrapped in ValueError with the dictionary name."""
+        # Use first registry entry (any will do; the mock prevents actual download)
+        dic_name = Path(next(iter(io._pup.registry_files))).stem
+        with patch.object(io._pup, "fetch", side_effect=ConnectionError("no internet")):
+            with pytest.raises(ValueError, match="Failed to download dictionary"):
+                liwca.fetch_path(dic_name)
+
+
+class TestFetchDx:
+    """Tests for fetch_dx error handling (mocked, no network required)."""
+
+    def test_not_in_registry(self) -> None:
+        with pytest.raises(ValueError, match="not found in registry"):
+            liwca.fetch_dx("nonexistent_dictionary_xyz")
+
+    def test_schema_error_wraps_as_valueerror(self, toybad_dicx_path: Path) -> None:
+        """SchemaError from read_dx is wrapped in ValueError, not re-raised as SchemaError.
+
+        toybad.dicx is a valid CSV that parses fine but has uppercase terms,
+        which fails the schema's islower() check inside read_dx.
+        """
+        with patch.object(io, "fetch_path", return_value=str(toybad_dicx_path)):
+            with pytest.raises(ValueError, match="Error reading dictionary"):
+                liwca.fetch_dx("toybad")

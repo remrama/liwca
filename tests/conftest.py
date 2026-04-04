@@ -37,6 +37,12 @@ def toy_dicx_path() -> Path:
     return DATA_DIR / "toy.dicx"
 
 
+@pytest.fixture
+def toybad_dicx_path() -> Path:
+    """Path to a .dicx fixture that parses but fails schema (uppercase terms)."""
+    return DATA_DIR / "toybad.dicx"
+
+
 # ---------------------------------------------------------------------------
 # In-memory dictionary DataFrames
 # ---------------------------------------------------------------------------
