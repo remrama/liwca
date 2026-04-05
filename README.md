@@ -1,6 +1,8 @@
-[![Project Status](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
-[![PyPI](https://img.shields.io/pypi/v/liwca.svg)](https://pypi.python.org/pypi/liwca)
-[![Python Versions](https://img.shields.io/pypi/pyversions/liwca.svg)](https://pypi.python.org/pypi/ruff)
+[![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Tests](https://github.com/remrama/liwca/actions/workflows/tests.yaml/badge.svg)](https://github.com/remrama/liwca/actions/workflows/tests.yaml)
+[![PyPI](https://img.shields.io/pypi/v/liwca.svg)](https://pypi.org/project/liwca/)
+[![Downloads](https://img.shields.io/pypi/dm/liwca.svg)](https://pypi.org/project/liwca/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/liwca.svg)](https://pypi.org/project/liwca/)
 [![License](https://img.shields.io/pypi/l/liwca.svg)](https://github.com/remrama/liwca/blob/main/LICENSE.txt)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 

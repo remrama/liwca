@@ -4,7 +4,6 @@ IO module
 
 import csv
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -312,7 +311,7 @@ def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     >>> dx_sleep = liwca.fetch_dx("sleep")
     >>> dx_threat = liwca.fetch_dx("threat")
     >>> merged = liwca.merge_dx(dx_sleep, dx_threat)
-    >>> merged.tail(3)
+    >>> merged.tail(3)  # doctest: +NORMALIZE_WHITESPACE
     Category   sleep  threat
     DicTerm
     worse          0       1
@@ -459,30 +458,6 @@ def _resolve_version(dic_name: str, version: Optional[str]) -> Optional[str]:
     return ver
 
 
-def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
-    """
-    Get the downloader for a dictionary.
-
-    Parameters
-    ----------
-    dic_name : :py:class:`str`
-        The name of the dictionary.
-
-    Returns
-    -------
-    Optional[:class:`pooch.HTTPDownloader`]
-        The downloader for the dictionary, if available.
-    """
-    # Reserved for future dictionaries requiring authenticated downloads.
-    _requires_github_auth: list[str] = []
-    if dic_name in _requires_github_auth:
-        evar = "GITHUB_TOKEN"
-        if (token := os.getenv(evar)) is not None:
-            return pooch.HTTPDownloader(auth=("token", token))
-        raise ValueError(f"Must set `{evar}` environment variable fetch '{dic_name}' dictionary.")
-    return None
-
-
 def fetch_path(dic_name: str, *, version: Optional[str] = None) -> str:
     """
     Fetch a remote dictionary file and return the local cached filepath.
@@ -517,9 +492,8 @@ def fetch_path(dic_name: str, *, version: Optional[str] = None) -> str:
     """
     ver_key = _resolve_version(dic_name, version)
     vi = _VERSION_MAP[(dic_name, ver_key)]
-    downloader = _get_downloader(dic_name)
     try:
-        fp = _pup.fetch(vi.filename, **({"downloader": downloader} if downloader else {}))
+        fp = _pup.fetch(vi.filename)
     except Exception as e:
         raise ValueError(f"Failed to download dictionary '{dic_name}': {e}") from e
     logger.debug("Fetched '%s' to %s", dic_name, fp)
@@ -551,7 +525,7 @@ def fetch_dx(dic_name: str, *, version: Optional[str] = None) -> pd.DataFrame:
     --------
     >>> import liwca
     >>> dx = liwca.fetch_dx("threat")
-    >>> dx.head()
+    >>> dx.head()  # doctest: +NORMALIZE_WHITESPACE
     Category     threat
     DicTerm
     accidents         1

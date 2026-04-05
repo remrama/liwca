@@ -13,7 +13,7 @@ import logging
 from collections import namedtuple
 from dataclasses import dataclass, field
 from importlib.resources import files
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import pandas as pd
 
@@ -171,7 +171,7 @@ _VersionInfo = namedtuple("_VersionInfo", ["filename", "hash", "url"])
 
 _registry_path = files("liwca.data").joinpath("registry.json")
 with open(str(_registry_path), encoding="utf-8") as _f:
-    _RAW_REGISTRY: dict[str, dict] = json.load(_f)
+    _RAW_REGISTRY: dict[str, dict[str, Any]] = json.load(_f)
 
 CATALOGUE: dict[str, DictInfo] = {}
 _VERSION_MAP: dict[tuple[str, str | None], _VersionInfo] = {}

@@ -87,6 +87,13 @@ class TestReadDx:
         with pytest.raises(ValueError, match="Unsupported file extension"):
             liwca.read_dx(fp)
 
+    def test_malformed_dic_no_delimiters(self, tmp_path: Path) -> None:
+        """A .dic file without '%' delimiters raises ValueError."""
+        fp = tmp_path / "bad.dic"
+        fp.write_text("this is not a valid dic file\n")
+        with pytest.raises(ValueError, match="expected.*delimiters"):
+            liwca.read_dx(fp)
+
     def test_dic_and_dicx_are_identical(self, toy_dic_path: Path, toy_dicx_path: Path) -> None:
         """Both fixture files represent the same dictionary."""
         dx_dic = liwca.read_dx(toy_dic_path)
@@ -216,6 +223,18 @@ class TestListAvailable:
         assert all(isinstance(name, str) for name in result)
 
 
+class TestGetDictInfo:
+    """Tests for get_dict_info."""
+
+    def test_unknown_name_raises(self) -> None:
+        with pytest.raises(ValueError, match="not found"):
+            liwca.get_dict_info("nonexistent_dictionary_xyz")
+
+    def test_returns_dict_info(self) -> None:
+        info = liwca.get_dict_info("threat")
+        assert info.description
+
+
 # ---------------------------------------------------------------------------
 # Fetching
 # ---------------------------------------------------------------------------
@@ -265,6 +284,11 @@ class TestFetchDx:
         """Passing version= to a non-versioned dictionary raises ValueError."""
         with pytest.raises(ValueError, match="not versioned"):
             liwca.fetch_dx("sleep", version="1.0")
+
+    def test_invalid_version_for_versioned_dict(self) -> None:
+        """Passing an invalid version for a versioned dictionary raises ValueError."""
+        with pytest.raises(ValueError, match="not available"):
+            liwca.fetch_dx("bigtwo", version="nonexistent")
 
 
 # ---------------------------------------------------------------------------

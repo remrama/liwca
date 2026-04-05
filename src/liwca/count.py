@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import logging
 import re
-import warnings
 from collections.abc import Callable, Iterable
 from typing import Union
 
@@ -134,16 +133,12 @@ def _expand_wildcards(
 # ---------------------------------------------------------------------------
 
 
-__SENTINEL = object()
-
-
 def count(
     texts: Union[Iterable[str], pd.Series],
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = None,
     as_percentage: bool = True,
-    as_proportion: object = __SENTINEL,
     precision: int | None = None,
 ) -> pd.DataFrame:
     """
@@ -165,9 +160,6 @@ def count(
         If ``True`` (default), return category values as a percentage of total
         word count per document (matching LIWC's default output).  If
         ``False``, return raw category counts.
-    as_proportion : :class:`bool`, optional
-        .. deprecated::
-            Use ``as_percentage`` instead. Will be removed in a future version.
     precision : :class:`int`, optional
         If set, round category value columns to this many decimal places.
         Only applies when ``as_percentage=True``. The ``"WC"`` column is
@@ -197,13 +189,6 @@ def count(
     0          8       1
     1          4       0
     """
-    if as_proportion is not __SENTINEL:
-        warnings.warn(
-            "The 'as_proportion' parameter is deprecated. Use 'as_percentage' instead.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        as_percentage = bool(as_proportion)
     if tokenizer is None:
         tokenizer = _default_tokenize
 

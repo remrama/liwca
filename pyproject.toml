@@ -23,7 +23,7 @@ dependencies = [
 readme = "README.md"
 keywords = ["LIWC", "text", "language", "datasets"]
 classifiers = [
-  "Development Status :: 1 - Planning",
+  "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Intended Audience :: Science/Research",
@@ -65,7 +65,7 @@ namespaces = false
 where = ["src"]
 
 [tool.setuptools.package-data]
-liwca = ["liwca/data/registry.json"]
+liwca = ["data/registry.json"]
 
 [tool.mypy]
 files = ["src/"]

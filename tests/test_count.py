@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 import liwca
 from liwca.count import _default_tokenize, _expand_wildcards
@@ -245,11 +244,16 @@ class TestCount:
         expected_cols = ["WC"] + sorted(toy_dx_wildcards.columns)
         assert list(result.columns) == expected_cols
 
-    def test_as_proportion_deprecation_warning(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        """Using the deprecated as_proportion parameter emits FutureWarning."""
-        with pytest.warns(FutureWarning, match="as_proportion.*deprecated"):
-            result = liwca.count(["hoop"], toy_dx_wildcards, as_proportion=False)
-        assert result.loc[0, "Basketball"] == 1  # raw count, as_proportion=False respected
+    def test_zero_vocab_match(self) -> None:
+        """When the dictionary is all wildcards and none match, counts are zero."""
+        dx = pd.DataFrame(
+            {"CatA": [1]},
+            index=pd.Index(["zzz*"], dtype="string", name="DicTerm"),
+        )
+        dx.columns.name = "Category"
+        result = liwca.count(["hello world"], dx, as_percentage=False)
+        assert result.loc[0, "CatA"] == 0
+        assert result.loc[0, "WC"] == 2
 
     def test_integration_read_then_count(self, toy_dicx_path: Path) -> None:
         """Integration: read a dictionary file, then count."""
