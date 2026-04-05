@@ -12,16 +12,16 @@ word counts, and calling the LIWC-22 CLI from Python.
 Features
 --------
 
-**Dictionary I/O** — Read, write, merge, and fetch LIWC dictionaries in
-``.dic`` and ``.dicx`` formats. Several public dictionaries are available
-through a built-in registry.
-
-**Word Counting** — Pure-Python LIWC-style word counting powered by
-scikit-learn. No LIWC-22 installation required. Supports wildcard
-expansion against corpus vocabulary.
+**I/O** — Read, write, and merge LIWC dictionary files in
+``.dic`` and ``.dicx`` formats.
 
 **LIWC-22 CLI Wrapper** — Call the LIWC-22 command-line tool directly from
-Python or the terminal, with a data-driven argument interface.
+Python or the terminal.
+
+**Word Counting** — Pure-Python LIWC-style word counting powered by
+scikit-learn. No LIWC-22 installation required.
+
+**Fetch Dictionaries** — Download and cache public LIWC dictionaries on demand.
 
 
 .. code-block:: python
@@ -37,6 +37,5 @@ Python or the terminal, with a data-driven argument interface.
 
    introduction
    guide
-   dictionaries
    api
    contributing

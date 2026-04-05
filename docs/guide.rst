@@ -22,7 +22,7 @@ downloads the file on first use and returns it as a :class:`~pandas.DataFrame`:
 
 Every dictionary is returned as a :class:`~pandas.DataFrame` with a binary
 (0/1) matrix — rows are dictionary terms (index ``DicTerm``), columns are
-categories. See :doc:`dictionaries` for the full catalogue.
+categories. See :doc:`api` for the full catalogue.
 
 
 Counting words in text
