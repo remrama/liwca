@@ -35,7 +35,7 @@ Reading and writing dictionaries
    liwca.write_dx(dx, "my_dictionary.dic")
 
    # Merge multiple dictionaries
-   merged = liwca.merge_dx([dx_a, dx_b])
+   merged = liwca.merge_dx(dx_a, dx_b)
 
 
 Counting words

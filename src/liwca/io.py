@@ -282,28 +282,32 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
 
 @pa.check_output(schema=dx_schema)
-def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
+def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     """
     Merge multiple dictionaries into a single dictionary.
 
     Parameters
     ----------
-    dxs : list of :class:`pandas.DataFrame`
-        The list of dictionaries to merge.
-    kwargs : Any
-        Additional keyword arguments to pass to :func:`pandas.concat`.
+    *dxs : :class:`pandas.DataFrame`
+        Two or more dictionary DataFrames to merge.
 
     Returns
     -------
     :class:`pandas.DataFrame`
         The merged dictionary.
 
+    Raises
+    ------
+    ValueError
+        If fewer than two dictionaries are provided, or if any dictionaries
+        share category names (columns).
+
     Examples
     --------
     >>> import liwca
     >>> dx_sleep = liwca.fetch_dx("sleep")
     >>> dx_threat = liwca.fetch_dx("threat")
-    >>> merged = liwca.merge_dx([dx_sleep, dx_threat])
+    >>> merged = liwca.merge_dx(dx_sleep, dx_threat)
     >>> merged.tail(3)
     Category   sleep  threat
     DicTerm
@@ -311,10 +315,59 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
     worst          0       1
     you awake      1       0
     """
+    if len(dxs) < 2:
+        raise ValueError(f"merge_dx requires at least 2 dictionaries, got {len(dxs)}.")
+
+    # Check for overlapping categories across all pairs.
+    all_cols: list[str] = []
+    for dx in dxs:
+        overlap = set(dx.columns) & set(all_cols)
+        if overlap:
+            raise ValueError(
+                f"Dictionaries have overlapping categories: {sorted(overlap)}. "
+                "Each dictionary must have unique category names."
+            )
+        all_cols.extend(dx.columns)
+
+    _warn_wildcard_overlaps(dxs)
+
     logger.info("Merging %d dictionaries", len(dxs))
-    kwargs.setdefault("axis", 1)
-    kwargs.setdefault("join", "outer")
-    return pd.concat(dxs, **kwargs).fillna(0)
+    return pd.concat(dxs, axis=1, join="outer").fillna(0)
+
+
+def _warn_wildcard_overlaps(dxs: tuple[pd.DataFrame, ...]) -> None:
+    """Check for wildcard patterns that match literal terms in other dictionaries.
+
+    A wildcard like ``sleep*`` in dictionary A will match a literal term like
+    ``sleeping`` in dictionary B during counting. This means ``sleeping`` would
+    be counted in both categories, while other words matching ``sleep*``
+    (e.g., ``sleepy``) would only be counted in A's category. This asymmetry
+    can produce misleading results.
+
+    Issues a :func:`warnings.warn` for each detected overlap.
+    """
+    import warnings
+
+    for i, dx_a in enumerate(dxs):
+        wildcards_a = [t for t in dx_a.index if t.endswith("*")]
+        if not wildcards_a:
+            continue
+        for j, dx_b in enumerate(dxs):
+            if i == j:
+                continue
+            terms_b = set(dx_b.index)
+            for wc in wildcards_a:
+                prefix = wc[:-1]
+                matches = sorted(t for t in terms_b if t.startswith(prefix) and t != wc)
+                if matches:
+                    warnings.warn(
+                        f"Wildcard '{wc}' (in dictionary {i + 1}) matches terms in "
+                        f"dictionary {j + 1}: {matches}. During counting, these terms "
+                        f"will be counted in both dictionaries' categories, while other "
+                        f"words matching '{wc}' will only be counted in dictionary "
+                        f"{i + 1}'s categories.",
+                        stacklevel=3,
+                    )
 
 
 #######################################################################################

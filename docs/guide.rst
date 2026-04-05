@@ -99,7 +99,7 @@ Combine multiple dictionaries into one with :func:`~liwca.merge_dx`:
    dx_sleep = liwca.fetch_dx("sleep")
    dx_threat = liwca.fetch_dx("threat")
 
-   merged = liwca.merge_dx([dx_sleep, dx_threat])
+   merged = liwca.merge_dx(dx_sleep, dx_threat)
    print(merged.columns.tolist())  # ['sleep', 'threat']
 
    # Now count with both dictionaries at once

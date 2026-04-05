@@ -137,14 +137,14 @@ class TestMergeDx:
         dx = liwca.read_dx(toy_dicx_path)
         dx_a = dx[["Basketball"]]
         dx_b = dx[["Baseball", "Football"]]
-        merged = liwca.merge_dx([dx_a, dx_b])
+        merged = liwca.merge_dx(dx_a, dx_b)
         pd.testing.assert_frame_equal(merged, dx)
 
     def test_union_of_categories(self, toy_dicx_path: Path) -> None:
         dx = liwca.read_dx(toy_dicx_path)
         dx_a = dx[["Basketball"]]
         dx_b = dx[["Football"]]
-        merged = liwca.merge_dx([dx_a, dx_b])
+        merged = liwca.merge_dx(dx_a, dx_b)
         assert sorted(merged.columns) == ["Basketball", "Football"]
 
     def test_fills_missing_terms_with_zero(self, toy_dicx_path: Path) -> None:
@@ -154,11 +154,39 @@ class TestMergeDx:
         bball = dx[dx["Basketball"] == 1][["Basketball"]]
         # Baseball terms only
         base = dx[dx["Baseball"] == 1][["Baseball"]]
-        merged = liwca.merge_dx([bball, base])
+        merged = liwca.merge_dx(bball, base)
         # "hoop" is basketball-only — its Baseball value should be 0
         assert merged.loc["hoop", "Baseball"] == 0
         # "dugout" is baseball-only — its Basketball value should be 0
         assert merged.loc["dugout", "Basketball"] == 0
+
+    def test_error_single_dictionary(self, toy_dicx_path: Path) -> None:
+        """Merging a single dictionary raises ValueError."""
+        dx = liwca.read_dx(toy_dicx_path)
+        with pytest.raises(ValueError, match="at least 2"):
+            liwca.merge_dx(dx)
+
+    def test_error_overlapping_categories(self, toy_dicx_path: Path) -> None:
+        """Merging dictionaries with shared categories raises ValueError."""
+        dx = liwca.read_dx(toy_dicx_path)
+        dx_a = dx[["Basketball", "Baseball"]]
+        dx_b = dx[["Baseball", "Football"]]
+        with pytest.raises(ValueError, match="overlapping categories"):
+            liwca.merge_dx(dx_a, dx_b)
+
+    def test_warns_wildcard_overlap(self) -> None:
+        """Wildcard in one dict matching a literal in another triggers a warning."""
+        import warnings
+
+        dx_a = pd.DataFrame({"CatA": [1]}, index=pd.Index(["sleep*"], name="DicTerm"))
+        dx_a.index = dx_a.index.astype("string")
+        dx_b = pd.DataFrame({"CatB": [1]}, index=pd.Index(["sleeping"], name="DicTerm"))
+        dx_b.index = dx_b.index.astype("string")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            liwca.merge_dx(dx_a, dx_b)
+            wildcard_warnings = [x for x in w if "sleep*" in str(x.message)]
+            assert len(wildcard_warnings) >= 1
 
 
 # ---------------------------------------------------------------------------
