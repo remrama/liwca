@@ -48,6 +48,7 @@ html_theme_options = {
     "show_prev_next": True,
     "navigation_with_keys": True,
     "show_nav_level": 2,
+    "show_toc_level": 2,
     "navbar_persistent": ["search-button"],
     "footer_end": [],
     "search_bar_text": "Search",
