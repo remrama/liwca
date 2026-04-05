@@ -6,7 +6,6 @@ import csv
 import logging
 import os
 import re
-from importlib.resources import files
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -15,7 +14,7 @@ import pandas as pd
 import pandera.pandas as pa
 import pooch
 
-from ._catalogue import CATALOGUE, DictInfo
+from ._catalogue import _VERSION_MAP, CATALOGUE, DictInfo
 
 __all__ = [
     "DictInfo",
@@ -31,8 +30,13 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_pup = pooch.create(path=pooch.os_cache("liwca"), base_url="", env="LIWCA_DATA_DIR")
-_pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
+_pup = pooch.create(
+    path=pooch.os_cache("liwca"),
+    base_url="",
+    env="LIWCA_DATA_DIR",
+    registry={vi.filename: vi.hash for vi in _VERSION_MAP.values()},
+    urls={vi.filename: vi.url for vi in _VERSION_MAP.values()},
+)
 
 
 #######################################################################################
@@ -427,6 +431,34 @@ def get_dict_info(dic_name: str) -> DictInfo:
     return CATALOGUE[dic_name]
 
 
+def _resolve_version(dic_name: str, version: Optional[str]) -> Optional[str]:
+    """Resolve and validate the version argument for a dictionary.
+
+    Returns the version key to use in ``_VERSION_MAP``: ``None`` for
+    non-versioned dictionaries, or a version string for versioned ones.
+    """
+    if dic_name not in CATALOGUE:
+        raise ValueError(
+            f"Dictionary '{dic_name}' not found. Available: {', '.join(sorted(CATALOGUE))}"
+        )
+    info = CATALOGUE[dic_name]
+    if info.default_version is None:
+        # Non-versioned dictionary
+        if version is not None:
+            raise ValueError(
+                f"Dictionary '{dic_name}' is not versioned; do not pass a version argument."
+            )
+        return None
+    # Versioned dictionary
+    ver = version if version is not None else info.default_version
+    if ver not in info.available_versions:
+        raise ValueError(
+            f"Version '{ver}' not available for '{dic_name}'. "
+            f"Available: {', '.join(info.available_versions)}"
+        )
+    return ver
+
+
 def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     """
     Get the downloader for a dictionary.
@@ -451,7 +483,7 @@ def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     return None
 
 
-def fetch_path(dic_name: str) -> str:
+def fetch_path(dic_name: str, *, version: Optional[str] = None) -> str:
     """
     Fetch a remote dictionary file and return the local cached filepath.
 
@@ -462,6 +494,10 @@ def fetch_path(dic_name: str) -> str:
     ----------
     dic_name : :class:`str`
         The name of the dictionary to fetch (e.g., ``"threat"``).
+    version : :class:`str`, optional
+        Version to fetch for versioned dictionaries. Must be ``None`` for
+        non-versioned dictionaries. If ``None`` and the dictionary is
+        versioned, the default version is used.
 
     Returns
     -------
@@ -471,26 +507,26 @@ def fetch_path(dic_name: str) -> str:
     Raises
     ------
     ValueError
-        If ``dic_name`` is not found in the registry.
+        If ``dic_name`` is not found in the catalogue, or if an invalid
+        version is requested.
 
     Examples
     --------
     >>> import liwca
     >>> fp = liwca.fetch_path("threat")  # doctest: +SKIP
     """
-    for fname in _pup.registry_files:
-        if Path(fname).stem == dic_name:
-            downloader = _get_downloader(dic_name)
-            try:
-                fp = _pup.fetch(fname, **({"downloader": downloader} if downloader else {}))
-            except Exception as e:
-                raise ValueError(f"Failed to download dictionary '{dic_name}': {e}") from e
-            logger.debug("Fetched '%s' to %s", dic_name, fp)
-            return str(fp)
-    raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
+    ver_key = _resolve_version(dic_name, version)
+    vi = _VERSION_MAP[(dic_name, ver_key)]
+    downloader = _get_downloader(dic_name)
+    try:
+        fp = _pup.fetch(vi.filename, **({"downloader": downloader} if downloader else {}))
+    except Exception as e:
+        raise ValueError(f"Failed to download dictionary '{dic_name}': {e}") from e
+    logger.debug("Fetched '%s' to %s", dic_name, fp)
+    return str(fp)
 
 
-def fetch_dx(dic_name: str) -> pd.DataFrame:
+def fetch_dx(dic_name: str, *, version: Optional[str] = None) -> pd.DataFrame:
     """
     Fetch a remote dictionary and load as a :class:`~pandas.DataFrame`.
 
@@ -501,6 +537,10 @@ def fetch_dx(dic_name: str) -> pd.DataFrame:
     ----------
     dic_name : :class:`str`
         The name of the dictionary to fetch.
+    version : :class:`str`, optional
+        Version to fetch for versioned dictionaries. Must be ``None`` for
+        non-versioned dictionaries. If ``None`` and the dictionary is
+        versioned, the default version is used.
 
     Returns
     -------
@@ -520,7 +560,7 @@ def fetch_dx(dic_name: str) -> pd.DataFrame:
     afraid            1
     aftermath         1
     """
-    fp = fetch_path(dic_name)
+    fp = fetch_path(dic_name, version=version)
 
     info = CATALOGUE.get(dic_name)
     reader = info.reader if info else None

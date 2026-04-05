@@ -1,8 +1,17 @@
 """Sphinx extension that generates a dictionary catalogue table from CATALOGUE."""
 
+from pathlib import PurePosixPath
+
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.application import Sphinx
+
+
+def _get_format(name, info, version_map):
+    """Derive format string from the default version's filename suffix."""
+    ver_key = info.default_version  # None for non-versioned
+    vi = version_map[(name, ver_key)]
+    return PurePosixPath(vi.filename).suffix
 
 
 class DictCatalogueDirective(Directive):
@@ -15,7 +24,7 @@ class DictCatalogueDirective(Directive):
     required_arguments = 0
     optional_arguments = 0
 
-    def _build_table(self, catalogue):
+    def _build_table(self, catalogue, version_map):
         """Build the summary table."""
         table = nodes.table()
         tgroup = nodes.tgroup(cols=4)
@@ -48,7 +57,8 @@ class DictCatalogueDirective(Directive):
 
             # Format
             entry = nodes.entry()
-            entry += nodes.paragraph("", "", nodes.literal(text=info.format))
+            fmt = _get_format(name, info, version_map)
+            entry += nodes.paragraph("", "", nodes.literal(text=fmt))
             row += entry
 
             # Description
@@ -76,7 +86,7 @@ class DictCatalogueDirective(Directive):
 
         return table
 
-    def _build_detail_sections(self, catalogue):
+    def _build_detail_sections(self, catalogue, version_map):
         """Build a section per dictionary with detail, examples, and metadata."""
         sections = []
         for name in sorted(catalogue):
@@ -102,7 +112,8 @@ class DictCatalogueDirective(Directive):
             field_node = nodes.field()
             field_node += nodes.field_name(text="Format")
             field_body = nodes.field_body()
-            field_body += nodes.paragraph("", "", nodes.literal(text=info.format))
+            fmt = _get_format(name, info, version_map)
+            field_body += nodes.paragraph("", "", nodes.literal(text=fmt))
             field_node += field_body
             field_list += field_node
 
@@ -135,10 +146,10 @@ class DictCatalogueDirective(Directive):
         return sections
 
     def run(self):
-        from liwca._catalogue import CATALOGUE
+        from liwca._catalogue import _VERSION_MAP, CATALOGUE
 
-        result = [self._build_table(CATALOGUE)]
-        result.extend(self._build_detail_sections(CATALOGUE))
+        result = [self._build_table(CATALOGUE, _VERSION_MAP)]
+        result.extend(self._build_detail_sections(CATALOGUE, _VERSION_MAP))
         return result
 
 

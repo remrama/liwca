@@ -1,25 +1,30 @@
 """
 Dictionary catalogue — single source of truth for all registered dictionaries.
 
-Each dictionary has a :class:`DictInfo` entry in :data:`CATALOGUE` containing
-metadata (description, source, citation) and an optional reader callable for
-non-standard file formats.
+Metadata and download info are stored in ``data/registry.json``. This module
+loads that file at import time and builds :data:`CATALOGUE` (public metadata)
+and :data:`_VERSION_MAP` (internal file-level info used by :mod:`liwca.io`).
 """
 
 from __future__ import annotations
 
+import json
 import logging
+from collections import namedtuple
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable, Optional
+from importlib.resources import files
+from typing import Callable, Optional
 
 import pandas as pd
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["CATALOGUE", "DictInfo"]
+
+
+# ---------------------------------------------------------------------------
+# Public dataclass
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -30,8 +35,6 @@ class DictInfo:
     ----------
     description : str
         Short human-readable description of the dictionary.
-    format : str
-        File extension (e.g., ``".dic"``, ``".xlsx"``).
     source_url : str
         URL to the dictionary source (project page or download).
     source_label : str
@@ -47,13 +50,18 @@ class DictInfo:
         Optional citation identifier (e.g., ``"PMC9908817"``).
     citation_url : str
         Optional URL for the citation.
+    default_version : str or None
+        Default version string for versioned dictionaries, or ``None`` for
+        non-versioned dictionaries.
+    available_versions : tuple of str
+        Version strings available for this dictionary. Empty tuple for
+        non-versioned dictionaries.
     reader : callable, optional
         Reader function ``(filepath) -> DataFrame`` for non-standard formats.
         ``None`` means the standard ``.dic`` / ``.dicx`` reader is used.
     """
 
     description: str
-    format: str
     source_url: str
     source_label: str
     detail: str = ""
@@ -61,6 +69,8 @@ class DictInfo:
     language: str = "English"
     citation: str = ""
     citation_url: str = ""
+    default_version: Optional[str] = None
+    available_versions: tuple[str, ...] = ()
     reader: Optional[Callable[[str], pd.DataFrame]] = field(default=None, repr=False)
 
 
@@ -140,83 +150,69 @@ def _read_raw_mystical(fname: str) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Catalogue
+# Reader name → callable mapping
 # ---------------------------------------------------------------------------
 
-CATALOGUE: dict[str, DictInfo] = {
-    "bigtwo_a": DictInfo(
-        description="Big Two personality dimensions (agency).",
-        format=".dic",
-        source_url="https://osf.io/download/62txv",
-        source_label="OSF",
-        detail=(
-            "Agency dimension of the Big Two personality framework. The Big Two"
-            " (Agency and Communion) capture fundamental dimensions of social"
-            " perception — how people evaluate themselves and others in terms of"
-            " competence, assertiveness, and goal pursuit (agency) versus warmth,"
-            " cooperation, and social connection (communion)."
-        ),
-    ),
-    "bigtwo_b": DictInfo(
-        description="Big Two personality dimensions (communion).",
-        format=".dic",
-        source_url="https://osf.io/download/y59eb",
-        source_label="OSF",
-        detail=(
-            "Communion dimension of the Big Two personality framework. Captures"
-            " language related to warmth, morality, and social connection. See"
-            " ``bigtwo_a`` for the complementary agency dimension."
-        ),
-    ),
-    "honor": DictInfo(
-        description="Honor culture dictionary (English).",
-        format=".dic",
-        source_url="https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h",
-        source_label="Gelfand et al., 2015",
-        detail=(
-            "Dictionary for detecting honor culture language, developed for"
-            " research on cultural tightness-looseness and honor norms."
-        ),
-    ),
-    "mystical": DictInfo(
-        description="Mystical experience dictionary.",
-        format=".xlsx",
-        source_url="https://osf.io/6ph8z",
-        source_label="OSF",
-        detail=(
-            "Dictionary for identifying language related to mystical experiences,"
-            " such as transcendence, unity, and altered states of consciousness."
-        ),
-        reader=_read_raw_mystical,
-    ),
-    "sleep": DictInfo(
-        description="Sleep-related language dictionary.",
-        format=".tsv",
-        source_url="https://zenodo.org/records/13941010",
-        source_label="Zenodo",
-        detail=(
-            "Dictionary capturing sleep-related language, originally developed"
-            " for research on sleep disturbance and suicidal ideation in social"
-            " media text."
-        ),
-        examples=("cant sleep", "couldnt sleep", "didnt sleep"),
-        citation="PMC9908817",
-        citation_url="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817",
-        reader=_read_raw_sleep,
-    ),
-    "threat": DictInfo(
-        description="Threat perception dictionary (English).",
-        format=".txt",
-        source_url="https://www.michelegelfand.com/threat-dictionary",
-        source_label="Gelfand et al.",
-        detail=(
-            "Dictionary for measuring perceived societal threat, developed for"
-            " research on how ecological and historical threats shape cultural"
-            " tightness across nations."
-        ),
-        examples=("accidents", "accusations", "afraid", "aftermath"),
-        citation="doi:10.1073/pnas.2113891119",
-        citation_url="https://doi.org/10.1073/pnas.2113891119",
-        reader=_read_raw_threat,
-    ),
+_READERS: dict[str, Callable[[str], pd.DataFrame]] = {
+    "_read_raw_sleep": _read_raw_sleep,
+    "_read_raw_threat": _read_raw_threat,
+    "_read_raw_mystical": _read_raw_mystical,
 }
+
+# ---------------------------------------------------------------------------
+# Internal version info
+# ---------------------------------------------------------------------------
+
+_VersionInfo = namedtuple("_VersionInfo", ["filename", "hash", "url"])
+
+# ---------------------------------------------------------------------------
+# Load registry.json and build CATALOGUE + _VERSION_MAP
+# ---------------------------------------------------------------------------
+
+_registry_path = files("liwca.data").joinpath("registry.json")
+with open(str(_registry_path), encoding="utf-8") as _f:
+    _RAW_REGISTRY: dict[str, dict] = json.load(_f)
+
+CATALOGUE: dict[str, DictInfo] = {}
+_VERSION_MAP: dict[tuple[str, str | None], _VersionInfo] = {}
+
+for _name, _entry in _RAW_REGISTRY.items():
+    # Detect flat vs versioned by presence of "versions" key
+    _is_versioned = "versions" in _entry
+
+    # Resolve reader callable
+    _reader_name = _entry.get("reader")
+    _reader = _READERS[_reader_name] if _reader_name else None
+
+    if _is_versioned:
+        _versions = _entry["versions"]
+        _default_ver = _entry["default_version"]
+        _available = tuple(sorted(_versions))
+        for _ver, _vdata in _versions.items():
+            _VERSION_MAP[(_name, _ver)] = _VersionInfo(
+                filename=_vdata["filename"],
+                hash=_vdata["hash"],
+                url=_vdata["url"],
+            )
+    else:
+        _default_ver = None
+        _available = ()
+        _VERSION_MAP[(_name, None)] = _VersionInfo(
+            filename=_entry["filename"],
+            hash=_entry["hash"],
+            url=_entry["url"],
+        )
+
+    CATALOGUE[_name] = DictInfo(
+        description=_entry["description"],
+        source_url=_entry["source_url"],
+        source_label=_entry["source_label"],
+        detail=_entry.get("detail", ""),
+        examples=tuple(_entry.get("examples", ())),
+        language=_entry.get("language", "English"),
+        citation=_entry.get("citation", ""),
+        citation_url=_entry.get("citation_url", ""),
+        default_version=_default_ver,
+        available_versions=_available,
+        reader=_reader,
+    )

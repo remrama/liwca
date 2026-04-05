@@ -224,8 +224,8 @@ class TestListAvailable:
 class TestFetchPath:
     """Tests for fetch_path."""
 
-    def test_not_in_registry(self) -> None:
-        with pytest.raises(ValueError, match="not found in registry"):
+    def test_not_in_catalogue(self) -> None:
+        with pytest.raises(ValueError, match="not found"):
             liwca.fetch_path("nonexistent_dictionary_xyz")
 
     def test_download_error_wraps_as_valueerror(self) -> None:
@@ -240,8 +240,8 @@ class TestFetchPath:
 class TestFetchDx:
     """Tests for fetch_dx error handling (mocked, no network required)."""
 
-    def test_not_in_registry(self) -> None:
-        with pytest.raises(ValueError, match="not found in registry"):
+    def test_not_in_catalogue(self) -> None:
+        with pytest.raises(ValueError, match="not found"):
             liwca.fetch_dx("nonexistent_dictionary_xyz")
 
     def test_schema_error_wraps_as_valueerror(self, toybad_dicx_path: Path) -> None:
@@ -261,3 +261,49 @@ class TestFetchDx:
         with patch.object(io, "fetch_path", return_value=str(fake_file)):
             with pytest.raises(ValueError, match="no registered reader"):
                 liwca.fetch_dx("weird")
+
+    def test_version_error_on_non_versioned(self) -> None:
+        """Passing version= to a non-versioned dictionary raises ValueError."""
+        with pytest.raises(ValueError, match="not versioned"):
+            liwca.fetch_dx("sleep", version="1.0")
+
+
+# ---------------------------------------------------------------------------
+# Registry / Catalogue integrity
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryIntegrity:
+    """Tests validating registry.json structure and CATALOGUE consistency."""
+
+    def test_registry_json_has_required_fields(self) -> None:
+        """Every entry in registry.json has the required metadata fields."""
+        import json
+        from importlib.resources import files
+
+        with open(str(files("liwca.data").joinpath("registry.json"))) as f:
+            raw = json.load(f)
+        required = {"description", "source_url", "source_label"}
+        for name, entry in raw.items():
+            missing = required - entry.keys()
+            assert not missing, f"'{name}' missing required fields: {missing}"
+            # Flat entries need filename/hash/url; versioned need versions/default_version
+            if "versions" in entry:
+                assert "default_version" in entry, f"'{name}' versioned but no default_version"
+                for ver, vdata in entry["versions"].items():
+                    for field in ("filename", "hash", "url"):
+                        assert field in vdata, f"'{name}' version '{ver}' missing '{field}'"
+            else:
+                for field in ("filename", "hash", "url"):
+                    assert field in entry, f"'{name}' flat entry missing '{field}'"
+
+    def test_catalogue_keys_match_json(self) -> None:
+        """CATALOGUE keys match the registry.json keys exactly."""
+        import json
+        from importlib.resources import files
+
+        from liwca._catalogue import CATALOGUE
+
+        with open(str(files("liwca.data").joinpath("registry.json"))) as f:
+            raw = json.load(f)
+        assert set(CATALOGUE.keys()) == set(raw.keys())

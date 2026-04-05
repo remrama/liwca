@@ -34,40 +34,42 @@ Adding a new dictionary
 
 To add a new publicly available dictionary to the registry:
 
-1. **Add the registry entry.** Append a line to
-   ``src/liwca/data/registry.txt`` with the format::
+1. **Add a JSON entry.** Edit ``src/liwca/data/registry.json`` and add an
+   entry. Compute the MD5 hash of the file (``md5sum filename.ext`` on
+   Linux/macOS, or ``certutil -hashfile filename.ext MD5`` on Windows).
 
-      filename.ext md5:<hash> <download_url>
+   For ``.dic`` or ``.dicx`` files (standard formats):
 
-   Compute the MD5 hash of the file (``md5sum filename.ext`` on Linux/macOS,
-   or ``certutil -hashfile filename.ext MD5`` on Windows).
+   .. code-block:: json
 
-2. **Add a catalogue entry.** Add an entry to the ``CATALOGUE`` dict in
+      "mydict": {
+        "description": "My dictionary description.",
+        "source_url": "https://example.com",
+        "source_label": "Example",
+        "citation": "doi:...",
+        "citation_url": "https://doi.org/...",
+        "filename": "mydict.dic",
+        "hash": "md5:<hash>",
+        "url": "https://example.com/download/mydict.dic"
+      }
+
+   For non-standard formats (TSV, Excel, plain text, etc.), also set the
+   ``reader`` field to the name of a private reader function in
    ``src/liwca/_catalogue.py``:
 
-   .. code-block:: python
+   .. code-block:: json
 
-      "mydict": DictInfo(
-          description="My dictionary description.",
-          format=".dic",
-          source_url="https://example.com",
-          source_label="Example",
-          citation="doi:...",
-          citation_url="https://doi.org/...",
-      ),
+      "mydict": {
+        "description": "...",
+        "reader": "_read_raw_mydict",
+        "filename": "mydict.xlsx",
+        "hash": "md5:<hash>",
+        "url": "https://..."
+      }
 
-   If the file is ``.dic`` or ``.dicx``, that is all you need — the standard
-   readers handle it automatically. For non-standard formats (TSV, Excel,
-   plain text, etc.), add a private reader function in the same file and
-   reference it via the ``reader`` field:
+   Then add the reader function in ``_catalogue.py`` and register it in the
+   ``_READERS`` dict.
 
-   .. code-block:: python
-
-      "mydict": DictInfo(
-          ...
-          reader=_read_raw_mydict,
-      ),
-
-3. **Tests and docs** are automatic — ``liwca.list_available()`` derives from
-   the catalogue, and the dictionary table in the docs is auto-generated from
-   ``CATALOGUE`` at build time.
+2. **Tests and docs** are automatic — ``liwca.list_available()`` derives from
+   the registry, and the dictionary table in the docs is auto-generated at
+   build time.
