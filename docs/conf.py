@@ -55,7 +55,7 @@ html_theme_options = {
 }
 
 html_sidebars = {
-    "index": [],
+    "**": [],
 }
 
 add_function_parentheses = False
