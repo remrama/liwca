@@ -5,7 +5,11 @@ Each function takes a filepath and returns a DataFrame with dictionary terms
 as the index and categories as columns with binary (0/1) values.
 """
 
+import logging
+
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "READERS",
@@ -43,6 +47,7 @@ def read_raw_sleep(fname: str) -> pd.DataFrame:
     words[words.index("Couldn't sleep")] = "Couldnt sleep"  # inferred
     words[words.index("Didn't sleep")] = "Didnt sleep"  # inferred
     dx = pd.Series(1, name="sleep", index=words).to_frame()
+    logger.debug("Read sleep dictionary: %d terms from %s", len(dx), fname)
     return dx
 
 
@@ -70,6 +75,7 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
     with open(fname, "r", encoding="utf-8") as f:
         words = f.read().splitlines()
     dx = pd.Series(1, name="threat", index=words).to_frame()
+    logger.debug("Read threat dictionary: %d terms from %s", len(dx), fname)
     return dx
 
 
@@ -100,6 +106,7 @@ def read_raw_mystical(fname: str) -> pd.DataFrame:
         skiprows=79,
         index_col="DicTerm",
     )
+    logger.debug("Read mystical dictionary: %d terms from %s", len(df), fname)
     return df
 
 

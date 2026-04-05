@@ -28,6 +28,7 @@ if it actually appears).
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterable
 from typing import Union
@@ -41,6 +42,7 @@ __all__ = [
     "count",
 ]
 
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Default tokenizer
@@ -89,6 +91,8 @@ def _expand_wildcards(
     exact = dx.loc[~wildcard_mask]
     wildcards = dx.loc[wildcard_mask]
 
+    logger.debug("Dictionary has %d exact and %d wildcard entries", len(exact), len(wildcards))
+
     if wildcards.empty:
         return exact
 
@@ -105,6 +109,7 @@ def _expand_wildcards(
                     expanded_rows[token] = row.values.copy()
 
     if not expanded_rows:
+        logger.debug("No wildcard matches found in corpus vocabulary")
         return exact
 
     expanded_df = pd.DataFrame.from_dict(expanded_rows, orient="index", columns=exact.columns)
@@ -114,6 +119,12 @@ def _expand_wildcards(
     combined = pd.concat([exact, expanded_df], axis=0)
     # If a token appears in both exact and expanded, merge rows.
     combined = combined.groupby(level=0).max()
+    logger.debug(
+        "Wildcard expansion: %d wildcards -> %d new tokens (%d total vocabulary)",
+        len(wildcards),
+        len(expanded_rows),
+        len(combined),
+    )
     return combined
 
 
@@ -185,10 +196,13 @@ def count(
         docs = list(texts)
         doc_index = pd.RangeIndex(len(docs))
 
+    logger.info("Counting %d documents against %d-category dictionary", len(docs), dx.shape[1])
+
     # -- Step 1: collect corpus vocabulary -----------------------------------
     corpus_vocab: set[str] = set()
     for doc in docs:
         corpus_vocab.update(tokenizer(doc))
+    logger.debug("Corpus vocabulary: %d unique tokens", len(corpus_vocab))
 
     # -- Step 2: expand wildcards --------------------------------------------
     dx_expanded = _expand_wildcards(dx, corpus_vocab)
@@ -246,4 +260,11 @@ def count(
         result = result.div(safe_wc, axis=0) * 100
 
     result.insert(0, "WC", word_counts)
+    logger.debug(
+        "Counting complete: %d documents, %d categories, WC range %d–%d",
+        len(result),
+        dx.shape[1],
+        word_counts.min() if len(word_counts) else 0,
+        word_counts.max() if len(word_counts) else 0,
+    )
     return result

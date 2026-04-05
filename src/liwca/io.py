@@ -204,6 +204,7 @@ def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     :class:`pandas.DataFrame`
         The dictionary read from the file.
     """
+    logger.info("Reading dictionary from %s", fp)
     if (suffix := Path(fp).suffix) == ".dic":
         return _read_dic(fp, **kwargs)
     elif suffix == ".dicx":
@@ -275,6 +276,7 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
     kwargs : Any
         Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
     """
+    logger.info("Writing dictionary (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
     if (suffix := Path(fp).suffix) == ".dic":
         return _write_dic(dx, fp)
     elif suffix == ".dicx":
@@ -318,6 +320,7 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
     worst          0       1
     you awake      1       0
     """
+    logger.info("Merging %d dictionaries", len(dxs))
     kwargs.setdefault("axis", 1)
     kwargs.setdefault("join", "outer")
     return pd.concat(dxs, **kwargs).fillna(0)

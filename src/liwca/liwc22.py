@@ -19,6 +19,7 @@ References
 from __future__ import annotations
 
 import argparse
+import logging
 import platform
 import shutil
 import subprocess
@@ -31,6 +32,7 @@ __all__ = [
     "cli",
 ]
 
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App management helpers
@@ -86,7 +88,7 @@ def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
                 "Make sure it is installed and on your PATH."
             )
 
-    print(f"Starting {exe} …")
+    logger.info("Starting %s …", exe)
     proc = subprocess.Popen(
         [exe],
         stdout=subprocess.DEVNULL,
@@ -892,7 +894,7 @@ def _run(args: argparse.Namespace) -> int:
 
     if not _is_liwc_running():
         if args.auto_open:
-            print("LIWC-22 is not running — starting it now …")
+            logger.info("LIWC-22 is not running — starting it now …")
             liwc_proc = _open_liwc_app(use_license_server=not args.use_gui)
             we_opened_it = True
         else:
@@ -902,26 +904,22 @@ def _run(args: argparse.Namespace) -> int:
             )
 
     # -- run the analysis ----------------------------------------------------
-    print(f"Running: {_quote_for_display(cmd)}")
+    logger.info("Running: %s", _quote_for_display(cmd))
     try:
         result = subprocess.run(cmd, check=True)
         rc = result.returncode
     except FileNotFoundError:
-        print(
-            f"ERROR: '{LIWC_CLI}' not found. Make sure LIWC-22 is installed "
-            "and the CLI is on your PATH.",
-            file=sys.stderr,
+        logger.error(
+            "'%s' not found. Make sure LIWC-22 is installed and the CLI is on your PATH.",
+            LIWC_CLI,
         )
         rc = 1
     except subprocess.CalledProcessError as exc:
-        print(
-            f"LIWC-22-cli exited with return code {exc.returncode}.",
-            file=sys.stderr,
-        )
+        logger.error("LIWC-22-cli exited with return code %d.", exc.returncode)
         rc = exc.returncode
     finally:
         if we_opened_it:
-            print("Shutting down LIWC-22 …")
+            logger.info("Shutting down LIWC-22 …")
             _close_liwc_app(liwc_proc)
 
     return rc
