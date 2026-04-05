@@ -5,7 +5,7 @@ Replicates the LIWC-22-cli interface using argparse with subparsers
 for each analysis mode. Builds the appropriate CLI command and runs
 it as a subprocess.
 
-Provides both a Python API (:func:`cli`) and a command-line entrypoint
+Provides both a Python API (:func:`liwc22`) and a command-line entrypoint
 (``liwca`` console script).
 
 Requires LIWC-22 to be installed with the CLI on your PATH.
@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 __all__ = [
-    "cli",
+    "liwc22",
 ]
 
 logger = logging.getLogger(__name__)
@@ -813,7 +813,7 @@ def _quote_for_display(cmd: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def cli(
+def liwc22(
     mode: str,
     *,
     auto_open: bool = False,
@@ -854,11 +854,15 @@ def cli(
     :class:`SystemExit`
         If LIWC-22 is not running and *auto_open* is ``False``.
 
+    See Also
+    --------
+    scikit : Pure-Python word counting (no LIWC-22 required).
+
     Examples
     --------
-    >>> cli("wc", input="data.txt", output="results.csv")  # doctest: +SKIP
+    >>> liwc22("wc", input="data.txt", output="results.csv")  # doctest: +SKIP
     0
-    >>> cli("wc", input="data.txt", output="results.csv", dry_run=True)  # doctest: +SKIP
+    >>> liwc22("wc", input="data.txt", output="results.csv", dry_run=True)  # doctest: +SKIP
     0
     """
     if mode not in MODE_DEFS:

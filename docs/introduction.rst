@@ -50,10 +50,10 @@ Pure-Python word counting, no LIWC-22 installation required.
    dx = liwca.read_dx("my_dictionary.dicx")
 
    texts = ["I feel happy today", "This is a sad story"]
-   results = liwca.count(texts, dx)  # proportions by default
+   results = liwca.scikit(texts, dx)  # proportions by default
 
    # Raw counts
-   results = liwca.count(texts, dx, as_percentage=False)
+   results = liwca.scikit(texts, dx, as_percentage=False)
 
 
 CLI wrapper

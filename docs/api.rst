@@ -16,17 +16,6 @@ Reading, writing, and merging LIWC dictionaries.
    merge_dx
 
 
-LIWC-22 CLI
-------------
-
-Python wrapper for the LIWC-22 command-line tool.
-
-.. autosummary::
-   :toctree: _autosummary
-
-   cli
-
-
 Word Counting
 -------------
 
@@ -35,7 +24,18 @@ Pure-Python LIWC-style word counting.
 .. autosummary::
    :toctree: _autosummary
 
-   count
+   scikit
+
+
+LIWC-22 CLI
+-----------
+
+Python wrapper for the LIWC-22 command-line tool.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   liwc22
 
 
 Fetching Dictionaries

@@ -1,12 +1,5 @@
 """
-Pure-Python LIWC-style word counting using scikit-learn.
-
-Provides :func:`count`, which takes an iterable of text documents and a
-LIWC dictionary :class:`~pandas.DataFrame` (as produced by :func:`liwca.read_dx`) and returns
-a documents × categories :class:`~pandas.DataFrame` of either raw counts or proportions.
-
-No LIWC application installation is required — this module operates entirely
-on the dictionary file and the texts you provide.
+LIWC-style word counting (pure-Python, no LIWC-22 required).
 
 Wildcard Handling
 -----------------
@@ -39,7 +32,7 @@ from scipy import sparse
 from sklearn.feature_extraction.text import CountVectorizer
 
 __all__ = [
-    "count",
+    "scikit",
 ]
 
 logger = logging.getLogger(__name__)
@@ -133,7 +126,7 @@ def _expand_wildcards(
 # ---------------------------------------------------------------------------
 
 
-def count(
+def scikit(
     texts: Union[Iterable[str], pd.Series],
     dx: pd.DataFrame,
     *,
@@ -142,7 +135,7 @@ def count(
     precision: int | None = None,
 ) -> pd.DataFrame:
     """
-    Count LIWC dictionary categories across documents.
+    Count LIWC dictionary categories across documents (pure-Python).
 
     Parameters
     ----------
@@ -178,7 +171,7 @@ def count(
     >>> import liwca
     >>> dx = liwca.fetch_dx("threat")
     >>> texts = ["This is a grave threat to our safety.", "All is calm today."]
-    >>> liwca.count(texts, dx)
+    >>> liwca.scikit(texts, dx)
     Category  WC  threat
     0          8    12.5
     1          4     0.0

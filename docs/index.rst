@@ -29,7 +29,7 @@ Python or the terminal, with a data-driven argument interface.
    import liwca
 
    dx = liwca.fetch_dx("threat")
-   results = liwca.count(["danger lurks ahead"], dx)
+   results = liwca.scikit(["danger lurks ahead"], dx)
 
 
 .. toctree::

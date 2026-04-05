@@ -33,7 +33,7 @@ categories. See :doc:`dictionaries` for the full catalogue.
 Counting words in text
 ----------------------
 
-:func:`~liwca.count` takes an iterable of documents and a dictionary
+:func:`~liwca.scikit` takes an iterable of documents and a dictionary
 DataFrame, and returns a documents x categories table:
 
 .. code-block:: python
@@ -43,7 +43,7 @@ DataFrame, and returns a documents x categories table:
        "It was a calm and peaceful morning",
    ]
 
-   result = liwca.count(texts, dx)
+   result = liwca.scikit(texts, dx)
    print(result)
 
 By default, values are **percentages** of total words per
@@ -51,7 +51,7 @@ document.  Pass ``as_percentage=False`` for raw counts:
 
 .. code-block:: python
 
-   result = liwca.count(texts, dx, as_percentage=False)
+   result = liwca.scikit(texts, dx, as_percentage=False)
    print(result)
 
 The ``WC`` column always shows the total word count for each document,
@@ -71,7 +71,7 @@ If your texts live in a :class:`~pandas.Series`, the index carries through:
        ["The threat was real", "A sunny day"],
        index=["doc_a", "doc_b"],
    )
-   result = liwca.count(texts, dx, as_percentage=False)
+   result = liwca.scikit(texts, dx, as_percentage=False)
    print(result)
 
 
@@ -103,7 +103,7 @@ Combine multiple dictionaries into one with :func:`~liwca.merge_dx`:
    print(merged.columns.tolist())  # ['sleep', 'threat']
 
    # Now count with both dictionaries at once
-   result = liwca.count(texts, merged)
+   result = liwca.scikit(texts, merged)
    print(result)
 
 Terms that appear in only one dictionary get ``0`` in the other's columns.
@@ -126,7 +126,7 @@ directly — either from the command line or from Python:
 .. code-block:: python
 
    # Python API
-   liwca.cli("wc", input="data.csv", output="results.csv")
+   liwca.liwc22("wc", input="data.csv", output="results.csv")
 
    # Dry run
-   liwca.cli("wc", input="data.csv", output="results.csv", dry_run=True)
+   liwca.liwc22("wc", input="data.csv", output="results.csv", dry_run=True)

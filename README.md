@@ -37,7 +37,7 @@ import liwca
 
 # Fetch a public dictionary and count words (no LIWC-22 needed)
 dx = liwca.fetch_dx("threat")
-results = liwca.count(["danger lurks ahead"], dx)
+results = liwca.scikit(["danger lurks ahead"], dx)
 ```
 
 ## Usage
@@ -68,8 +68,8 @@ Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 needed).
 
 ```python
 texts = ["I feel happy today", "This is a sad story"]
-results = liwca.count(texts, dx)                      # percentages (default)
-results = liwca.count(texts, dx, as_percentage=False)  # raw counts
+results = liwca.scikit(texts, dx)                      # percentages (default)
+results = liwca.scikit(texts, dx, as_percentage=False)  # raw counts
 ```
 
 ## Similar Projects

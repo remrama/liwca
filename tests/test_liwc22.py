@@ -9,7 +9,7 @@ from liwca.liwc22 import (
     MODE_DEFS,
     build_command,
     build_parser,
-    cli,
+    liwc22,
 )
 
 # ---------------------------------------------------------------------------
@@ -138,27 +138,27 @@ class TestBuildCommand:
 
 
 # ---------------------------------------------------------------------------
-# Python API (cli function)
+# Python API (liwc22 function)
 # ---------------------------------------------------------------------------
 
 
-class TestCliFunction:
-    """Tests for the cli() Python API."""
+class TestLiwc22Function:
+    """Tests for the liwc22() Python API."""
 
     def test_dry_run_returns_zero(self) -> None:
-        rc = cli("wc", input="data.txt", output="results.csv", dry_run=True)
+        rc = liwc22("wc", input="data.txt", output="results.csv", dry_run=True)
         assert rc == 0
 
     def test_dry_run_freq(self) -> None:
-        rc = cli("freq", input="corpus/", output="freqs.csv", n_gram=2, dry_run=True)
+        rc = liwc22("freq", input="corpus/", output="freqs.csv", n_gram=2, dry_run=True)
         assert rc == 0
 
     def test_unknown_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown mode"):
-            cli("nonexistent", input="x", output="y", dry_run=True)
+            liwc22("nonexistent", input="x", output="y", dry_run=True)
 
     def test_dry_run_lsm(self) -> None:
-        rc = cli(
+        rc = liwc22(
             "lsm",
             input="chat.csv",
             output="lsm.csv",

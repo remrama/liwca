@@ -1,4 +1,4 @@
-"""Tests for liwca.count — pure-Python LIWC word counting."""
+"""Tests for liwca.count — LIWC word counting (scikit and liwc22)."""
 
 from __future__ import annotations
 
@@ -106,14 +106,14 @@ class TestExpandWildcards:
 # ---------------------------------------------------------------------------
 
 
-class TestCount:
-    """Tests for the main count() function.
+class TestScikit:
+    """Tests for the main scikit() function.
 
     All tests use the .dicx-backed toy_dx_wildcards fixture (16 terms).
     """
 
     def test_basketball_sentence(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["the player dunked and grabbed the rebound near the hoop"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -124,7 +124,7 @@ class TestCount:
         assert result.loc[0, "Football"] == 0
 
     def test_baseball_sentence(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["the pitcher pitched a fastball and the batter hit a homer"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -134,7 +134,7 @@ class TestCount:
         assert result.loc[0, "Basketball"] == 0
 
     def test_football_sentence(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["the quarterback threw a touchdown pass before the tackle"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -145,7 +145,7 @@ class TestCount:
 
     def test_coach_scores_all_three(self, toy_dx_wildcards: pd.DataFrame) -> None:
         """coach is in all three categories."""
-        result = liwca.count(
+        result = liwca.scikit(
             ["the coach spoke"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -155,7 +155,7 @@ class TestCount:
         assert result.loc[0, "Football"] == 1
 
     def test_word_count_column(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["hoop layup dunk"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -164,12 +164,12 @@ class TestCount:
 
     def test_proportions(self, toy_dx_wildcards: pd.DataFrame) -> None:
         # "hoop and layup" = 3 tokens, 2 basketball matches → 66.67%
-        result = liwca.count(["hoop and layup"], toy_dx_wildcards)
+        result = liwca.scikit(["hoop and layup"], toy_dx_wildcards)
         expected_pct = 2 / 3 * 100
         assert abs(result.loc[0, "Basketball"] - expected_pct) < 0.01
 
     def test_empty_document(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count([""], toy_dx_wildcards)
+        result = liwca.scikit([""], toy_dx_wildcards)
         assert result.loc[0, "WC"] == 0
         assert result.loc[0, "Basketball"] == 0.0
         assert result.loc[0, "Baseball"] == 0.0
@@ -177,11 +177,11 @@ class TestCount:
 
     def test_series_preserves_index(self, toy_dx_wildcards: pd.DataFrame) -> None:
         series = pd.Series(["hoop", "dugout"], index=["game_a", "game_b"])
-        result = liwca.count(series, toy_dx_wildcards)
+        result = liwca.scikit(series, toy_dx_wildcards)
         assert list(result.index) == ["game_a", "game_b"]
 
     def test_custom_tokenizer(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["anything goes here"],
             toy_dx_wildcards,
             tokenizer=lambda t: ["hoop"],
@@ -193,12 +193,12 @@ class TestCount:
     def test_multiple_documents(
         self, toy_dx_wildcards: pd.DataFrame, sample_texts: list[str]
     ) -> None:
-        result = liwca.count(sample_texts, toy_dx_wildcards, as_percentage=False)
+        result = liwca.scikit(sample_texts, toy_dx_wildcards, as_percentage=False)
         assert result.shape[0] == len(sample_texts)
         assert "WC" in result.columns
 
     def test_no_dictionary_matches(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["the quick brown fox jumped over the lazy dog"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -210,7 +210,7 @@ class TestCount:
 
     def test_wc_counts_all_tokens(self, toy_dx_wildcards: pd.DataFrame) -> None:
         """WC should reflect total words, not just matched words."""
-        result = liwca.count(
+        result = liwca.scikit(
             ["the hoop is over there by the door"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -219,7 +219,7 @@ class TestCount:
         assert result.loc[0, "Basketball"] == 1
 
     def test_repeated_word(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(
+        result = liwca.scikit(
             ["dunk dunk dunk"],
             toy_dx_wildcards,
             as_percentage=False,
@@ -228,19 +228,21 @@ class TestCount:
 
     def test_precision_rounds_proportions(self, toy_dx_wildcards: pd.DataFrame) -> None:
         # "hoop and layup" = 3 tokens, 2 basketball matches → 66.6666...%
-        result = liwca.count(["hoop and layup"], toy_dx_wildcards, precision=2)
+        result = liwca.scikit(["hoop and layup"], toy_dx_wildcards, precision=2)
         assert result.loc[0, "Basketball"] == 66.67
 
     def test_precision_does_not_affect_wc(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(["hoop and layup"], toy_dx_wildcards, precision=0)
+        result = liwca.scikit(["hoop and layup"], toy_dx_wildcards, precision=0)
         assert result.loc[0, "WC"] == 3  # integer, not rounded float
 
     def test_precision_ignored_when_raw_counts(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(["hoop and layup"], toy_dx_wildcards, as_percentage=False, precision=2)
+        result = liwca.scikit(
+            ["hoop and layup"], toy_dx_wildcards, as_percentage=False, precision=2
+        )
         assert result.loc[0, "Basketball"] == 2  # raw count, unaffected
 
     def test_output_columns(self, toy_dx_wildcards: pd.DataFrame) -> None:
-        result = liwca.count(["hello"], toy_dx_wildcards)
+        result = liwca.scikit(["hello"], toy_dx_wildcards)
         expected_cols = ["WC"] + sorted(toy_dx_wildcards.columns)
         assert list(result.columns) == expected_cols
 
@@ -251,14 +253,14 @@ class TestCount:
             index=pd.Index(["zzz*"], dtype="string", name="DicTerm"),
         )
         dx.columns.name = "Category"
-        result = liwca.count(["hello world"], dx, as_percentage=False)
+        result = liwca.scikit(["hello world"], dx, as_percentage=False)
         assert result.loc[0, "CatA"] == 0
         assert result.loc[0, "WC"] == 2
 
     def test_integration_read_then_count(self, toy_dicx_path: Path) -> None:
         """Integration: read a dictionary file, then count."""
         dx = liwca.read_dx(toy_dicx_path)
-        result = liwca.count(
+        result = liwca.scikit(
             ["the coach watched the pitcher from the dugout"],
             dx,
             as_percentage=False,
