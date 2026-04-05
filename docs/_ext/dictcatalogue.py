@@ -28,7 +28,7 @@ class DictCatalogueDirective(Directive):
         tgroup += thead
         header_row = nodes.row()
         thead += header_row
-        for label in ("Name", "Description", "Source"):
+        for label in ("Name", "Description", "Examples"):
             entry = nodes.entry()
             entry += nodes.paragraph(text=label)
             header_row += entry
@@ -51,12 +51,15 @@ class DictCatalogueDirective(Directive):
             entry += nodes.paragraph(text=info.description)
             row += entry
 
-            # Source
+            # Examples
             entry = nodes.entry()
-            source_para = nodes.paragraph()
-            source_ref = nodes.reference("", info.source_label, refuri=info.source_url)
-            source_para += source_ref
-            entry += source_para
+            if info.examples:
+                example_nodes = []
+                for i, term in enumerate(info.examples):
+                    if i > 0:
+                        example_nodes.append(nodes.Text(", "))
+                    example_nodes.append(nodes.literal(text=term))
+                entry += nodes.paragraph("", "", *example_nodes)
             row += entry
 
             tbody += row

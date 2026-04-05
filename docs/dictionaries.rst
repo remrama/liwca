@@ -14,27 +14,6 @@ To list all available dictionaries:
    # ['bigtwo', 'honor', 'mystical', 'sleep', 'threat']
 
 
-Citing dictionaries
--------------------
-
-These dictionaries were created by independent research groups and shared
-publicly for reuse. **If you use a dictionary in your work, please cite the
-original authors.** Each dictionary entry below includes the citation(s) you
-should use. You can also access citations programmatically:
-
-.. code-block:: python
-
-   info = liwca.get_dict_info("threat")
-   for cite in info.citations:
-       print(cite)
-
-
-Dictionary catalogue
---------------------
-
-.. dict-catalogue::
-
-
 Fetching dictionaries
 ---------------------
 
@@ -55,10 +34,6 @@ To get only the cached file path without loading:
 
    fp = liwca.fetch_path("threat")
 
-
-Cache location
-~~~~~~~~~~~~~~
-
 By default, files are cached in your OS data directory:
 
 - **Linux:** ``~/.cache/liwca``
@@ -71,3 +46,24 @@ before importing liwca:
 .. code-block:: bash
 
    export LIWCA_DATA_DIR=/path/to/my/cache
+
+
+Citing dictionaries
+-------------------
+
+These dictionaries were created by independent research groups and shared
+publicly for reuse. **If you use a dictionary in your work, please cite the
+original authors.** Each dictionary entry below includes the citation(s) you
+should use. You can also access citations programmatically:
+
+.. code-block:: python
+
+   info = liwca.get_dict_info("threat")
+   for cite in info.citations:
+       print(cite)
+
+
+Dictionary catalogue
+--------------------
+
+.. dict-catalogue::
