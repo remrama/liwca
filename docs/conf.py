@@ -1,5 +1,6 @@
 # Configuration file for the Sphinx documentation builder.
 
+import inspect
 import os
 import sys
 import time
@@ -22,7 +23,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
-    "sphinx.ext.viewcode",
+    "sphinx.ext.linkcode",
     "dictcatalogue",
 ]
 
@@ -79,3 +80,45 @@ intersphinx_mapping = {
     "pooch": ("https://www.fatiando.org/pooch/latest/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
 }
+
+
+# -- linkcode (GitHub source links) ------------------------------------------
+
+_GITHUB_URL = "https://github.com/remrama/liwca/blob/main"
+
+
+def linkcode_resolve(domain: str, info: dict) -> str | None:
+    """Map a documented Python object to its GitHub source URL."""
+    if domain != "py" or not info["module"]:
+        return None
+
+    mod = sys.modules.get(info["module"])
+    if mod is None:
+        return None
+
+    obj = mod
+    for part in info["fullname"].split("."):
+        try:
+            obj = getattr(obj, part)
+        except AttributeError:
+            return None
+
+    obj = inspect.unwrap(obj)
+
+    try:
+        source_file = inspect.getsourcefile(obj)
+    except TypeError:
+        return None
+    if source_file is None:
+        return None
+
+    # Resolve to a path relative to the package root (src/).
+    source_file = os.path.relpath(source_file, start=os.path.join(os.path.dirname(__file__), ".."))
+    source_file = source_file.replace("\\", "/")
+
+    try:
+        lines, start = inspect.getsourcelines(obj)
+        end = start + len(lines) - 1
+        return f"{_GITHUB_URL}/{source_file}#L{start}-L{end}"
+    except OSError:
+        return f"{_GITHUB_URL}/{source_file}"
