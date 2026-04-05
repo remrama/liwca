@@ -1,22 +1,19 @@
+.. currentmodule:: liwca
+
 API Reference
 =============
 
-Dictionary I/O
---------------
+I/O
+---
 
-Reading, writing, merging, and fetching LIWC dictionaries.
+Reading, writing, and merging LIWC dictionaries.
 
-.. automodule:: liwca.io
-   :members: read_dx, write_dx, merge_dx, fetch_dx, fetch_path, list_available
+.. autosummary::
+   :toctree: _autosummary
 
-
-Word Counting
--------------
-
-Pure-Python LIWC-style word counting.
-
-.. automodule:: liwca.count
-   :members: count
+   read_dx
+   write_dx
+   merge_dx
 
 
 LIWC-22 CLI
@@ -24,5 +21,43 @@ LIWC-22 CLI
 
 Python wrapper for the LIWC-22 command-line tool.
 
-.. automodule:: liwca.liwc22
-   :members: cli, main
+.. autosummary::
+   :toctree: _autosummary
+
+   cli
+
+
+Word Counting
+-------------
+
+Pure-Python LIWC-style word counting.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   count
+
+
+Fetching Dictionaries
+---------------------
+
+Fetching LIWC-format dictionaries.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   fetch_dx
+   fetch_path
+   list_available
+   get_dict_info
+
+
+Miscellaneous
+-------------
+
+Miscellaneous utilities and helpers.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   set_log_level

@@ -58,7 +58,7 @@ html_sidebars = {
     "**": [],
 }
 
-add_module_names = False
+add_module_names = True
 add_function_parentheses = False
 
 # -- Extension configuration -------------------------------------------------
