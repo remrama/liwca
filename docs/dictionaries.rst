@@ -11,7 +11,22 @@ To list all available dictionaries:
 
    import liwca
    liwca.list_available()
-   # ['bigtwo_a', 'bigtwo_b', 'honor', 'mystical', 'sleep', 'threat']
+   # ['bigtwo', 'honor', 'mystical', 'sleep', 'threat']
+
+
+Citing dictionaries
+-------------------
+
+These dictionaries were created by independent research groups and shared
+publicly for reuse. **If you use a dictionary in your work, please cite the
+original authors.** Each dictionary entry below includes the citation(s) you
+should use. You can also access citations programmatically:
+
+.. code-block:: python
+
+   info = liwca.get_dict_info("threat")
+   for cite in info.citations:
+       print(cite)
 
 
 Dictionary catalogue

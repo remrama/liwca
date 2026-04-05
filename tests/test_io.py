@@ -306,10 +306,19 @@ class TestRegistryIntegrity:
 
         with open(str(files("liwca.data").joinpath("registry.json"))) as f:
             raw = json.load(f)
-        required = {"description", "source_url", "source_label"}
+        required = {"description", "source_url", "source_label", "citations"}
         for name, entry in raw.items():
             missing = required - entry.keys()
             assert not missing, f"'{name}' missing required fields: {missing}"
+            # Citations must be a non-empty list of strings
+            citations = entry["citations"]
+            assert isinstance(citations, list) and len(citations) > 0, (
+                f"'{name}' must have at least one citation in 'citations'"
+            )
+            for cite in citations:
+                assert isinstance(cite, str) and len(cite) > 0, (
+                    f"'{name}' has empty or non-string citation entry"
+                )
             # Flat entries need filename/hash/url; versioned need versions/default_version
             if "versions" in entry:
                 assert "default_version" in entry, f"'{name}' versioned but no default_version"

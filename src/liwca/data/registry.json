@@ -5,6 +5,7 @@
         "source_label": "OSF",
         "detail": "The Big Two (Agency and Communion) capture fundamental dimensions of social perception \u2014 how people evaluate themselves and others in terms of competence, assertiveness, and goal pursuit (agency) versus warmth, cooperation, and social connection (communion). Version ``a`` is the agency dimension; version ``b`` is the communion dimension.",
         "language": "English",
+        "citations": ["TODO"],
         "default_version": "a",
         "versions": {
             "a": {
@@ -25,6 +26,7 @@
         "source_label": "Gelfand et al., 2015",
         "detail": "Dictionary for detecting honor culture language, developed for research on cultural tightness-looseness and honor norms.",
         "language": "English",
+        "citations": ["TODO"],
         "filename": "honor.dic",
         "hash": "md5:83c2648f39136a1625fbdc1120d465fc",
         "url": "https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h"
@@ -35,6 +37,7 @@
         "source_label": "OSF",
         "detail": "Dictionary for identifying language related to mystical experiences, such as transcendence, unity, and altered states of consciousness.",
         "language": "English",
+        "citations": ["TODO"],
         "reader": "_read_raw_mystical",
         "filename": "mystical.xlsx",
         "hash": "md5:fe2d77b9bdff9c96508847b4819e7726",
@@ -47,8 +50,7 @@
         "detail": "Dictionary capturing sleep-related language, originally developed for research on sleep disturbance and suicidal ideation in social media text.",
         "examples": ["cant sleep", "couldnt sleep", "didnt sleep"],
         "language": "English",
-        "citation": "PMC9908817",
-        "citation_url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817",
+        "citations": ["TODO"],
         "reader": "_read_raw_sleep",
         "filename": "sleep.tsv",
         "hash": "md5:f8f4fd718a73618fa4b2720d0855e76d",
@@ -61,8 +63,7 @@
         "detail": "Dictionary for measuring perceived societal threat, developed for research on how ecological and historical threats shape cultural tightness across nations.",
         "examples": ["accidents", "accusations", "afraid", "aftermath"],
         "language": "English",
-        "citation": "doi:10.1073/pnas.2113891119",
-        "citation_url": "https://doi.org/10.1073/pnas.2113891119",
+        "citations": ["TODO"],
         "reader": "_read_raw_threat",
         "filename": "threat.txt",
         "hash": "md5:e634f376208fafef4161fcf20ee3e571",

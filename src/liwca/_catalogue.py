@@ -46,10 +46,9 @@ class DictInfo:
         by tests. Terms should be lowercase (as stored in the dictionary).
     language : str
         Language of the dictionary (default ``"English"``).
-    citation : str
-        Optional citation identifier (e.g., ``"PMC9908817"``).
-    citation_url : str
-        Optional URL for the citation.
+    citations : tuple of str
+        Full APA-format citation strings for the dictionary. Users of the
+        dictionary should cite these works.
     default_version : str or None
         Default version string for versioned dictionaries, or ``None`` for
         non-versioned dictionaries.
@@ -67,8 +66,7 @@ class DictInfo:
     detail: str = ""
     examples: tuple[str, ...] = ()
     language: str = "English"
-    citation: str = ""
-    citation_url: str = ""
+    citations: tuple[str, ...] = ()
     default_version: Optional[str] = None
     available_versions: tuple[str, ...] = ()
     reader: Optional[Callable[[str], pd.DataFrame]] = field(default=None, repr=False)
@@ -210,8 +208,7 @@ for _name, _entry in _RAW_REGISTRY.items():
         detail=_entry.get("detail", ""),
         examples=tuple(_entry.get("examples", ())),
         language=_entry.get("language", "English"),
-        citation=_entry.get("citation", ""),
-        citation_url=_entry.get("citation_url", ""),
+        citations=tuple(_entry.get("citations", ())),
         default_version=_default_ver,
         available_versions=_available,
         reader=_reader,

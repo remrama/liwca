@@ -51,19 +51,11 @@ class DictCatalogueDirective(Directive):
             entry += nodes.paragraph(text=info.description)
             row += entry
 
-            # Source (with optional citation)
+            # Source
             entry = nodes.entry()
             source_para = nodes.paragraph()
             source_ref = nodes.reference("", info.source_label, refuri=info.source_url)
             source_para += source_ref
-            if info.citation:
-                source_para += nodes.Text(" (")
-                if info.citation_url:
-                    cite_ref = nodes.reference("", info.citation, refuri=info.citation_url)
-                    source_para += cite_ref
-                else:
-                    source_para += nodes.Text(info.citation)
-                source_para += nodes.Text(")")
             entry += source_para
             row += entry
 
@@ -94,20 +86,19 @@ class DictCatalogueDirective(Directive):
             field_node += field_body
             field_list += field_node
 
-            if info.citation:
-                field_node = nodes.field()
-                field_node += nodes.field_name(text="Citation")
-                field_body = nodes.field_body()
-                if info.citation_url:
-                    cite_para = nodes.paragraph()
-                    cite_para += nodes.reference("", info.citation, refuri=info.citation_url)
-                    field_body += cite_para
-                else:
-                    field_body += nodes.paragraph(text=info.citation)
-                field_node += field_body
-                field_list += field_node
-
             section += field_list
+
+            # Citations
+            if info.citations:
+                section += nodes.paragraph(
+                    text="Please cite the following when using this dictionary:"
+                )
+                citation_list = nodes.enumerated_list()
+                for cite in info.citations:
+                    item = nodes.list_item()
+                    item += nodes.paragraph(text=cite)
+                    citation_list += item
+                section += citation_list
 
             # Example terms
             if info.examples:
