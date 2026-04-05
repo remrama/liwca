@@ -176,18 +176,12 @@ def count(
     Examples
     --------
     >>> import liwca
-
     >>> dx = liwca.fetch_dx("threat")
     >>> texts = ["This is a grave threat to our safety.", "All is calm today."]
     >>> liwca.count(texts, dx)
     Category  WC  threat
     0          8    12.5
     1          4     0.0
-
-    >>> liwca.count(texts, dx, as_percentage=False)
-    Category  WC  threat
-    0          8       1
-    1          4       0
     """
     if tokenizer is None:
         tokenizer = _default_tokenize
