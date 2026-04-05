@@ -34,42 +34,52 @@ Adding a new dictionary
 
 To add a new publicly available dictionary to the registry:
 
-1. **Add a JSON entry.** Edit ``src/liwca/data/registry.json`` and add an
-   entry. Compute the MD5 hash of the file (``md5sum filename.ext`` on
-   Linux/macOS, or ``certutil -hashfile filename.ext MD5`` on Windows).
+1. **Add a fetch function.** Edit ``src/liwca/fetchers.py`` and add a
+   ``fetch_<name>()`` function following the existing pattern. Include a NumPy
+   docstring with a short summary, ``Returns``, ``Notes`` (detail + source
+   URL), and ``References`` (citations).
 
-   For ``.dic`` or ``.dicx`` files (standard formats):
+   For standard ``.dic`` or ``.dicx`` files:
 
-   .. code-block:: json
+   .. code-block:: python
 
-      "mydict": {
-        "description": "My dictionary description.",
-        "source_url": "https://example.com",
-        "source_label": "Example",
-        "citation": "doi:...",
-        "citation_url": "https://doi.org/...",
-        "filename": "mydict.dic",
-        "hash": "md5:<hash>",
-        "url": "https://example.com/download/mydict.dic"
-      }
+      def fetch_mydict() -> pd.DataFrame:
+          """
+          Fetch the My Dictionary dictionary.
 
-   For non-standard formats (TSV, Excel, plain text, etc.), also set the
-   ``reader`` field to the name of a private reader function in
-   ``src/liwca/_catalogue.py``:
+          Returns
+          -------
+          :class:`pandas.DataFrame`
+              Dictionary for ...
 
-   .. code-block:: json
+          Notes
+          -----
+          Description of the dictionary.
 
-      "mydict": {
-        "description": "...",
-        "reader": "_read_raw_mydict",
-        "filename": "mydict.xlsx",
-        "hash": "md5:<hash>",
-        "url": "https://..."
-      }
+          Source: `Label <https://example.com>`__
 
-   Then add the reader function in ``_catalogue.py`` and register it in the
-   ``_READERS`` dict.
+          References
+          ----------
+          .. [1] Author, A. (Year). Title. *Journal*, vol, pages.
+          """
+          return read_dx(_pup.fetch("mydict.dic"))
 
-2. **Tests and docs** are automatic — ``liwca.list_available()`` derives from
-   the registry, and the dictionary table in the docs is auto-generated at
-   build time.
+   For non-standard formats (TSV, Excel, plain text, etc.), add custom
+   parsing inline in the function body and call ``dx_schema.validate(df)``
+   before returning.
+
+2. **Add to the registry.** Edit ``src/liwca/data/registry.txt`` and append
+   a line with the filename, MD5 hash, and download URL:
+
+   .. code-block:: text
+
+      mydict.dic md5:<hash> https://example.com/download/mydict.dic
+
+   Compute the MD5 hash of the file (``md5sum filename.ext`` on Linux/macOS,
+   or ``certutil -hashfile filename.ext MD5`` on Windows).
+
+3. **Export from the package.** Add ``fetch_<name>`` to ``__all__`` in
+   ``src/liwca/fetchers.py`` and verify it is importable as
+   ``liwca.fetch_<name>()``.
+
+That's it — Sphinx picks up the new function automatically via ``autosummary``.

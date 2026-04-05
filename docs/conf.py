@@ -5,8 +5,6 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "_ext"))
-
 import liwca
 
 project = liwca.__name__
@@ -24,7 +22,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.linkcode",
-    "dictcatalogue",
 ]
 
 templates_path = ["_templates"]

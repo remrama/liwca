@@ -10,13 +10,25 @@ import pandas as pd
 import pytest
 
 import liwca
-from liwca._catalogue import CATALOGUE
+
+_FETCH_FUNCTIONS = [
+    ("bigtwo", liwca.fetch_bigtwo),
+    ("honor", liwca.fetch_honor),
+    ("mystical", liwca.fetch_mystical),
+    ("sleep", liwca.fetch_sleep),
+    ("threat", liwca.fetch_threat),
+]
+
+_EXAMPLES: dict[str, list[str]] = {
+    "sleep": ["cant sleep", "couldnt sleep", "didnt sleep"],
+    "threat": ["accidents", "accusations", "afraid", "aftermath"],
+}
 
 
-@pytest.mark.parametrize("dic_name", liwca.list_available())
-def test_fetch_and_validate(dic_name: str) -> None:
+@pytest.mark.parametrize("name,fetch_fn", _FETCH_FUNCTIONS)
+def test_fetch_and_validate(name: str, fetch_fn) -> None:
     """Fetch a remote dictionary, verify it loads as a valid DataFrame."""
-    dx = liwca.fetch_dx(dic_name)
+    dx = fetch_fn()
     assert isinstance(dx, pd.DataFrame)
     assert dx.index.name == "DicTerm"
     assert dx.columns.name == "Category"
@@ -25,13 +37,10 @@ def test_fetch_and_validate(dic_name: str) -> None:
     assert set(dx.values.flat) <= {0, 1}
 
 
-@pytest.mark.parametrize(
-    "dic_name",
-    [name for name, info in CATALOGUE.items() if info.examples],
-)
-def test_example_terms_in_dictionary(dic_name: str) -> None:
-    """Verify that catalogue example terms actually exist in the fetched dictionary."""
-    dx = liwca.fetch_dx(dic_name)
-    info = CATALOGUE[dic_name]
-    missing = [term for term in info.examples if term not in dx.index]
-    assert not missing, f"Example terms not found in '{dic_name}': {missing}"
+@pytest.mark.parametrize("name,examples", _EXAMPLES.items())
+def test_example_terms_in_dictionary(name: str, examples: list[str]) -> None:
+    """Verify that known example terms actually exist in the fetched dictionary."""
+    fetch_fn = getattr(liwca, f"fetch_{name}")
+    dx = fetch_fn()
+    missing = [term for term in examples if term not in dx.index]
+    assert not missing, f"Example terms not found in '{name}': {missing}"

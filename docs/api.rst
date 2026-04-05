@@ -41,15 +41,16 @@ Python wrapper for the LIWC-22 command-line tool.
 Fetching Dictionaries
 ---------------------
 
-Fetching LIWC-format dictionaries.
+Remote LIWC-format dictionaries, fetched on demand and cached locally.
 
 .. autosummary::
    :toctree: _autosummary
 
-   fetch_dx
-   fetch_path
-   list_available
-   get_dict_info
+   fetch_bigtwo
+   fetch_honor
+   fetch_mystical
+   fetch_sleep
+   fetch_threat
 
 
 Miscellaneous

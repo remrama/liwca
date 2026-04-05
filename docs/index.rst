@@ -28,7 +28,7 @@ Python or the terminal, with a data-driven argument interface.
 
    import liwca
 
-   dx = liwca.fetch_dx("threat")
+   dx = liwca.fetch_threat()
    results = liwca.scikit(["danger lurks ahead"], dx)
 
 

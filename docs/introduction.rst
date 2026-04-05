@@ -29,7 +29,7 @@ Reading and writing dictionaries
    dx = liwca.read_dx("my_dictionary.dicx")
 
    # Fetch a public dictionary
-   dx = liwca.fetch_dx("sleep")
+   dx = liwca.fetch_sleep()
 
    # Write to a different format
    liwca.write_dx(dx, "my_dictionary.dic")

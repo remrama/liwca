@@ -5,22 +5,17 @@ This guide walks through the core features of **liwca**: fetching
 dictionaries, counting words, and working with dictionary files.
 
 
-Listing and fetching dictionaries
-----------------------------------
+Fetching dictionaries
+---------------------
 
-Use :func:`~liwca.list_available` to see which dictionaries are in the
-registry, and :func:`~liwca.fetch_dx` to download and load one:
+Each registered dictionary has a dedicated ``fetch_*`` function. Calling it
+downloads the file on first use and returns it as a :class:`~pandas.DataFrame`:
 
 .. code-block:: python
 
    import liwca
 
-   # See what's available
-   liwca.list_available()
-   # ['bigtwo', 'honor', 'mystical', 'sleep', 'threat']
-
-   # Fetch and load
-   dx = liwca.fetch_dx("threat")
+   dx = liwca.fetch_threat()
    print(dx.shape)          # (n_terms, n_categories)
    print(dx.columns.tolist())  # ['threat']
    dx.head()
@@ -96,8 +91,8 @@ Combine multiple dictionaries into one with :func:`~liwca.merge_dx`:
 
 .. code-block:: python
 
-   dx_sleep = liwca.fetch_dx("sleep")
-   dx_threat = liwca.fetch_dx("threat")
+   dx_sleep = liwca.fetch_sleep()
+   dx_threat = liwca.fetch_threat()
 
    merged = liwca.merge_dx(dx_sleep, dx_threat)
    print(merged.columns.tolist())  # ['sleep', 'threat']
