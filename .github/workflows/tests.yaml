@@ -42,8 +42,36 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache Pooch data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/liwca
+            ~/Library/Caches/liwca
+            ~\AppData\Local\liwca
+          key: pooch-${{ runner.os }}-${{ hashFiles('src/liwca/data/registry.txt') }}
+          restore-keys: |
+            pooch-${{ runner.os }}-
+
       - name: Install dependencies
         run: pip install -e .[dev]
 
       - name: Run tests with coverage
         run: pytest tests/ --cov=liwca --cov-report=term-missing
+
+  test-remote:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e .[dev]
+
+      - name: Run remote dictionary tests
+        run: pytest tests/test_remote.py -v

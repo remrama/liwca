@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from collections.abc import Callable, Iterable
 from typing import Union
 
@@ -133,12 +134,17 @@ def _expand_wildcards(
 # ---------------------------------------------------------------------------
 
 
+__SENTINEL = object()
+
+
 def count(
     texts: Union[Iterable[str], pd.Series],
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = None,
-    as_proportion: bool = True,
+    as_percentage: bool = True,
+    as_proportion: object = __SENTINEL,
+    precision: int | None = None,
 ) -> pd.DataFrame:
     """
     Count LIWC dictionary categories across documents.
@@ -155,10 +161,17 @@ def count(
         A function ``str -> list[str]`` used to split each document into
         lowercase tokens.  Defaults to a regex tokenizer that preserves
         contractions (``don't`` → ``["don't"]``).
-    as_proportion : :class:`bool`, optional
-        If ``True`` (default), return category values as proportions of total
+    as_percentage : :class:`bool`, optional
+        If ``True`` (default), return category values as a percentage of total
         word count per document (matching LIWC's default output).  If
         ``False``, return raw category counts.
+    as_proportion : :class:`bool`, optional
+        .. deprecated::
+            Use ``as_percentage`` instead. Will be removed in a future version.
+    precision : :class:`int`, optional
+        If set, round category value columns to this many decimal places.
+        Only applies when ``as_percentage=True``. The ``"WC"`` column is
+        never rounded.
 
     Returns
     -------
@@ -179,11 +192,18 @@ def count(
     0          8    12.5
     1          4     0.0
 
-    >>> liwca.count(texts, dx, as_proportion=False)
+    >>> liwca.count(texts, dx, as_percentage=False)
     Category  WC  threat
     0          8       1
     1          4       0
     """
+    if as_proportion is not __SENTINEL:
+        warnings.warn(
+            "The 'as_proportion' parameter is deprecated. Use 'as_percentage' instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        as_percentage = bool(as_proportion)
     if tokenizer is None:
         tokenizer = _default_tokenize
 
@@ -220,7 +240,7 @@ def count(
         cat_counts = np.zeros((n_docs, n_cats), dtype=int)
     else:
         vectorizer = CountVectorizer(
-            analyzer=tokenizer,  # type: ignore[arg-type]
+            analyzer=tokenizer,
             vocabulary=vocab_map,
             lowercase=False,  # tokenizer already lowercases
         )
@@ -241,7 +261,7 @@ def count(
         word_counts = np.zeros(len(docs), dtype=int)
     else:
         wc_vectorizer = CountVectorizer(
-            analyzer=tokenizer,  # type: ignore[arg-type]
+            analyzer=tokenizer,
             lowercase=False,
         )
         wc_dtm = wc_vectorizer.fit_transform(docs)
@@ -254,10 +274,13 @@ def count(
         columns=dx_expanded.columns,
     )
 
-    if as_proportion:
+    if as_percentage:
         # Avoid division by zero for empty documents.
         safe_wc = np.where(word_counts > 0, word_counts, 1)
         result = result.div(safe_wc, axis=0) * 100
+
+    if as_percentage and precision is not None:
+        result = result.round(precision)
 
     result.insert(0, "WC", word_counts)
     logger.debug(

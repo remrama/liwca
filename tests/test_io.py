@@ -166,6 +166,34 @@ class TestMergeDx:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Listing
+# ---------------------------------------------------------------------------
+
+
+class TestListAvailable:
+    """Tests for list_available."""
+
+    def test_returns_sorted_list(self) -> None:
+        result = liwca.list_available()
+        assert isinstance(result, list)
+        assert result == sorted(result)
+
+    def test_contains_known_dictionaries(self) -> None:
+        result = liwca.list_available()
+        for name in ("bigtwo_a", "bigtwo_b", "honor", "mystical", "sleep", "threat"):
+            assert name in result
+
+    def test_all_strings(self) -> None:
+        result = liwca.list_available()
+        assert all(isinstance(name, str) for name in result)
+
+
+# ---------------------------------------------------------------------------
+# Fetching
+# ---------------------------------------------------------------------------
+
+
 class TestFetchPath:
     """Tests for fetch_path."""
 
@@ -198,3 +226,12 @@ class TestFetchDx:
         with patch.object(io, "fetch_path", return_value=str(toybad_dicx_path)):
             with pytest.raises(ValueError, match="Error reading dictionary"):
                 liwca.fetch_dx("toybad")
+
+    def test_unsupported_format_without_reader(self, tmp_path: Path) -> None:
+        """Fetched file with unsupported extension and no custom reader raises ValueError."""
+        fake_file = tmp_path / "weird.json"
+        fake_file.write_text("{}")
+        with patch.object(io, "fetch_path", return_value=str(fake_file)):
+            with patch("liwca._remoteprocessors.READERS", {}):
+                with pytest.raises(ValueError, match="no registered reader"):
+                    liwca.fetch_dx("weird")

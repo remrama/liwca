@@ -25,14 +25,16 @@ def read_raw_sleep(fname: str) -> pd.DataFrame:
 
     Dictionary details
     ^^^^^^^^^^^^^^^^^^
-    * OSF repository: https://osf.io/9f3v2
-    * Full table: https://osf.io/8hfcs
-    * Paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817
-    * Paper: https://onlinelibrary.wiley.com/doi/10.1111/sltb.12920
+    * **Name:** ``sleep``
+    * **Language:** English
+    * **Source:** https://osf.io/9f3v2
+    * **Full table:** https://osf.io/8hfcs
+    * **Citation:** `PMC9908817 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817>`_,
+      `doi:10.1111/sltb.12920 <https://doi.org/10.1111/sltb.12920>`_
 
     Parameters
     ----------
-    fname : str
+    fname : :class:`str`
         Path to the raw TSV file.
 
     Returns
@@ -64,7 +66,7 @@ def read_raw_threat(fname: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    fname : str
+    fname : :class:`str`
         Path to the raw text file (one word per line).
 
     Returns
@@ -85,11 +87,13 @@ def read_raw_mystical(fname: str) -> pd.DataFrame:
 
     Dictionary details
     ^^^^^^^^^^^^^^^^^^
-    * OSF repo: https://osf.io/6ph8z
+    * **Name:** ``mystical``
+    * **Language:** English
+    * **Source:** https://osf.io/6ph8z
 
     Parameters
     ----------
-    fname : str
+    fname : :class:`str`
         Path to the raw Excel file.
 
     Returns

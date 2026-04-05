@@ -18,6 +18,7 @@ import pooch
 __all__ = [
     "fetch_dx",
     "fetch_path",
+    "list_available",
     "merge_dx",
     "read_dx",
     "write_dx",
@@ -26,7 +27,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_pup = pooch.create(path=pooch.os_cache("liwca"), base_url="")
+_pup = pooch.create(path=pooch.os_cache("liwca"), base_url="", env="LIWCA_DATA_DIR")
 _pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
 
 # _dicname_to_registry = {
@@ -97,6 +98,8 @@ dx_schema = pa.DataFrameSchema(
     unique_column_names=True,
     checks=[
         pa.Check(lambda df: df.columns.name == "Category", name="Column index is named 'Category'"),
+        pa.Check(lambda df: len(df) > 0, name="At least one term (row)"),
+        pa.Check(lambda df: len(df.columns) > 0, name="At least one category (column)"),
         # pa.Check(lambda df: df.columns.isunique),
     ],
 )
@@ -331,6 +334,25 @@ def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
 #######################################################################################
 
 
+def list_available() -> list[str]:
+    """
+    List the names of all dictionaries available for fetching.
+
+    Returns
+    -------
+    list of :class:`str`
+        Sorted list of dictionary names that can be passed to
+        :func:`fetch_dx` or :func:`fetch_path`.
+
+    Examples
+    --------
+    >>> import liwca
+    >>> liwca.list_available()
+    ['bigtwo_a', 'bigtwo_b', 'honor', 'mystical', 'sleep', 'threat']
+    """
+    return sorted(Path(f).stem for f in _pup.registry_files)
+
+
 def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     """
     Get the downloader for a dictionary.
@@ -345,7 +367,8 @@ def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
     Optional[:class:`pooch.HTTPDownloader`]
         The downloader for the dictionary, if available.
     """
-    _requires_github_auth = ["tbd"]
+    # Reserved for future dictionaries requiring authenticated downloads.
+    _requires_github_auth: list[str] = []
     if dic_name in _requires_github_auth:
         evar = "GITHUB_TOKEN"
         if (token := os.getenv(evar)) is not None:
@@ -389,7 +412,7 @@ def fetch_path(dic_name: str) -> str:
             except Exception as e:
                 raise ValueError(f"Failed to download dictionary '{dic_name}': {e}") from e
             logger.debug("Fetched '%s' to %s", dic_name, fp)
-            return fp
+            return str(fp)
     raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
 
 
@@ -428,6 +451,12 @@ def fetch_dx(dic_name: str) -> pd.DataFrame:
     from . import _remoteprocessors
 
     reader = _remoteprocessors.READERS.get(dic_name)
+    suffix = Path(fp).suffix
+    if reader is None and suffix not in (".dic", ".dicx"):
+        raise ValueError(
+            f"Dictionary '{dic_name}' has format '{suffix}' but no registered reader. "
+            f"Supported fallback formats: .dic, .dicx"
+        )
     try:
         df = reader(fp) if reader is not None else read_dx(fp)
     except Exception as e:

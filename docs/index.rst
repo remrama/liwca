@@ -37,4 +37,6 @@ Python or the terminal, with a data-driven argument interface.
 
    introduction
    guide
+   dictionaries
    api
+   contributing

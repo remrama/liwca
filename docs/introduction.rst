@@ -12,7 +12,7 @@ For development::
 
    git clone https://github.com/remrama/liwca.git
    cd liwca
-   pip install -e ".[dev]"
+   uv pip install -e ".[dev]"
 
 
 Quickstart
@@ -53,7 +53,7 @@ Pure-Python word counting, no LIWC-22 installation required.
    results = liwca.count(texts, dx)  # proportions by default
 
    # Raw counts
-   results = liwca.count(texts, dx, as_proportion=False)
+   results = liwca.count(texts, dx, as_percentage=False)
 
 
 CLI wrapper

@@ -5,16 +5,21 @@ This guide walks through the core features of **liwca**: fetching
 dictionaries, counting words, and working with dictionary files.
 
 
-Fetching a public dictionary
-----------------------------
+Listing and fetching dictionaries
+----------------------------------
 
-Several public LIWC-format dictionaries are bundled in the liwca registry.
-Use :func:`~liwca.fetch_dx` to download and cache one:
+Use :func:`~liwca.list_available` to see which dictionaries are in the
+registry, and :func:`~liwca.fetch_dx` to download and load one:
 
 .. code-block:: python
 
    import liwca
 
+   # See what's available
+   liwca.list_available()
+   # ['bigtwo_a', 'bigtwo_b', 'honor', 'mystical', 'sleep', 'threat']
+
+   # Fetch and load
    dx = liwca.fetch_dx("threat")
    print(dx.shape)          # (n_terms, n_categories)
    print(dx.columns.tolist())  # ['threat']
@@ -22,7 +27,7 @@ Use :func:`~liwca.fetch_dx` to download and cache one:
 
 Every dictionary is returned as a :class:`~pandas.DataFrame` with a binary
 (0/1) matrix — rows are dictionary terms (index ``DicTerm``), columns are
-categories.
+categories. See :doc:`dictionaries` for the full catalogue.
 
 
 Counting words in text
@@ -41,12 +46,12 @@ DataFrame, and returns a documents x categories table:
    result = liwca.count(texts, dx)
    print(result)
 
-By default, values are **proportions** (percentage of total words per
-document).  Pass ``as_proportion=False`` for raw counts:
+By default, values are **percentages** of total words per
+document.  Pass ``as_percentage=False`` for raw counts:
 
 .. code-block:: python
 
-   result = liwca.count(texts, dx, as_proportion=False)
+   result = liwca.count(texts, dx, as_percentage=False)
    print(result)
 
 The ``WC`` column always shows the total word count for each document,
@@ -66,7 +71,7 @@ If your texts live in a :class:`~pandas.Series`, the index carries through:
        ["The threat was real", "A sunny day"],
        index=["doc_a", "doc_b"],
    )
-   result = liwca.count(texts, dx, as_proportion=False)
+   result = liwca.count(texts, dx, as_percentage=False)
    print(result)
 
 

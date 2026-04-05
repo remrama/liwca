@@ -23,60 +23,51 @@ Stuff like:
 pip install --upgrade liwca
 ```
 
-## Usage
-
-### IO
-
-```python
-import liwca
-
-# Download and read a public dictionary files
-dx = liwca.fetch_dx("sleep")
-
-# Read local dictionary files
-dx = liwca.read_dx("./sleep.dic")
-dx = liwca.read_dx("./sleep.dicx")
-
-# Write local dictionary files
-liwca.write_dx(dx, "./sleep.dic")
-liwca.write_dx(dx, "./sleep.dicx")
-```
-
-### Counting
-
-Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 installation required).
-
-```python
-import liwca
-
-dx = liwca.read_dx("my_dictionary.dicx")
-
-texts = ["I feel happy today", "This is a sad story"]
-results = liwca.count(texts, dx)  # returns DataFrame with category percentages
-
-# Get raw counts instead of proportions
-results = liwca.count(texts, dx, as_proportion=False)
-```
-
-### CLI
-
-Wraps `liwc-22-cli` for analysis from the command line (requires LIWC-22).
+## Quick Start
 
 ```bash
-# Word count analysis
+# LIWC-22 CLI wrapper (requires LIWC-22)
 liwca wc -i data.csv -o results.csv
+```
 
-# Frequency analysis
-liwca freq -i corpus/ -o frequencies.csv
+```python
+import liwca
 
-# Auto-launch LIWC-22 if not already running
-liwca wc -i data.csv -o results.csv --auto-open
+# Fetch a public dictionary and count words (no LIWC-22 needed)
+dx = liwca.fetch_dx("threat")
+results = liwca.count(["danger lurks ahead"], dx)
+```
 
-# Preview the command without executing
-liwca wc -i data.csv -o results.csv --dry-run
+## Usage
 
-# View all possible arguments for the word count analysis
-liwca wc --help
+### CLI (requires LIWC-22)
+
+```bash
+liwca wc -i data.csv -o results.csv          # Word count analysis
+liwca freq -i corpus/ -o frequencies.csv      # Frequency analysis
+liwca wc -i data.csv -o results.csv --auto-open  # Auto-launch LIWC-22
+liwca wc --help                               # View all arguments
+```
+
+### Dictionary I/O
+
+```python
+import liwca
+
+liwca.list_available()              # See available remote dictionaries
+dx = liwca.fetch_dx("sleep")       # Fetch and load a public dictionary
+dx = liwca.read_dx("./my.dicx")    # Read a local dictionary file
+liwca.write_dx(dx, "./my.dic")     # Write to a different format
+```
+
+### Word Counting
+
+Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 needed).
+
+```python
+texts = ["I feel happy today", "This is a sad story"]
+results = liwca.count(texts, dx)                      # percentages (default)
+results = liwca.count(texts, dx, as_percentage=False)  # raw counts
 ```
 
 ## Similar Projects

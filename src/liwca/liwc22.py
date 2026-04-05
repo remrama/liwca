@@ -70,14 +70,14 @@ def _is_liwc_running() -> bool:
         return False
 
 
-def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
+def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen[bytes] | None:
     """Launch LIWC-22 in the background and return the Popen handle."""
     if use_license_server and shutil.which(LIWC_LICENSE_SERVER):
         exe = LIWC_LICENSE_SERVER
     else:
         app_name = LIWC_APP_NAMES.get(platform.system(), "LIWC-22")
-        exe = shutil.which(app_name)
-        if exe is None:
+        exe_path = shutil.which(app_name)
+        if exe_path is None:
             mac_path = Path("/Applications/LIWC-22.app")
             if mac_path.exists():
                 proc = subprocess.Popen(["open", "-a", "LIWC-22"])
@@ -87,6 +87,7 @@ def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
                 "ERROR: Could not locate LIWC-22 application. "
                 "Make sure it is installed and on your PATH."
             )
+        exe = exe_path
 
     logger.info("Starting %s …", exe)
     proc = subprocess.Popen(
@@ -98,7 +99,7 @@ def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
     return proc
 
 
-def _close_liwc_app(proc: subprocess.Popen | None) -> None:
+def _close_liwc_app(proc: subprocess.Popen[bytes] | None) -> None:
     """Terminate a LIWC process that we opened."""
     if proc is None:
         return
@@ -120,7 +121,7 @@ def _close_liwc_app(proc: subprocess.Popen | None) -> None:
 #   "is_bool" - True for store_true flags (emitted without a value)
 
 
-def _a(flags: list[str], dest: str, *, is_bool: bool = False, **kw: Any) -> dict:
+def _a(flags: list[str], dest: str, *, is_bool: bool = False, **kw: Any) -> dict[str, Any]:
     """Shorthand to build a catalogue entry."""
     entry: dict[str, Any] = {"flags": flags, "dest": dest, "is_bool": is_bool}
     if is_bool:
@@ -132,10 +133,10 @@ def _a(flags: list[str], dest: str, *, is_bool: bool = False, **kw: Any) -> dict
     return entry
 
 
-ARG_CATALOGUE: dict[str, dict] = {}
+ARG_CATALOGUE: dict[str, dict[str, Any]] = {}
 
 
-def _register_args(*entries: dict) -> None:
+def _register_args(*entries: dict[str, Any]) -> None:
     for e in entries:
         ARG_CATALOGUE[e["dest"]] = e
 
@@ -495,7 +496,7 @@ _register_args(
 # Each mode is fully declared as data: which args it uses, which are
 # required, which globals it supports, and a short description.
 
-MODE_DEFS: dict[str, dict] = {
+MODE_DEFS: dict[str, dict[str, Any]] = {
     "wc": {
         "help": "LIWC word count analysis.",
         "description": "Run a standard LIWC-22 word count analysis.",

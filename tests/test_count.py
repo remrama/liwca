@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 import liwca
 from liwca.count import _default_tokenize, _expand_wildcards
@@ -116,7 +117,7 @@ class TestCount:
         result = liwca.count(
             ["the player dunked and grabbed the rebound near the hoop"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         # dunked(dunk*) + rebound(rebound*) + hoop(exact) = 3
         assert result.loc[0, "Basketball"] == 3
@@ -127,7 +128,7 @@ class TestCount:
         result = liwca.count(
             ["the pitcher pitched a fastball and the batter hit a homer"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         # pitcher(pitch*) + pitched(pitch*) + batter(exact) + homer(homer*) = 4
         assert result.loc[0, "Baseball"] == 4
@@ -137,7 +138,7 @@ class TestCount:
         result = liwca.count(
             ["the quarterback threw a touchdown pass before the tackle"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         # quarterback(exact) + touchdown(touchdown*) + tackle(tackle*) = 3
         assert result.loc[0, "Football"] == 3
@@ -148,7 +149,7 @@ class TestCount:
         result = liwca.count(
             ["the coach spoke"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         assert result.loc[0, "Baseball"] == 1
         assert result.loc[0, "Basketball"] == 1
@@ -158,7 +159,7 @@ class TestCount:
         result = liwca.count(
             ["hoop layup dunk"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         assert result.loc[0, "WC"] == 3
 
@@ -185,7 +186,7 @@ class TestCount:
             ["anything goes here"],
             toy_dx_wildcards,
             tokenizer=lambda t: ["hoop"],
-            as_proportion=False,
+            as_percentage=False,
         )
         assert result.loc[0, "Basketball"] == 1
         assert result.loc[0, "WC"] == 1
@@ -193,7 +194,7 @@ class TestCount:
     def test_multiple_documents(
         self, toy_dx_wildcards: pd.DataFrame, sample_texts: list[str]
     ) -> None:
-        result = liwca.count(sample_texts, toy_dx_wildcards, as_proportion=False)
+        result = liwca.count(sample_texts, toy_dx_wildcards, as_percentage=False)
         assert result.shape[0] == len(sample_texts)
         assert "WC" in result.columns
 
@@ -201,7 +202,7 @@ class TestCount:
         result = liwca.count(
             ["the quick brown fox jumped over the lazy dog"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         assert result.loc[0, "Basketball"] == 0
         assert result.loc[0, "Baseball"] == 0
@@ -213,7 +214,7 @@ class TestCount:
         result = liwca.count(
             ["the hoop is over there by the door"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         assert result.loc[0, "WC"] == 8
         assert result.loc[0, "Basketball"] == 1
@@ -222,14 +223,33 @@ class TestCount:
         result = liwca.count(
             ["dunk dunk dunk"],
             toy_dx_wildcards,
-            as_proportion=False,
+            as_percentage=False,
         )
         assert result.loc[0, "Basketball"] == 3
+
+    def test_precision_rounds_proportions(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        # "hoop and layup" = 3 tokens, 2 basketball matches → 66.6666...%
+        result = liwca.count(["hoop and layup"], toy_dx_wildcards, precision=2)
+        assert result.loc[0, "Basketball"] == 66.67
+
+    def test_precision_does_not_affect_wc(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        result = liwca.count(["hoop and layup"], toy_dx_wildcards, precision=0)
+        assert result.loc[0, "WC"] == 3  # integer, not rounded float
+
+    def test_precision_ignored_when_raw_counts(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        result = liwca.count(["hoop and layup"], toy_dx_wildcards, as_percentage=False, precision=2)
+        assert result.loc[0, "Basketball"] == 2  # raw count, unaffected
 
     def test_output_columns(self, toy_dx_wildcards: pd.DataFrame) -> None:
         result = liwca.count(["hello"], toy_dx_wildcards)
         expected_cols = ["WC"] + sorted(toy_dx_wildcards.columns)
         assert list(result.columns) == expected_cols
+
+    def test_as_proportion_deprecation_warning(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """Using the deprecated as_proportion parameter emits FutureWarning."""
+        with pytest.warns(FutureWarning, match="as_proportion.*deprecated"):
+            result = liwca.count(["hoop"], toy_dx_wildcards, as_proportion=False)
+        assert result.loc[0, "Basketball"] == 1  # raw count, as_proportion=False respected
 
     def test_integration_read_then_count(self, toy_dicx_path: Path) -> None:
         """Integration: read a dictionary file, then count."""
@@ -237,7 +257,7 @@ class TestCount:
         result = liwca.count(
             ["the coach watched the pitcher from the dugout"],
             dx,
-            as_proportion=False,
+            as_percentage=False,
         )
         # coach → all 3; pitcher(pitch*) → Baseball; dugout → Baseball
         assert result.loc[0, "Baseball"] == 3

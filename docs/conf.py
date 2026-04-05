@@ -67,6 +67,9 @@ napoleon_numpy_docstring = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
+    "pandera": ("https://pandera.readthedocs.io/en/stable/", None),
+    "pooch": ("https://www.fatiando.org/pooch/latest/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
 }
