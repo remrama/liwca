@@ -79,8 +79,7 @@ class TestReadDx:
 
     def test_dtype(self, toy_dicx_path: Path) -> None:
         dx = liwca.read_dx(toy_dicx_path)
-        for col in dx.columns:
-            assert dx[col].dtype == "int64"
+        assert dx.dtypes.eq("int8").all()
 
     def test_unsupported_extension(self, tmp_path: Path) -> None:
         fp = tmp_path / "bad.txt"

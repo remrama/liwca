@@ -46,7 +46,7 @@ dx_schema = pa.DataFrameSchema(
     description="Schema for LIWC dictionary DataFrames",
     columns={
         r"\S+": pa.Column(
-            dtype="int64",
+            dtype="int8",
             regex=True,
             checks=[
                 pa.Check(lambda s: s.isin([0, 1]).all(), name="Only binary values (0 or 1)"),
@@ -143,7 +143,7 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         entry, *ids = row.split("\t")
         row_data = [1 if x in ids else 0 for x in cat_ids]
         data[entry] = row_data
-    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int", orient="index").rename_axis(
+    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int8", orient="index").rename_axis(
         "DicTerm"
     )
     df.index = df.index.astype("string")
@@ -173,7 +173,7 @@ def _read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         .rename_axis("Category", axis=1)
         .fillna(False)
         .astype(bool)
-        .astype(int)
+        .astype("int8")
     )
     return dic
 
