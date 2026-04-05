@@ -1,8 +1,25 @@
+Introduction
+============
+
+Installation
+------------
+
+Install from PyPI::
+
+   pip install --upgrade liwca
+
+For development::
+
+   git clone https://github.com/remrama/liwca.git
+   cd liwca
+   pip install -e ".[dev]"
+
+
 Quickstart
-==========
+----------
 
 Reading and writing dictionaries
---------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -22,7 +39,7 @@ Reading and writing dictionaries
 
 
 Counting words
---------------
+~~~~~~~~~~~~~~
 
 Pure-Python word counting, no LIWC-22 installation required.
 
@@ -40,7 +57,7 @@ Pure-Python word counting, no LIWC-22 installation required.
 
 
 CLI wrapper
------------
+~~~~~~~~~~~
 
 Wraps ``liwc-22-cli`` for command-line analysis (requires LIWC-22).
 

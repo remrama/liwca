@@ -1,7 +1,7 @@
-Tutorial
-========
+User Guide
+==========
 
-This tutorial walks through the core features of **liwca**: fetching
+This guide walks through the core features of **liwca**: fetching
 dictionaries, counting words, and working with dictionary files.
 
 
@@ -29,7 +29,7 @@ Counting words in text
 ----------------------
 
 :func:`~liwca.count` takes an iterable of documents and a dictionary
-DataFrame, and returns a documents × categories table:
+DataFrame, and returns a documents x categories table:
 
 .. code-block:: python
 

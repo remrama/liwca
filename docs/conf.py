@@ -26,8 +26,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = "bizstyle"
-# html_static_path = ["_static"]
+html_theme = "pydata_sphinx_theme"
 html_title = liwca.__name__
 html_show_sphinx = False
 html_show_copyright = False
@@ -37,6 +36,22 @@ html_permalinks = True
 
 html_copy_source = False
 html_show_sourcelink = False
+
+html_theme_options = {
+    "github_url": "https://github.com/remrama/liwca",
+    "show_prev_next": True,
+    "navigation_with_keys": True,
+    "show_nav_level": 2,
+    "navbar_persistent": ["search-button"],
+    "footer_end": [],
+    "search_bar_text": "Search",
+    "article_header_start": [],
+    "primary_sidebar_end": [],
+}
+
+html_sidebars = {
+    "index": [],
+}
 
 add_function_parentheses = False
 
