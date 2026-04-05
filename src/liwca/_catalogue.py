@@ -216,3 +216,17 @@ for _name, _entry in _RAW_REGISTRY.items():
         available_versions=_available,
         reader=_reader,
     )
+
+# Validate no duplicate filenames — Pooch uses filenames as cache keys,
+# so duplicates would cause silent overwrites.
+_all_filenames = [vi.filename for vi in _VERSION_MAP.values()]
+_seen: dict[str, tuple[str, str | None]] = {}
+for _key, _vi in _VERSION_MAP.items():
+    if _vi.filename in _seen:
+        _prev = _seen[_vi.filename]
+        raise ValueError(
+            f"Duplicate filename '{_vi.filename}' in registry.json: "
+            f"used by {_prev} and {_key}. "
+            f"Each version must have a unique filename."
+        )
+    _seen[_vi.filename] = _key

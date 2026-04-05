@@ -307,3 +307,22 @@ class TestRegistryIntegrity:
         with open(str(files("liwca.data").joinpath("registry.json"))) as f:
             raw = json.load(f)
         assert set(CATALOGUE.keys()) == set(raw.keys())
+
+    def test_no_duplicate_filenames(self) -> None:
+        """All filenames across all versions must be unique (Pooch cache key)."""
+        import json
+        from importlib.resources import files
+
+        with open(str(files("liwca.data").joinpath("registry.json"))) as f:
+            raw = json.load(f)
+        filenames: list[str] = []
+        for name, entry in raw.items():
+            if "versions" in entry:
+                for ver, vdata in entry["versions"].items():
+                    filenames.append(vdata["filename"])
+            else:
+                filenames.append(entry["filename"])
+        assert len(filenames) == len(set(filenames)), (
+            f"Duplicate filenames in registry.json: "
+            f"{[f for f in filenames if filenames.count(f) > 1]}"
+        )
