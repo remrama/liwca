@@ -393,7 +393,7 @@ def list_available() -> list[str]:
     --------
     >>> import liwca
     >>> liwca.list_available()
-    ['bigtwo_a', 'bigtwo_b', 'honor', 'mystical', 'sleep', 'threat']
+    ['bigtwo', 'honor', 'mystical', 'sleep', 'threat']
     """
     return sorted(CATALOGUE)
 

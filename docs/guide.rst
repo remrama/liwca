@@ -17,7 +17,7 @@ registry, and :func:`~liwca.fetch_dx` to download and load one:
 
    # See what's available
    liwca.list_available()
-   # ['bigtwo_a', 'bigtwo_b', 'honor', 'mystical', 'sleep', 'threat']
+   # ['bigtwo', 'honor', 'mystical', 'sleep', 'threat']
 
    # Fetch and load
    dx = liwca.fetch_dx("threat")

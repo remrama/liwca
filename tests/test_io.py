@@ -208,7 +208,7 @@ class TestListAvailable:
 
     def test_contains_known_dictionaries(self) -> None:
         result = liwca.list_available()
-        for name in ("bigtwo_a", "bigtwo_b", "honor", "mystical", "sleep", "threat"):
+        for name in ("bigtwo", "honor", "mystical", "sleep", "threat"):
             assert name in result
 
     def test_all_strings(self) -> None:
@@ -230,8 +230,7 @@ class TestFetchPath:
 
     def test_download_error_wraps_as_valueerror(self) -> None:
         """Download failures are wrapped in ValueError with the dictionary name."""
-        # Use first registry entry (any will do; the mock prevents actual download)
-        dic_name = Path(next(iter(io._pup.registry_files))).stem
+        dic_name = liwca.list_available()[0]
         with patch.object(io._pup, "fetch", side_effect=ConnectionError("no internet")):
             with pytest.raises(ValueError, match="Failed to download dictionary"):
                 liwca.fetch_path(dic_name)

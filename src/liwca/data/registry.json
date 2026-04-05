@@ -1,23 +1,23 @@
 {
-    "bigtwo_a": {
-        "description": "Big Two personality dimensions (agency).",
+    "bigtwo": {
+        "description": "Big Two personality dimensions (agency and communion).",
         "source_url": "https://osf.io/62txv",
         "source_label": "OSF",
-        "detail": "Agency dimension of the Big Two personality framework. The Big Two (Agency and Communion) capture fundamental dimensions of social perception \u2014 how people evaluate themselves and others in terms of competence, assertiveness, and goal pursuit (agency) versus warmth, cooperation, and social connection (communion).",
+        "detail": "The Big Two (Agency and Communion) capture fundamental dimensions of social perception \u2014 how people evaluate themselves and others in terms of competence, assertiveness, and goal pursuit (agency) versus warmth, cooperation, and social connection (communion). Version ``a`` is the agency dimension; version ``b`` is the communion dimension.",
         "language": "English",
-        "filename": "bigtwo_a.dic",
-        "hash": "md5:d2240a5eb36568d9eefaa428130a0577",
-        "url": "https://osf.io/download/62txv"
-    },
-    "bigtwo_b": {
-        "description": "Big Two personality dimensions (communion).",
-        "source_url": "https://osf.io/y59eb",
-        "source_label": "OSF",
-        "detail": "Communion dimension of the Big Two personality framework. Captures language related to warmth, morality, and social connection. See ``bigtwo_a`` for the complementary agency dimension.",
-        "language": "English",
-        "filename": "bigtwo_b.dic",
-        "hash": "md5:cf9eecd70a3c2b7c9930cabfa2f95684",
-        "url": "https://osf.io/download/y59eb"
+        "default_version": "a",
+        "versions": {
+            "a": {
+                "filename": "bigtwo_a.dic",
+                "hash": "md5:d2240a5eb36568d9eefaa428130a0577",
+                "url": "https://osf.io/download/62txv"
+            },
+            "b": {
+                "filename": "bigtwo_b.dic",
+                "hash": "md5:cf9eecd70a3c2b7c9930cabfa2f95684",
+                "url": "https://osf.io/download/y59eb"
+            }
+        }
     },
     "honor": {
         "description": "Honor culture dictionary (English).",
