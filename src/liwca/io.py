@@ -521,6 +521,16 @@ def fetch_dx(dic_name: str, *, version: Optional[str] = None) -> pd.DataFrame:
     :class:`pandas.DataFrame`
         The dictionary as a pandas :class:`~pandas.DataFrame`.
 
+    Notes
+    -----
+    Downloaded files are cached locally so subsequent calls are fast. To
+    customize the download directory, set the ``LIWCA_DATA_DIR`` environment
+    variable before importing liwca:
+
+    .. code-block:: bash
+
+       export LIWCA_DATA_DIR=/path/to/my/cache
+
     Examples
     --------
     >>> import liwca
