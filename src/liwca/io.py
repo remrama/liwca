@@ -15,9 +15,13 @@ import pandas as pd
 import pandera.pandas as pa
 import pooch
 
+from ._catalogue import CATALOGUE, DictInfo
+
 __all__ = [
+    "DictInfo",
     "fetch_dx",
     "fetch_path",
+    "get_dict_info",
     "list_available",
     "merge_dx",
     "read_dx",
@@ -29,22 +33,6 @@ logger = logging.getLogger(__name__)
 
 _pup = pooch.create(path=pooch.os_cache("liwca"), base_url="", env="LIWCA_DATA_DIR")
 _pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
-
-# _dicname_to_registry = {
-#     "honor": "Honor-Dictionary-English_2017.dic",  # Gelfand 2015
-#     "qualia": "qualia.dicx",
-#     # "behav": "behavioral-activation-dictionary.dicx",
-#     # "bodytype": "body-type-dictionary.dicx",
-#     # "eprime": "english-prime-dictionary.dicx",
-#     # "foresight": "foresight-lexicon.dicx",
-#     # "imagination": "imagination-lexicon.dicx",
-#     # "mind": "mind-perception-dictionary.dicx",
-#     # "physio": "physiological-sensations-dictionary.dicx",
-#     # "self": "self-determinationself-talk-dictionary.dicx",
-#     # "vestibular": "vestibular.dic",
-#     # "weiref": "weighted-referential-activity-dictionary.dicx",
-#     # "wellbeing": "well-being-dictionary.dicx",
-# }
 
 
 #######################################################################################
@@ -350,7 +338,40 @@ def list_available() -> list[str]:
     >>> liwca.list_available()
     ['bigtwo_a', 'bigtwo_b', 'honor', 'mystical', 'sleep', 'threat']
     """
-    return sorted(Path(f).stem for f in _pup.registry_files)
+    return sorted(CATALOGUE)
+
+
+def get_dict_info(dic_name: str) -> DictInfo:
+    """
+    Return metadata for a registered dictionary.
+
+    Parameters
+    ----------
+    dic_name : :class:`str`
+        The name of the dictionary (e.g., ``"threat"``).
+
+    Returns
+    -------
+    :class:`DictInfo`
+        Metadata for the dictionary.
+
+    Raises
+    ------
+    ValueError
+        If ``dic_name`` is not found in the catalogue.
+
+    Examples
+    --------
+    >>> import liwca
+    >>> info = liwca.get_dict_info("threat")
+    >>> info.description
+    'Threat perception dictionary (English).'
+    """
+    if dic_name not in CATALOGUE:
+        raise ValueError(
+            f"Dictionary '{dic_name}' not found. Available: {', '.join(sorted(CATALOGUE))}"
+        )
+    return CATALOGUE[dic_name]
 
 
 def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
@@ -448,9 +469,8 @@ def fetch_dx(dic_name: str) -> pd.DataFrame:
     """
     fp = fetch_path(dic_name)
 
-    from . import _remoteprocessors
-
-    reader = _remoteprocessors.READERS.get(dic_name)
+    info = CATALOGUE.get(dic_name)
+    reader = info.reader if info else None
     suffix = Path(fp).suffix
     if reader is None and suffix not in (".dic", ".dicx"):
         raise ValueError(

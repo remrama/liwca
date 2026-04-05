@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 import liwca
+from liwca._catalogue import CATALOGUE
 
 
 @pytest.mark.parametrize("dic_name", liwca.list_available())
@@ -22,3 +23,15 @@ def test_fetch_and_validate(dic_name: str) -> None:
     assert len(dx) > 0
     assert dx.shape[1] > 0
     assert set(dx.values.flat) <= {0, 1}
+
+
+@pytest.mark.parametrize(
+    "dic_name",
+    [name for name, info in CATALOGUE.items() if info.examples],
+)
+def test_example_terms_in_dictionary(dic_name: str) -> None:
+    """Verify that catalogue example terms actually exist in the fetched dictionary."""
+    dx = liwca.fetch_dx(dic_name)
+    info = CATALOGUE[dic_name]
+    missing = [term for term in info.examples if term not in dx.index]
+    assert not missing, f"Example terms not found in '{dic_name}': {missing}"

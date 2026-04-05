@@ -17,40 +17,7 @@ To list all available dictionaries:
 Dictionary catalogue
 --------------------
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 10 45 30
-
-   * - Name
-     - Format
-     - Description
-     - Source
-   * - ``bigtwo_a``
-     - ``.dic``
-     - Big Two personality dimensions (agency).
-     - `OSF <https://osf.io/download/62txv>`_
-   * - ``bigtwo_b``
-     - ``.dic``
-     - Big Two personality dimensions (communion).
-     - `OSF <https://osf.io/download/y59eb>`_
-   * - ``honor``
-     - ``.dic``
-     - Honor culture dictionary (English).
-     - `Gelfand et al., 2015 <https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h>`_
-   * - ``mystical``
-     - ``.xlsx``
-     - Mystical experience dictionary.
-     - `OSF <https://osf.io/6ph8z>`_
-   * - ``sleep``
-     - ``.tsv``
-     - Sleep-related language dictionary.
-     - `Zenodo <https://zenodo.org/records/13941010>`_
-       (`PMC9908817 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9908817>`_)
-   * - ``threat``
-     - ``.txt``
-     - Threat perception dictionary (English).
-     - `Gelfand et al. <https://www.michelegelfand.com/threat-dictionary>`_
-       (`doi:10.1073/pnas.2113891119 <https://doi.org/10.1073/pnas.2113891119>`_)
+.. dict-catalogue::
 
 
 Fetching dictionaries

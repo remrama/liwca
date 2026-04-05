@@ -232,6 +232,5 @@ class TestFetchDx:
         fake_file = tmp_path / "weird.json"
         fake_file.write_text("{}")
         with patch.object(io, "fetch_path", return_value=str(fake_file)):
-            with patch("liwca._remoteprocessors.READERS", {}):
-                with pytest.raises(ValueError, match="no registered reader"):
-                    liwca.fetch_dx("weird")
+            with pytest.raises(ValueError, match="no registered reader"):
+                liwca.fetch_dx("weird")

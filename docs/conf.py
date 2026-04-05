@@ -1,6 +1,10 @@
 # Configuration file for the Sphinx documentation builder.
 
+import os
+import sys
 import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "_ext"))
 
 import liwca
 
@@ -19,6 +23,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "dictcatalogue",
 ]
 
 templates_path = ["_templates"]

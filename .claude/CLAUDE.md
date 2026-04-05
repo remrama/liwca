@@ -37,7 +37,7 @@ Three main modules under `src/liwca/`:
 
 - **`liwc22.py`** — CLI wrapper around `liwc-22-cli`. Uses a data-driven design: all arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Also exposes `cli()` for Python-level invocation. The `liwca` console script entry point is `main()` in this module.
 
-Supporting module `_remoteprocessors.py` provides plain reader functions for converting non-standard remote dictionary formats to DataFrames.
+Supporting module `_catalogue.py` defines `DictInfo` metadata and the `CATALOGUE` dict (single source of truth for all registered dictionaries), plus reader functions for non-standard remote dictionary formats.
 
 ## Code Style
 

@@ -42,51 +42,32 @@ To add a new publicly available dictionary to the registry:
    Compute the MD5 hash of the file (``md5sum filename.ext`` on Linux/macOS,
    or ``certutil -hashfile filename.ext MD5`` on Windows).
 
-2. **If the file is ``.dic`` or ``.dicx``**, you are done — the standard
-   readers will handle it automatically.
-
-3. **If the file is a non-standard format** (TSV, Excel, plain text, etc.),
-   add a reader function in ``src/liwca/_remoteprocessors.py``:
+2. **Add a catalogue entry.** Add an entry to the ``CATALOGUE`` dict in
+   ``src/liwca/_catalogue.py``:
 
    .. code-block:: python
 
-      def read_raw_mydict(fname: str) -> pd.DataFrame:
-          """Read/parse the MyDict dictionary.
+      "mydict": DictInfo(
+          description="My dictionary description.",
+          format=".dic",
+          source_url="https://example.com",
+          source_label="Example",
+          citation="doi:...",
+          citation_url="https://doi.org/...",
+      ),
 
-          Dictionary details
-          ^^^^^^^^^^^^^^^^^^
-          * **Name:** ``mydict``
-          * **Language:** English
-          * **Source:** https://example.com
-          * **Citation:** `doi:... <https://doi.org/...>`_
-
-          Parameters
-          ----------
-          fname : :class:`str`
-              Path to the raw file.
-
-          Returns
-          -------
-          :class:`pandas.DataFrame`
-              Dictionary DataFrame with binary (0/1) values.
-          """
-          # Parse the file into a DataFrame with:
-          #   - Index named "DicTerm" (string, lowercase)
-          #   - Columns as category names
-          #   - Values: 1 (term in category) or 0 (not)
-          ...
-
-   Then register it in the ``READERS`` dict at the bottom of the file:
+   If the file is ``.dic`` or ``.dicx``, that is all you need — the standard
+   readers handle it automatically. For non-standard formats (TSV, Excel,
+   plain text, etc.), add a private reader function in the same file and
+   reference it via the ``reader`` field:
 
    .. code-block:: python
 
-      READERS = {
+      "mydict": DictInfo(
           ...
-          "mydict": read_raw_mydict,
-      }
+          reader=_read_raw_mydict,
+      ),
 
-4. **Add a test.** Add the new dictionary name to the parametrize list in
-   ``tests/test_remote.py`` (it should already be picked up automatically
-   via ``liwca.list_available()``).
-
-5. **Document it.** Add an entry to the table in ``docs/dictionaries.rst``.
+3. **Tests and docs** are automatic — ``liwca.list_available()`` derives from
+   the catalogue, and the dictionary table in the docs is auto-generated from
+   ``CATALOGUE`` at build time.
