@@ -42,7 +42,7 @@ html_show_sourcelink = False
 
 html_theme_options = {
     "github_url": "https://github.com/remrama/liwca",
-    "show_prev_next": True,
+    "show_prev_next": False,
     "navigation_with_keys": True,
     "show_nav_level": 2,
     "show_toc_level": 2,
@@ -51,6 +51,10 @@ html_theme_options = {
     "search_bar_text": "Search",
     "article_header_start": [],
     "primary_sidebar_end": [],
+    "secondary_sidebar_items": {
+        "**": ["page-toc"],
+        "index": [],
+    },
 }
 
 html_sidebars = {

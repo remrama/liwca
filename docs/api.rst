@@ -3,6 +3,8 @@
 API Reference
 =============
 
+.. _api-io:
+
 I/O
 ---
 
@@ -16,6 +18,8 @@ Reading, writing, and merging LIWC dictionaries.
    merge_dx
 
 
+.. _api-liwc22:
+
 LIWC-22 CLI
 -----------
 
@@ -26,6 +30,8 @@ Python wrapper for the LIWC-22 command-line tool.
 
    liwc22
 
+
+.. _api-count:
 
 Word Counting
 -------------
@@ -38,26 +44,12 @@ Pure-Python LIWC-style word counting.
    scikit
 
 
+.. _api-fetchers:
+
 Fetching Dictionaries
 ---------------------
 
 Remote LIWC-format dictionaries, fetched on demand and cached locally.
-
-Downloaded files are cached locally via
-`Pooch <https://www.fatiando.org/pooch/latest/>`_. By default, files are
-cached in your OS data directory:
-
-- **Linux:** ``~/.cache/liwca``
-- **macOS:** ``~/Library/Caches/liwca``
-- **Windows:** ``%LOCALAPPDATA%\liwca``
-
-You can override this by setting the ``LIWCA_DATA_DIR`` environment variable
-before importing liwca:
-
-.. code-block:: bash
-
-   export LIWCA_DATA_DIR=/path/to/my/cache
-
 
 .. autosummary::
    :toctree: _autosummary
@@ -68,6 +60,8 @@ before importing liwca:
    fetch_sleep
    fetch_threat
 
+
+.. _api-utility:
 
 Utility
 -------

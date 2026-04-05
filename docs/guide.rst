@@ -1,127 +1,82 @@
-User Guide
-==========
+Getting Started
+===============
 
-This guide walks through the core features of **liwca**: fetching
-dictionaries, counting words, and working with dictionary files.
+Installation
+------------
+
+.. code-block:: bash
+
+   pip install --upgrade liwca
+
+For development:
+
+.. code-block:: bash
+
+   git clone https://github.com/remrama/liwca.git
+   cd liwca
+   uv pip install -e ".[dev]"
 
 
 Fetching dictionaries
 ---------------------
 
-Each registered dictionary has a dedicated ``fetch_*`` function. Calling it
-downloads the file on first use and returns it as a :class:`~pandas.DataFrame`:
+Each registered dictionary has a dedicated ``fetch_*`` function that downloads
+the file on first use and returns it as a :class:`~pandas.DataFrame`:
 
 .. code-block:: python
 
    import liwca
 
    dx = liwca.fetch_threat()
-   print(dx.shape)          # (n_terms, n_categories)
-   print(dx.columns.tolist())  # ['threat']
-   dx.head()
 
-Every dictionary is returned as a :class:`~pandas.DataFrame` with a binary
-(0/1) matrix — rows are dictionary terms (index ``DicTerm``), columns are
-categories. See :doc:`api` for the full catalogue.
+See :ref:`api-fetchers` for all available dictionaries and their options.
 
-
-Counting words in text
-----------------------
-
-:func:`~liwca.scikit` takes an iterable of documents and a dictionary
-DataFrame, and returns a documents x categories table:
-
-.. code-block:: python
-
-   texts = [
-       "The threat of danger loomed over the city",
-       "It was a calm and peaceful morning",
-   ]
-
-   result = liwca.scikit(texts, dx)
-   print(result)
-
-By default, values are **percentages** of total words per
-document.  Pass ``as_percentage=False`` for raw counts:
-
-.. code-block:: python
-
-   result = liwca.scikit(texts, dx, as_percentage=False)
-   print(result)
-
-The ``WC`` column always shows the total word count for each document,
-regardless of how many words matched the dictionary.
-
-
-Using a pandas Series
-~~~~~~~~~~~~~~~~~~~~~
-
-If your texts live in a :class:`~pandas.Series`, the index carries through:
-
-.. code-block:: python
-
-   import pandas as pd
-
-   texts = pd.Series(
-       ["The threat was real", "A sunny day"],
-       index=["doc_a", "doc_b"],
-   )
-   result = liwca.scikit(texts, dx, as_percentage=False)
-   print(result)
-
-
-Reading and writing dictionary files
--------------------------------------
-
-liwca supports both LIWC ``.dic`` and ``.dicx`` file formats:
-
-.. code-block:: python
-
-   # Read a local dictionary file
-   dx = liwca.read_dx("path/to/my_dictionary.dicx")
-
-   # Write to a different format
-   liwca.write_dx(dx, "my_dictionary.dic")
-
-
-Merging dictionaries
---------------------
-
-Combine multiple dictionaries into one with :func:`~liwca.merge_dx`:
-
-.. code-block:: python
-
-   dx_sleep = liwca.fetch_sleep()
-   dx_threat = liwca.fetch_threat()
-
-   merged = liwca.merge_dx(dx_sleep, dx_threat)
-   print(merged.columns.tolist())  # ['sleep', 'threat']
-
-   # Now count with both dictionaries at once
-   result = liwca.scikit(texts, merged)
-   print(result)
-
-Terms that appear in only one dictionary get ``0`` in the other's columns.
-
-
-Using the LIWC-22 CLI wrapper
------------------------------
-
-If you have `LIWC-22 <https://liwc.app>`_ installed, liwca can call its CLI
-directly — either from the command line or from Python:
+Downloaded files are cached locally via
+`Pooch <https://www.fatiando.org/pooch/latest/>`_. By default, files are
+cached in your OS data directory. You can override this by setting the ``LIWCA_DATA_DIR`` environment variable
+before importing liwca:
 
 .. code-block:: bash
 
-   # Command line
-   liwca wc -i data.csv -o results.csv
+   export LIWCA_DATA_DIR=/path/to/my/cache
 
-   # Preview without executing
-   liwca wc -i data.csv -o results.csv --dry-run
+
+Counting words
+--------------
+
+:func:`~liwca.scikit` takes texts and a dictionary DataFrame, and returns a
+documents × categories table:
 
 .. code-block:: python
 
-   # Python API
+   texts = ["The threat of danger loomed over the city", "A calm morning"]
+   results = liwca.scikit(texts, dx)
+
+Values are percentages of total words per document by default. See
+:func:`~liwca.scikit` for options including raw counts and custom tokenizers.
+
+
+Reading and writing local files
+--------------------------------
+
+.. code-block:: python
+
+   dx = liwca.read_dx("my_dictionary.dicx")   # auto-detects .dic or .dicx
+   liwca.write_dx(dx, "my_dictionary.dic")
+   merged = liwca.merge_dx(dx_a, dx_b)
+
+
+LIWC-22 CLI wrapper
+-------------------
+
+If LIWC-22 is installed, call it from the command line or Python:
+
+.. code-block:: bash
+
+   liwca wc -i data.csv -o results.csv
+
+.. code-block:: python
+
    liwca.liwc22("wc", input="data.csv", output="results.csv")
 
-   # Dry run
-   liwca.liwc22("wc", input="data.csv", output="results.csv", dry_run=True)
+See :func:`~liwca.liwc22` for the full argument reference.
