@@ -49,7 +49,7 @@ jobs:
             ~/.cache/liwca
             ~/Library/Caches/liwca
             ~\AppData\Local\liwca
-          key: pooch-${{ runner.os }}-${{ hashFiles('src/liwca/data/registry.json') }}
+          key: pooch-${{ runner.os }}-${{ hashFiles('src/liwca/data/registry.txt') }}
           restore-keys: |
             pooch-${{ runner.os }}-
 
@@ -83,6 +83,25 @@ jobs:
           else
             echo "Version bumped: $PREVIOUS -> $CURRENT"
           fi
+
+  test-min-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install minimum dependency versions
+        run: uv pip install --system --resolution=lowest-direct -e ".[dev]"
+
+      - name: Run tests
+        run: pytest --ignore=tests/test_remote.py
 
   test-remote:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
