@@ -1,5 +1,5 @@
 ---
-name: sphinx-docs
+name: sphinx
 description: >
   Specialist in Sphinx documentation and the PyData Sphinx Theme.
   Use when the user asks questions about conf.py, html_theme_options,
