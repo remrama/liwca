@@ -8,16 +8,15 @@
 
 # LIWCA
 
-LIWCA is a Linguistic Inquiry Word Count Assistant. It is not a copy of [LIWC](https://liwc.app) (they don't like that), it is just helper functions that I've found useful.
+LIWCA (Linguistic Inquiry Word Count Assistant) offers helper functions for working with LIWC dictionaries. Useful when you want end-to-end pipelines or notebook workflows that don't require the LIWC-22 app to be open, or when you just need reusable `.dic[x]` file I/O without writing it from scratch every project.
 
-Stuff like:
+Features:
 
-- Reading and writing dictionary files (`.dic[x]`)
-- Converting between `.dic` and `.dicx` files
-- Converting between dictionary (`.dic[x]`) and tabular (`.[c|t]sv`) files
+- Reading and writing dictionary files (`.dic`/`.dicx`)
 - Merging dictionary files
-- Fetching public dictionary files from remote repositories
-- Calling `liwc-22-cli` from Python (opens/closes the LIWC-22 app in background as needed)
+- Fetching public LIWC-format dictionaries from remote repositories
+- Pure-Python word counting (no LIWC-22 needed)
+- Calling `liwc-22-cli` from Python
 
 ## Installation
 
@@ -27,42 +26,28 @@ pip install --upgrade liwca
 
 ## Quick Start
 
-```bash
-# LIWC-22 CLI wrapper (requires LIWC-22)
-liwca wc -i data.csv -o results.csv
-```
-
 ```python
 import liwca
 
 # Fetch a public dictionary and count words (no LIWC-22 needed)
-dx = liwca.fetch_dx("threat")
+dx = liwca.fetch_threat()
 results = liwca.scikit(["danger lurks ahead"], dx)
 ```
 
 ## Usage
 
-### CLI (requires LIWC-22)
-
-```bash
-liwca wc -i data.csv -o results.csv          # Word count analysis
-liwca freq -i corpus/ -o frequencies.csv      # Frequency analysis
-liwca wc -i data.csv -o results.csv --auto-open  # Auto-launch LIWC-22
-liwca wc --help                               # View all arguments
-```
-
-### Dictionary I/O
+### Fetching dictionaries
 
 ```python
 import liwca
 
-liwca.list_available()              # See available remote dictionaries
-dx = liwca.fetch_dx("sleep")       # Fetch and load a public dictionary
+dx = liwca.fetch_sleep()           # Fetch and load a public dictionary
+dx = liwca.fetch_bigtwo()          # Versioned dictionary (version="a" by default)
 dx = liwca.read_dx("./my.dicx")    # Read a local dictionary file
 liwca.write_dx(dx, "./my.dic")     # Write to a different format
 ```
 
-### Word Counting
+### Word counting
 
 Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 needed).
 
@@ -70,6 +55,12 @@ Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 needed).
 texts = ["I feel happy today", "This is a sad story"]
 results = liwca.scikit(texts, dx)                      # percentages (default)
 results = liwca.scikit(texts, dx, as_percentage=False)  # raw counts
+```
+
+### LIWC-22 wrapper (requires LIWC-22)
+
+```python
+liwca.liwc22("wc", input="data.csv", output="results.csv")
 ```
 
 ## Similar Projects
