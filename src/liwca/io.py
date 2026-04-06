@@ -29,15 +29,13 @@ logger = logging.getLogger(__name__)
 # Schema to validate LIWC dictionary pandas DataFrames
 dx_schema = pa.DataFrameSchema(
     name="LIWC dictionary DataFrame schema",
-    title="LIWC dictionary DataFrame schema",
     description="Schema for LIWC dictionary DataFrames",
     columns={
         r"\S+": pa.Column(
             dtype="int8",
             regex=True,
             checks=[
-                pa.Check(lambda s: s.isin([0, 1]).all(), name="Only binary values (0 or 1)"),
-                pa.Check(lambda s: s.any(), name="Term present in at least one category"),
+                pa.Check.isin([0, 1]),
             ],
             required=True,
             nullable=False,
@@ -57,7 +55,7 @@ dx_schema = pa.DataFrameSchema(
         #     pa.Parser(lambda i: i.str.strip()),
         # ],
         checks=[
-            pa.Check.str_length(min_value=1, name="Term length > 0"),
+            pa.Check(lambda s: s.str.len() >= 1, name="Term length > 0"),
             pa.Check(lambda s: s.str.islower(), name="Term all lowercase"),
         ],
     ),
@@ -72,10 +70,12 @@ dx_schema = pa.DataFrameSchema(
     coerce=True,
     unique_column_names=True,
     checks=[
-        pa.Check(lambda df: df.columns.name == "Category", name="Column index is named 'Category'"),
         pa.Check(lambda df: len(df) > 0, name="At least one term (row)"),
         pa.Check(lambda df: len(df.columns) > 0, name="At least one category (column)"),
-        # pa.Check(lambda df: df.columns.isunique),
+        pa.Check(
+            lambda df: df.any(axis=1).all(),
+            name="Each term present in at least one category",
+        ),
     ],
 )
 
