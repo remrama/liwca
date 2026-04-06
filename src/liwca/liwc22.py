@@ -1,12 +1,8 @@
 """
 Python wrapper for the LIWC-22 CLI tool.
 
-Replicates the LIWC-22-cli interface using argparse with subparsers
-for each analysis mode. Builds the appropriate CLI command and runs
-it as a subprocess.
-
-Provides both a Python API (:func:`liwc22`) and a command-line entrypoint
-(``liwca`` console script).
+Builds and runs LIWC-22-cli commands as subprocesses. All seven analysis
+modes are supported via the :func:`liwc22` Python function.
 
 Requires LIWC-22 to be installed with the CLI on your PATH.
 
@@ -701,82 +697,6 @@ MODE_DEFS: dict[str, dict[str, Any]] = {
 
 
 # ---------------------------------------------------------------------------
-# Parser construction
-# ---------------------------------------------------------------------------
-
-
-def _add_arg(parser: argparse.ArgumentParser, dest: str, *, required: bool = False) -> None:
-    """Add a single argument from the catalogue to *parser*."""
-    entry = ARG_CATALOGUE[dest]
-    kw = dict(entry["kw"])  # copy so we don't mutate the catalogue
-    if required and not entry["is_bool"]:
-        kw["required"] = True
-    parser.add_argument(*entry["flags"], dest=dest, **kw)
-
-
-def _make_auto_open_parser() -> argparse.ArgumentParser:
-    """Parent parser for the --auto-open / --dry-run flags."""
-    p = argparse.ArgumentParser(add_help=False)
-    p.add_argument(
-        "--auto-open",
-        action="store_true",
-        default=False,
-        help="If LIWC-22 is not running, launch it before analysis and close it afterwards.",
-    )
-    p.add_argument(
-        "--use-gui",
-        action="store_true",
-        default=False,
-        help="When auto-opening, prefer the GUI app over the headless license server.",
-    )
-    p.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=False,
-        help="Print the CLI command without executing it.",
-    )
-    return p
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Construct the full :class:`~argparse.ArgumentParser` from :data:`MODE_DEFS`."""
-    auto_open = _make_auto_open_parser()
-
-    parser = argparse.ArgumentParser(
-        prog="liwca",
-        description="Python wrapper around the LIWC-22 command-line interface.\n"
-        "Select a mode and pass the appropriate arguments.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    subparsers = parser.add_subparsers(
-        dest="mode",
-        title="analysis modes",
-        description="Available LIWC-22 analysis modes.",
-        required=True,
-    )
-
-    for mode, defn in MODE_DEFS.items():
-        # Build a parent parser with only this mode's global flags.
-        global_parent = argparse.ArgumentParser(add_help=False)
-        for key in defn["globals"]:
-            _add_arg(global_parent, key)
-
-        sp = subparsers.add_parser(
-            mode,
-            parents=[global_parent, auto_open],
-            help=defn["help"],
-            description=defn["description"],
-        )
-
-        for dest in defn["required"]:
-            _add_arg(sp, dest, required=True)
-        for dest in defn["optional"]:
-            _add_arg(sp, dest)
-
-    return parser
-
-
-# ---------------------------------------------------------------------------
 # Command builder
 # ---------------------------------------------------------------------------
 
@@ -928,25 +848,3 @@ def _run(args: argparse.Namespace) -> int:
             _close_liwc_app(liwc_proc)
 
     return rc
-
-
-# ---------------------------------------------------------------------------
-# Console entrypoint
-# ---------------------------------------------------------------------------
-
-
-def main() -> int:
-    """Console script entrypoint for the ``liwca`` command.
-
-    Returns
-    -------
-    :class:`int`
-        Return code from the LIWC-22 CLI process (0 = success).
-    """
-    parser = build_parser()
-    args = parser.parse_args()
-    return _run(args)
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

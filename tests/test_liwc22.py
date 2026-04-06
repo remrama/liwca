@@ -1,16 +1,18 @@
-"""Tests for liwca.liwc22 — CLI wrapper and Python API."""
+"""Tests for liwca.liwc22 — Python API and command builder."""
 
 from __future__ import annotations
 
+import argparse
+
 import pytest
 
-from liwca.liwc22 import (
-    ARG_CATALOGUE,
-    MODE_DEFS,
-    build_command,
-    build_parser,
-    liwc22,
-)
+from liwca.liwc22 import ARG_CATALOGUE, MODE_DEFS, build_command, liwc22
+
+
+def _ns(mode: str, **kwargs) -> argparse.Namespace:
+    """Build a namespace as liwc22() would, for testing build_command directly."""
+    return argparse.Namespace(mode=mode, auto_open=False, use_gui=False, dry_run=False, **kwargs)
+
 
 # ---------------------------------------------------------------------------
 # Argument catalogue & mode definitions
@@ -42,43 +44,6 @@ class TestModeDefs:
 
 
 # ---------------------------------------------------------------------------
-# Parser construction
-# ---------------------------------------------------------------------------
-
-
-class TestBuildParser:
-    """Tests for the argparse parser built from MODE_DEFS."""
-
-    def test_parser_creates_subparsers(self) -> None:
-        parser = build_parser()
-        # Should be able to parse a known mode
-        args = parser.parse_args(["wc", "-i", "in.txt", "-o", "out.csv"])
-        assert args.mode == "wc"
-
-    def test_required_args_enforced(self) -> None:
-        parser = build_parser()
-        with pytest.raises(SystemExit):
-            # wc requires -i and -o; omitting them should fail
-            parser.parse_args(["wc"])
-
-    def test_optional_args_default_none(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["wc", "-i", "in.txt", "-o", "out.csv"])
-        assert args.dictionary is None
-        assert args.threads is None
-
-    def test_dry_run_flag(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["wc", "-i", "in.txt", "-o", "out.csv", "--dry-run"])
-        assert args.dry_run is True
-
-    def test_auto_open_flag(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["wc", "-i", "in.txt", "-o", "out.csv", "--auto-open"])
-        assert args.auto_open is True
-
-
-# ---------------------------------------------------------------------------
 # Command building
 # ---------------------------------------------------------------------------
 
@@ -87,54 +52,37 @@ class TestBuildCommand:
     """Tests for build_command — namespace → CLI args list."""
 
     def test_basic_wc_command(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["wc", "-i", "data.txt", "-o", "results.csv"])
-        cmd = build_command(args)
+        cmd = build_command(_ns("wc", input="data.txt", output="results.csv"))
         assert cmd[0] == "LIWC-22-cli"
         assert "-m" in cmd
         assert cmd[cmd.index("-m") + 1] == "wc"
-        assert "-i" in cmd
-        assert "data.txt" in cmd
-        assert "-o" in cmd
-        assert "results.csv" in cmd
+        assert "-i" in cmd and "data.txt" in cmd
+        assert "-o" in cmd and "results.csv" in cmd
 
     def test_optional_args_included_when_set(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(
-            ["wc", "-i", "in.txt", "-o", "out.csv", "-d", "LIWC2015", "-t", "4"]
+        cmd = build_command(
+            _ns("wc", input="in.txt", output="out.csv", dictionary="LIWC2015", threads=4)
         )
-        cmd = build_command(args)
-        assert "-d" in cmd
-        assert "LIWC2015" in cmd
-        assert "-t" in cmd
-        assert "4" in cmd
+        assert "-d" in cmd and "LIWC2015" in cmd
+        assert "-t" in cmd and "4" in cmd
 
     def test_optional_args_excluded_when_none(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["wc", "-i", "in.txt", "-o", "out.csv"])
-        cmd = build_command(args)
-        # -d (dictionary) was not set, so it shouldn't appear
-        assert "-d" not in cmd or cmd[cmd.index("-d") + 1] != "None"
+        cmd = build_command(_ns("wc", input="in.txt", output="out.csv"))
+        # dictionary was not set — should not appear
+        assert "-d" not in cmd
 
     def test_bool_flag_included_when_true(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["mem", "-i", "in.txt", "-o", "out.csv", "--save-theme-scores"])
-        cmd = build_command(args)
+        cmd = build_command(_ns("mem", input="in.txt", output="out.csv", save_theme_scores=True))
         assert "--save-theme-scores" in cmd
 
     def test_bool_flag_excluded_when_false(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["mem", "-i", "in.txt", "-o", "out.csv"])
-        cmd = build_command(args)
+        cmd = build_command(_ns("mem", input="in.txt", output="out.csv", save_theme_scores=False))
         assert "--save-theme-scores" not in cmd
 
     def test_freq_mode_command(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["freq", "-i", "corpus/", "-o", "freqs.csv", "-n", "2"])
-        cmd = build_command(args)
+        cmd = build_command(_ns("freq", input="corpus/", output="freqs.csv", n_gram=2))
         assert cmd[cmd.index("-m") + 1] == "freq"
-        assert "-n" in cmd
-        assert "2" in cmd
+        assert "-n" in cmd and "2" in cmd
 
 
 # ---------------------------------------------------------------------------

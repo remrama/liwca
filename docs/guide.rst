@@ -66,14 +66,10 @@ Reading and writing local files
    merged = liwca.merge_dx(dx_a, dx_b)
 
 
-LIWC-22 CLI wrapper
--------------------
+LIWC-22 wrapper
+---------------
 
-If LIWC-22 is installed, call it from the command line or Python:
-
-.. code-block:: bash
-
-   liwca wc -i data.csv -o results.csv
+If LIWC-22 is installed, call it from Python:
 
 .. code-block:: python
 

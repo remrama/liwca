@@ -14,7 +14,7 @@ Features
 - :ref:`api-io` — Read, write, and merge ``.dic`` and ``.dicx`` dictionary files
 - :ref:`api-count` — Pure-Python LIWC-style word counting, no LIWC-22 required
 - :ref:`api-fetchers` — Download and cache public LIWC-format dictionaries on demand
-- :ref:`api-liwc22` — Call the LIWC-22 command-line tool from Python
+- :ref:`api-liwc22` — Python wrapper for the LIWC-22 command-line tool
 
 
 .. toctree::

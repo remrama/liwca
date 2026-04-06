@@ -40,9 +40,6 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/remrama/liwca"
 
-[project.scripts]
-liwca = "liwca.liwc22:main"
-
 [project.optional-dependencies]
 dev = [
   "mypy>=1.12",
@@ -65,7 +62,7 @@ namespaces = false
 where = ["src"]
 
 [tool.setuptools.package-data]
-liwca = ["data/registry.json"]
+liwca = ["data/registry.txt"]
 
 [tool.mypy]
 files = ["src/"]
