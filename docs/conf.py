@@ -3,7 +3,6 @@
 import inspect
 import os
 import sys
-import time
 
 import liwca
 
@@ -11,8 +10,7 @@ project = liwca.__name__
 release = liwca.__version__
 version = liwca.__version__
 author = liwca.__author__.split("<")[0].strip()
-curr = time.strftime("%Y")
-copyright = f"2024-{curr}, {author}"
+copyright = f"2024-%Y, {author}"
 
 # -- General configuration ---------------------------------------------------
 
@@ -24,7 +22,6 @@ extensions = [
     "sphinx.ext.linkcode",
 ]
 
-templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
@@ -35,15 +32,11 @@ html_show_sphinx = False
 html_show_copyright = False
 
 html_use_index = False
-html_permalinks = True
 
 html_copy_source = False
-html_show_sourcelink = False
 
 html_theme_options = {
     "github_url": "https://github.com/remrama/liwca",
-    "show_prev_next": False,
-    "navigation_with_keys": True,
     "show_nav_level": 2,
     "show_toc_level": 2,
     "navbar_persistent": ["search-button"],
@@ -61,18 +54,18 @@ html_sidebars = {
     "**": [],
 }
 
-add_module_names = True
 add_function_parentheses = False
 
 # -- Extension configuration -------------------------------------------------
 
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
+python_use_unqualified_type_names = True
 
 autosummary_generate = True
+autosummary_generate_overwrite = True
 
 napoleon_google_docstring = False
-napoleon_numpy_docstring = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
