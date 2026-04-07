@@ -66,24 +66,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
 
-  version-bump:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check version was bumped
-        run: |
-          CURRENT=$(grep -oP '__version__\s*=\s*"\K[^"]+' src/liwca/__init__.py)
-          PREVIOUS=$(git show HEAD~1:src/liwca/__init__.py | grep -oP '__version__\s*=\s*"\K[^"]+')
-          if [ "$CURRENT" = "$PREVIOUS" ]; then
-            echo "::warning::Version was not bumped in this push. Remember to update __version__ in src/liwca/__init__.py before tagging a release (currently $CURRENT)."
-          else
-            echo "Version bumped: $PREVIOUS -> $CURRENT"
-          fi
-
   test-min-deps:
     runs-on: ubuntu-latest
     steps:
