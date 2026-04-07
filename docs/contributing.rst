@@ -36,8 +36,9 @@ To add a new publicly available dictionary to the registry:
 
 1. **Add a fetch function.** Edit ``src/liwca/fetchers.py`` and add a
    ``fetch_<name>()`` function following the existing pattern. Include a NumPy
-   docstring with a short summary, ``Returns``, ``Notes`` (detail + source
-   URL), and ``References`` (citations).
+   docstring with a short summary, ``Returns``, ``Notes`` (with footnote
+   references to the paper and source), ``References`` (numbered citations
+   with doi links), and ``Examples``.
 
    For standard ``.dic`` or ``.dicx`` files:
 
@@ -45,22 +46,30 @@ To add a new publicly available dictionary to the registry:
 
       def fetch_mydict() -> pd.DataFrame:
           """
-          Fetch the My Dictionary dictionary.
+          Fetch the my dictionary dictionary.
 
           Returns
           -------
           :class:`pandas.DataFrame`
-              Dictionary for ...
+              Dictionary with ``"category_a"`` and ``"category_b"`` categories.
 
           Notes
           -----
-          Description of the dictionary.
-
-          Source: `Label <https://example.com>`__
+          The my dictionary is described in Author et al.\\ [1]_
+          and publicly available on Example Repository\\ [2]_.
 
           References
           ----------
-          .. [1] Author, A. (Year). Title. *Journal*, vol, pages.
+          .. [1] Author et al., Year.
+                 Title of the paper.
+                 *Journal Name*
+                 doi:`10.xxxx/example <https://doi.org/10.xxxx/example>`__
+          .. [2] `https://example.com/download <https://example.com/download>`__
+
+          Examples
+          --------
+          >>> import liwca
+          >>> dx = liwca.fetch_mydict()  # doctest: +SKIP
           """
           return read_dx(_pup.fetch("mydict.dic"))
 
@@ -82,4 +91,4 @@ To add a new publicly available dictionary to the registry:
    ``src/liwca/fetchers.py`` and verify it is importable as
    ``liwca.fetch_<name>()``.
 
-That's it — Sphinx picks up the new function automatically via ``autosummary``.
+Sphinx picks up the new function automatically via ``autosummary``.

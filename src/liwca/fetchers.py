@@ -169,9 +169,8 @@ def fetch_sleep() -> pd.DataFrame:
 
     Notes
     -----
-    The sleep dictionary is described in the original study on sleep disturbance
-    and suicidal ideation in social media text\\ [1]_ and is publicly available
-    on Zenodo\\ [2]_.
+    The sleep dictionary is described in Ladis et al.\\ [1]_
+    and is publicly available on Zenodo\\ [2]_.
 
     There is also a full version in the Supplementary Information file of the
     original publication that has not been converted to the publicly accessible tables yet.
