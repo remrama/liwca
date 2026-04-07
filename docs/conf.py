@@ -28,12 +28,13 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "pydata_sphinx_theme"
 html_title = liwca.__name__
-html_show_sphinx = False
-html_show_copyright = False
-
-html_use_index = False
-
 html_copy_source = False
+html_show_copyright = False
+html_show_sphinx = False
+html_use_index = False
+html_favicon = "_static/favicon.webp"
+html_logo = "_static/logo.png"
+html_static_path = ["_static"]
 
 html_theme_options = {
     "github_url": "https://github.com/remrama/liwca",
