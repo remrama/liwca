@@ -47,32 +47,32 @@ _BIGTWO_VERSIONS = {"a": "bigtwo_a.dic", "b": "bigtwo_b.dic"}
 
 def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
     """
-    Fetch the Big Two personality dimensions dictionary.
+    Fetch the big two (agency and communion) dictionary.
 
     Parameters
     ----------
     version : {"a", "b"}, default "a"
-        Which dimension to load. Version ``"a"`` is agency; ``"b"`` is
-        communion.
+        Which version to load.
+        Version ``"a"`` is the "main" version (described in manuscript).
+        Version ``"b"`` is the alternate version (described in Supplementary Information).
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        Dictionary with a single ``"agency"`` (version ``"a"``) or
-        ``"communion"`` (version ``"b"``) category.
+        Dictionary with ``"agency"`` and ``"communion"`` categories.
 
     Notes
     -----
-    The Big Two (Agency and Communion) capture fundamental dimensions of social
-    perception — how people evaluate themselves and others in terms of
-    competence, assertiveness, and goal pursuit (agency) versus warmth,
-    cooperation, and social connection (communion).
-
-    Source: `OSF <https://osf.io/62txv>`__
+    This dictionary is described in Pietraszkiewicz et al.\\ [1]_
+    and publicly available along with other resources on OSF\\ [2]_.
 
     References
     ----------
-    .. [1] TODO
+    .. [1] Pietraszkiewicz et al., 2019.
+           The big two dictionaries: Capturing agency and communion in natural language.
+           *European Journal of Social Psychology*
+           doi:`10.1002/ejsp.2561 <https://doi.org/10.1002/ejsp.2561>`__
+    .. [2] `https://osf.io/62txv <https://osf.io/62txv>`__
 
     Examples
     --------
@@ -87,23 +87,26 @@ def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
 
 def fetch_honor() -> pd.DataFrame:
     """
-    Fetch the honor culture dictionary.
+    Fetch the honor dictionary.
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        Dictionary for detecting honor culture language.
+        Dictionary for detecting honor language.
 
     Notes
     -----
-    Developed for research on cultural tightness-looseness and honor norms.
-
-    Source: `Gelfand et al., 2015
-    <https://drive.google.com/uc?export=download&id=1EmQ5fFcr7ATRffyIP87Fej_TO3nDER6h>`__
+    The honor dictionary is described in Gelfand et al.\\ [1]_
+    and available, along with other resources, on Michele Gelfand's website\\ [2]_.
 
     References
     ----------
-    .. [1] TODO
+    .. [1] Gelfand et al., 2015.
+           Culture and getting to yes:
+           The linguistic signature of creative agreements in the United States and Egypt.
+           *Journal of Organizational Behavior*
+           doi:`10.1002/job.2026 <https://doi.org/10.1002/job.2026>`__
+    .. [2] `https://www.michelegelfand.com/honor-dictionary <https://www.michelegelfand.com/honor-dictionary>`__
 
     Examples
     --------
@@ -120,18 +123,21 @@ def fetch_mystical() -> pd.DataFrame:
     Returns
     -------
     :class:`pandas.DataFrame`
-        Dictionary with a single ``"Mystical"`` category.
+        Dictionary with a single ``"mystical"`` category.
 
     Notes
     -----
-    Captures language related to mystical experiences, such as transcendence,
-    unity, and altered states of consciousness.
-
-    Source: `OSF <https://osf.io/6ph8z>`__
+    The mystical experience dictionary is described in Žuljević et al.\\ [1]_
+    and publicly available on OSF\\ [2]_.
 
     References
     ----------
-    .. [1] TODO
+    .. [1] Žuljević et al., 2024.
+           Mystical and affective aspects of psychedelic use in a naturalistic setting:
+           A linguistic analysis of online experience reports.
+           *Journal of Psychoactive Drugs*
+           doi:`10.1080/02791072.2023.2274382 <https://doi.org/10.1080/02791072.2023.2274382>`__
+    .. [2] `https://osf.io/6ph8z <https://osf.io/6ph8z>`__
 
     Examples
     --------
@@ -154,7 +160,7 @@ def fetch_mystical() -> pd.DataFrame:
 
 def fetch_sleep() -> pd.DataFrame:
     """
-    Fetch the sleep-related language dictionary.
+    Fetch the sleep dictionary.
 
     Returns
     -------
@@ -163,14 +169,21 @@ def fetch_sleep() -> pd.DataFrame:
 
     Notes
     -----
-    Captures sleep-related language, originally developed for research on sleep
-    disturbance and suicidal ideation in social media text.
+    The sleep dictionary is described in the original study on sleep disturbance
+    and suicidal ideation in social media text\\ [1]_ and is publicly available
+    on Zenodo\\ [2]_.
 
-    Source: `Zenodo <https://zenodo.org/records/13941010>`__
+    There is also a full version in the Supplementary Information file of the
+    original publication that has not been converted to the publicly accessible tables yet.
 
     References
     ----------
-    .. [1] TODO
+    .. [1] Ladis et al., 2023.
+           Inferring sleep disturbance from text messages of suicide attempt survivors:
+           A pilot study.
+           *Suicide and Life-Threatening Behavior*
+           doi:`10.1111/sltb.12920 <https://doi.org/10.1111/sltb.12920>`__
+    .. [2] `https://zenodo.org/records/13941010 <https://zenodo.org/records/13941010>`__
 
     Examples
     --------
@@ -192,7 +205,7 @@ def fetch_sleep() -> pd.DataFrame:
 
 def fetch_threat() -> pd.DataFrame:
     """
-    Fetch the threat perception dictionary.
+    Fetch the threat dictionary.
 
     Returns
     -------
@@ -201,15 +214,17 @@ def fetch_threat() -> pd.DataFrame:
 
     Notes
     -----
-    Developed for research on how ecological and historical threats shape
-    cultural tightness across nations.
-
-    Source: `Gelfand et al.
-    <https://www.michelegelfand.com/threat-dictionary>`__
+    The threat dictionary is described in Choi et al.\\ [1]_
+    and available, along with other resources, on Michele Gelfand's website\\ [2]_.
 
     References
     ----------
-    .. [1] TODO
+    .. [1] Choi et al., 2022.
+           When danger strikes:
+           A linguistic tool for tracking America's collective response to threats.
+           *Proceedings of the National Academy of Sciences*
+           doi:`10.1073/pnas.2113891119 <https://doi.org/10.1073/pnas.2113891119>`__
+    .. [2] `https://www.michelegelfand.com/threat-dictionary <https://www.michelegelfand.com/threat-dictionary>`__
 
     Examples
     --------
