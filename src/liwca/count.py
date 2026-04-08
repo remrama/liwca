@@ -256,10 +256,13 @@ def scikit(
     # vectorisation).  Preserve Series index if provided.
     if isinstance(texts, pd.Series):
         doc_index = texts.index
+        if doc_index.name is None:
+            doc_index = doc_index.copy()
+            doc_index.name = "text_id"
         docs = texts.tolist()
     else:
         docs = list(texts)
-        doc_index = pd.RangeIndex(len(docs))
+        doc_index = pd.RangeIndex(len(docs), name="text_id")
 
     logger.info("Counting %d documents against %d-category dictionary", len(docs), dx.shape[1])
 

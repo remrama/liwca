@@ -180,6 +180,23 @@ class TestScikit:
         result = liwca.scikit(series, toy_dx_wildcards)
         assert list(result.index) == ["game_a", "game_b"]
 
+    def test_default_index_name(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        result = liwca.scikit(["hoop"], toy_dx_wildcards)
+        assert result.index.name == "text_id"
+
+    def test_series_unnamed_index_gets_text_id(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        series = pd.Series(["hoop", "dugout"], index=["game_a", "game_b"])
+        result = liwca.scikit(series, toy_dx_wildcards)
+        assert result.index.name == "text_id"
+
+    def test_series_named_index_preserved(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        series = pd.Series(
+            ["hoop", "dugout"],
+            index=pd.Index(["game_a", "game_b"], name="dream_id"),
+        )
+        result = liwca.scikit(series, toy_dx_wildcards)
+        assert result.index.name == "dream_id"
+
     def test_custom_tokenizer(self, toy_dx_wildcards: pd.DataFrame) -> None:
         result = liwca.scikit(
             ["anything goes here"],
