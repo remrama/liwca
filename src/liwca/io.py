@@ -1,5 +1,37 @@
 """
 Reading, writing, and merging LIWC dictionary files (``.dic`` and ``.dicx``).
+
+Dictionary File Formats
+-----------------------
+LIWC dictionaries map **terms** to one or more **categories**. Terms may include
+a trailing wildcard (``*``) to match any token that starts with that prefix
+(e.g., ``abandon*`` matches *abandoned*, *abandoning*, etc.). A single term can
+belong to multiple categories.
+
+**.dic format** — tab-delimited, used by LIWC desktop applications::
+
+    %
+    1\tCategoryA
+    2\tCategoryB
+    %
+    term1\t1
+    term2\t2
+    term3\t1\t2
+
+- Lines containing only ``%`` delimit the **header** (category definitions) from
+  the **body** (term-category assignments).
+- Header rows map an integer ID to a category name, separated by a tab.
+- Body rows start with the term, followed by one or more category IDs (tab-separated).
+
+**.dicx format** — CSV, used by LIWC-22 Dictionary Workbench::
+
+    DicTerm,CategoryA,CategoryB
+    term1,X,
+    term2,,X
+    term3,X,X
+
+- First column is ``DicTerm`` (the term).
+- Remaining columns are category names; ``X`` indicates membership, empty means absent.
 """
 
 import csv

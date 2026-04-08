@@ -39,6 +39,16 @@ Three main modules under `src/liwca/`:
 
 Supporting module `_catalogue.py` loads `data/registry.json` (the single source of truth for all dictionary metadata and download info), builds the `CATALOGUE` dict of `DictInfo` objects at import time, and defines reader functions for non-standard remote dictionary formats. Supports versioned dictionaries.
 
+## LIWC Domain Context
+
+LIWC (Linguistic Inquiry and Word Count) is a dictionary-based text analysis method. Texts are scored by counting how many words fall into each psychological/linguistic category defined in a dictionary.
+
+Key concepts relevant to this codebase:
+
+- **Dictionary terms** can include a trailing wildcard (`*`). During counting, `abandon*` is expanded against the actual corpus vocabulary to match tokens like *abandoned*, *abandoning*, etc. Expansion is per-corpus — only tokens present in the text are matched.
+- **Multi-category membership**: a single term can belong to multiple categories (e.g., "coach" in Basketball, Baseball, and Football). Categories can also be hierarchical in LIWC's built-in dictionaries (e.g., anger → negative emotion → emotion), though liwca treats them as flat columns.
+- **File formats**: `.dic` (tab-delimited with `%` header delimiters) and `.dicx` (CSV with `X`/empty values). See the `io.py` module docstring for full format specs.
+
 ## Code Style
 
 - Ruff: line length 100, target Python 3.14, rules `E, F, I, W, C90, NPY201`
