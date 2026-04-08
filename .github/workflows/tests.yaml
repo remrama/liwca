@@ -85,7 +85,7 @@ jobs:
           uv pip install --system pytest
 
       - name: Run tests
-        run: pytest tests/ --ignore=tests/test_remote.py
+        run: pytest tests/ --ignore=tests/test_remote.py -o addopts=
 
   test-remote:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
