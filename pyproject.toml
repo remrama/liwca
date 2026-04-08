@@ -47,7 +47,7 @@ dev = [
   "pytest>=8.0",
   "pytest-cov>=6.0",
   "ruff>=0.6",
-  "sphinx",
+  "sphinx>=7.0",
   "pydata-sphinx-theme>=0.16",
 ]
 
