@@ -69,10 +69,16 @@ Reading and writing local files
 LIWC-22 wrapper
 ---------------
 
-If LIWC-22 is installed, call it from Python:
+If LIWC-22 is installed, call it from Python. The LIWC-22 desktop application
+(or its license server) must be running when you call the CLI:
 
 .. code-block:: python
 
    liwca.liwc22("wc", input="data.csv", output="results.csv")
 
-See :func:`~liwca.liwc22` for the full argument reference.
+Pass ``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
+
+See :func:`~liwca.liwc22` for the full argument reference, and the
+`LIWC CLI documentation <https://www.liwc.app/help/cli>`_ and
+`Python CLI example <https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py>`_
+for more details.

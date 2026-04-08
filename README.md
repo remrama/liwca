@@ -59,6 +59,9 @@ results = liwca.scikit(texts, dx, as_percentage=False)  # raw counts
 
 ### LIWC-22 wrapper (requires LIWC-22)
 
+The LIWC-22 desktop application (or its license server) must be running when you call the CLI.
+See the [LIWC CLI documentation](https://www.liwc.app/help/cli) and [Python CLI example](https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py) for more details.
+
 ```python
 liwca.liwc22("wc", input="data.csv", output="results.csv")
 ```

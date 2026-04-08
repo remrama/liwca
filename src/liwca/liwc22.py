@@ -5,11 +5,14 @@ Builds and runs LIWC-22-cli commands as subprocesses. All seven analysis
 modes are supported via the :func:`liwc22` Python function.
 
 Requires LIWC-22 to be installed with the CLI on your PATH.
+The LIWC-22 desktop application (or its license server) must be running
+when you call the CLI — start it before invoking :func:`liwc22`, or pass
+``auto_open=True`` to let liwca handle it.
 
-References
-----------
-- https://www.liwc.app/help/cli
-- https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py
+See Also
+--------
+- LIWC CLI documentation: https://www.liwc.app/help/cli
+- Python CLI example: https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py
 """
 
 from __future__ import annotations
@@ -744,6 +747,10 @@ def liwc22(
     """
     Execute a LIWC-22 CLI analysis from Python.
 
+    The LIWC-22 desktop application (or its license server) must be running
+    before calling this function.  Pass ``auto_open=True`` to let liwca
+    start and stop it automatically.
+
     Parameters
     ----------
     mode : :class:`str`
@@ -777,6 +784,8 @@ def liwc22(
     See Also
     --------
     scikit : Pure-Python word counting (no LIWC-22 required).
+    `LIWC CLI documentation <https://www.liwc.app/help/cli>`_
+    `Python CLI example <https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py>`_
 
     Examples
     --------
