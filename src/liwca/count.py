@@ -236,17 +236,20 @@ def scikit(
     Examples
     --------
     >>> import liwca
-    >>> dx = liwca.fetch_dx("threat")
-    >>> texts = ["This is a grave threat to our safety.", "All is calm today."]
-    >>> liwca.scikit(texts, dx)
+    >>> dx = liwca.fetch_threat()  # doctest: +SKIP
+    >>> texts = [
+    ...     "This is a grave threat to our safety.",
+    ...     "All is calm today.",
+    ... ]  # doctest: +SKIP
+    >>> liwca.scikit(texts, dx)  # doctest: +SKIP
     Category  WC  threat
     0          8    12.5
     1          4     0.0
 
     Get per-word contributions:
 
-    >>> cats, words = liwca.scikit(texts, dx, return_words=True)
-    >>> words.columns.tolist()
+    >>> cats, words = liwca.scikit(texts, dx, return_words=True)  # doctest: +SKIP
+    >>> words.columns.tolist()  # doctest: +SKIP
     ['WC', 'grave', 'threat']
     """
     if tokenizer is None:

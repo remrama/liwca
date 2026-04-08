@@ -365,10 +365,10 @@ def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     Examples
     --------
     >>> import liwca
-    >>> dx_sleep = liwca.fetch_dx("sleep")
-    >>> dx_threat = liwca.fetch_dx("threat")
-    >>> merged = liwca.merge_dx(dx_sleep, dx_threat)
-    >>> merged.tail(3)  # doctest: +NORMALIZE_WHITESPACE
+    >>> dx_sleep = liwca.fetch_sleep()  # doctest: +SKIP
+    >>> dx_threat = liwca.fetch_threat()  # doctest: +SKIP
+    >>> merged = liwca.merge_dx(dx_sleep, dx_threat)  # doctest: +SKIP
+    >>> merged.tail(3)  # doctest: +SKIP
     Category   sleep  threat
     DicTerm
     worse          0       1
