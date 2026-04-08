@@ -1,13 +1,73 @@
-"""Tests for liwca.io — dictionary reading, writing, and merging."""
+"""Tests for liwca.io — dictionary creation, reading, writing, and merging."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
+import pandera.errors as pa_errors
 import pytest
 
 import liwca
+
+# ---------------------------------------------------------------------------
+# Creation
+# ---------------------------------------------------------------------------
+
+
+class TestCreateDx:
+    """Tests for create_dx."""
+
+    def test_basic_shape(self) -> None:
+        dx = liwca.create_dx({"sport": ["baseball", "hockey"], "weather": ["rain", "snow"]})
+        assert dx.shape == (4, 2)
+
+    def test_index_and_columns(self) -> None:
+        dx = liwca.create_dx({"a": ["x", "y"], "b": ["y", "z"]})
+        assert dx.index.name == "DicTerm"
+        assert dx.columns.name == "Category"
+
+    def test_binary_values(self) -> None:
+        dx = liwca.create_dx({"cat": ["word"]})
+        assert set(dx.values.flat) <= {0, 1}
+        assert dx.dtypes.eq("int8").all()
+
+    def test_overlapping_terms(self) -> None:
+        dx = liwca.create_dx({"a": ["shared", "only_a"], "b": ["shared", "only_b"]})
+        assert dx.loc["shared", "a"] == 1
+        assert dx.loc["shared", "b"] == 1
+        assert dx.loc["only_a", "b"] == 0
+        assert dx.loc["only_b", "a"] == 0
+
+    def test_wildcards(self) -> None:
+        dx = liwca.create_dx({"cat": ["abandon*", "hello"]})
+        assert "abandon*" in dx.index
+
+    def test_lowercases_terms(self) -> None:
+        dx = liwca.create_dx({"cat": ["Hello", "WORLD"]})
+        assert "hello" in dx.index
+        assert "world" in dx.index
+
+    def test_sorted_output(self) -> None:
+        dx = liwca.create_dx({"z_cat": ["b", "a"], "a_cat": ["c"]})
+        assert list(dx.index) == sorted(dx.index)
+        assert list(dx.columns) == sorted(dx.columns)
+
+    def test_empty_dict_raises(self) -> None:
+        with pytest.raises((ValueError, pa_errors.SchemaError)):
+            liwca.create_dx({})
+
+    def test_empty_word_list_raises(self) -> None:
+        with pytest.raises((ValueError, pa_errors.SchemaError)):
+            liwca.create_dx({"cat": []})
+
+    def test_roundtrip_with_write(self, tmp_path: Path) -> None:
+        dx = liwca.create_dx({"sport": ["baseball", "hockey"], "weather": ["rain", "snow"]})
+        out = tmp_path / "created.dicx"
+        liwca.write_dx(dx, out)
+        reloaded = liwca.read_dx(out)
+        pd.testing.assert_frame_equal(dx, reloaded)
+
 
 # ---------------------------------------------------------------------------
 # Reading

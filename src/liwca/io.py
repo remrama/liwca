@@ -13,6 +13,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 __all__ = [
+    "create_dx",
     "merge_dx",
     "read_dx",
     "write_dx",
@@ -78,6 +79,45 @@ dx_schema = pa.DataFrameSchema(
         ),
     ],
 )
+
+
+#######################################################################################
+# LIWC dictionary DataFrame creation
+#######################################################################################
+
+
+@pa.check_output(schema=dx_schema)
+def create_dx(categories: dict[str, list[str]]) -> pd.DataFrame:
+    """
+    Create a dictionary DataFrame from category-to-terms mapping.
+
+    Parameters
+    ----------
+    categories : dict[str, list[str]]
+        Mapping of category names to lists of dictionary terms.
+        Terms may include LIWC-style wildcards (e.g., ``"abandon*"``).
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Validated dictionary DataFrame with terms as rows and categories as
+        columns (binary int8 values).
+
+    Examples
+    --------
+    >>> import liwca
+    >>> dx = liwca.create_dx(
+    ...     {
+    ...         "sports": ["baseball", "football", "hockey"],
+    ...         "weather": ["rain*", "snow", "wind*"],
+    ...     }
+    ... )
+    """
+    all_terms = sorted({term for terms in categories.values() for term in terms})
+    df = pd.DataFrame(0, index=pd.Index(all_terms, dtype="string"), columns=list(categories))
+    for cat, terms in categories.items():
+        df.loc[terms, cat] = 1
+    return df
 
 
 #######################################################################################

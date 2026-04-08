@@ -13,6 +13,7 @@ Reading, writing, and merging LIWC dictionaries.
 .. autosummary::
    :toctree: _autosummary
 
+   create_dx
    read_dx
    write_dx
    merge_dx
