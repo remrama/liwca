@@ -1,21 +1,22 @@
-[![Project Status](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
-[![PyPI](https://img.shields.io/pypi/v/liwca.svg)](https://pypi.python.org/pypi/liwca)
-[![Python Versions](https://img.shields.io/pypi/pyversions/liwca.svg)](https://pypi.python.org/pypi/ruff)
+[![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Tests](https://github.com/remrama/liwca/actions/workflows/tests.yaml/badge.svg)](https://github.com/remrama/liwca/actions/workflows/tests.yaml)
+[![PyPI](https://img.shields.io/pypi/v/liwca.svg)](https://pypi.org/project/liwca/)
+[![Downloads](https://img.shields.io/pypi/dm/liwca.svg)](https://pypi.org/project/liwca/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/liwca.svg)](https://pypi.org/project/liwca/)
 [![License](https://img.shields.io/pypi/l/liwca.svg)](https://github.com/remrama/liwca/blob/main/LICENSE.txt)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 # LIWCA
 
-LIWCA is a [LIWC](https://liwc.app) assistant. It is not a copy of LIWC (they don't like that), it is just helper functions that I've found useful.
+LIWCA (Linguistic Inquiry Word Count Assistant) offers helper functions for working with LIWC dictionaries. Useful when you want end-to-end pipelines or notebook workflows that don't require the LIWC-22 app to be open, or when you just need reusable `.dic[x]` file I/O without writing it from scratch every project.
 
-Stuff like:
+Features:
 
-- Reading and writing dictionary files (`.dic[x]`)
-- Converting between `.dic` and `.dicx` files
-- Converting between dictionary (`.dic[x]`) and tabular (`.[c|t]sv`) files
+- Reading and writing dictionary files (`.dic`/`.dicx`)
 - Merging dictionary files
-- Fetching public dictionary files from remote repositories
-- Calling `liwc-22-cli` from Python (opens/closes the LIWC-22 app in background as needed)
+- Fetching public LIWC-format dictionaries from remote repositories
+- Pure-Python word counting (no LIWC-22 needed)
+- Calling `liwc-22-cli` from Python
 
 ## Installation
 
@@ -23,60 +24,46 @@ Stuff like:
 pip install --upgrade liwca
 ```
 
+## Quick Start
+
+```python
+import liwca
+
+# Fetch a public dictionary and count words (no LIWC-22 needed)
+dx = liwca.fetch_threat()
+results = liwca.scikit(["danger lurks ahead"], dx)
+```
+
 ## Usage
 
-### IO
+### Fetching dictionaries
 
 ```python
 import liwca
 
-# Download and read a public dictionary files
-dx = liwca.fetch_dx("sleep")
-
-# Read local dictionary files
-dx = liwca.read_dx("./sleep.dic")
-dx = liwca.read_dx("./sleep.dicx")
-
-# Write local dictionary files
-liwca.write_dx(dx, "./sleep.dic")
-liwca.write_dx(dx, "./sleep.dicx")
+dx = liwca.fetch_sleep()           # Fetch and load a public dictionary
+dx = liwca.fetch_bigtwo()          # Versioned dictionary (version="a" by default)
+dx = liwca.read_dx("./my.dicx")    # Read a local dictionary file
+liwca.write_dx(dx, "./my.dic")     # Write to a different format
 ```
 
-### Counting
+### Word counting
 
-Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 installation required).
+Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 needed).
 
 ```python
-import liwca
-
-dx = liwca.read_dx("my_dictionary.dicx")
-
 texts = ["I feel happy today", "This is a sad story"]
-results = liwca.count(texts, dx)  # returns DataFrame with category percentages
-
-# Get raw counts instead of proportions
-results = liwca.count(texts, dx, as_proportion=False)
+results = liwca.scikit(texts, dx)                      # percentages (default)
+results = liwca.scikit(texts, dx, as_percentage=False)  # raw counts
 ```
 
-### CLI
+### LIWC-22 wrapper (requires LIWC-22)
 
-Wraps `liwc-22-cli` for analysis from the command line (requires LIWC-22).
+The LIWC-22 desktop application (or its license server) must be running when you call the CLI.
+See the [LIWC CLI documentation](https://www.liwc.app/help/cli) and [Python CLI example](https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py) for more details.
 
-```bash
-# Word count analysis
-liwca wc -i data.csv -o results.csv
-
-# Frequency analysis
-liwca freq -i corpus/ -o frequencies.csv
-
-# Auto-launch LIWC-22 if not already running
-liwca wc -i data.csv -o results.csv --auto-open
-
-# Preview the command without executing
-liwca wc -i data.csv -o results.csv --dry-run
-
-# View all possible arguments for the word count analysis
-liwca wc --help
+```python
+liwca.liwc22("wc", input="data.csv", output="results.csv")
 ```
 
 ## Similar Projects

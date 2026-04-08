@@ -1,13 +1,73 @@
-"""Tests for liwca.io — dictionary reading, writing, and merging."""
+"""Tests for liwca.io — dictionary creation, reading, writing, and merging."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
+import pandera.errors as pa_errors
 import pytest
 
 import liwca
+
+# ---------------------------------------------------------------------------
+# Creation
+# ---------------------------------------------------------------------------
+
+
+class TestCreateDx:
+    """Tests for create_dx."""
+
+    def test_basic_shape(self) -> None:
+        dx = liwca.create_dx({"sport": ["baseball", "hockey"], "weather": ["rain", "snow"]})
+        assert dx.shape == (4, 2)
+
+    def test_index_and_columns(self) -> None:
+        dx = liwca.create_dx({"a": ["x", "y"], "b": ["y", "z"]})
+        assert dx.index.name == "DicTerm"
+        assert dx.columns.name == "Category"
+
+    def test_binary_values(self) -> None:
+        dx = liwca.create_dx({"cat": ["word"]})
+        assert set(dx.values.flat) <= {0, 1}
+        assert dx.dtypes.eq("int8").all()
+
+    def test_overlapping_terms(self) -> None:
+        dx = liwca.create_dx({"a": ["shared", "only_a"], "b": ["shared", "only_b"]})
+        assert dx.loc["shared", "a"] == 1
+        assert dx.loc["shared", "b"] == 1
+        assert dx.loc["only_a", "b"] == 0
+        assert dx.loc["only_b", "a"] == 0
+
+    def test_wildcards(self) -> None:
+        dx = liwca.create_dx({"cat": ["abandon*", "hello"]})
+        assert "abandon*" in dx.index
+
+    def test_lowercases_terms(self) -> None:
+        dx = liwca.create_dx({"cat": ["Hello", "WORLD"]})
+        assert "hello" in dx.index
+        assert "world" in dx.index
+
+    def test_sorted_output(self) -> None:
+        dx = liwca.create_dx({"z_cat": ["b", "a"], "a_cat": ["c"]})
+        assert list(dx.index) == sorted(dx.index)
+        assert list(dx.columns) == sorted(dx.columns)
+
+    def test_empty_dict_raises(self) -> None:
+        with pytest.raises((ValueError, pa_errors.SchemaError)):
+            liwca.create_dx({})
+
+    def test_empty_word_list_raises(self) -> None:
+        with pytest.raises((ValueError, pa_errors.SchemaError)):
+            liwca.create_dx({"cat": []})
+
+    def test_roundtrip_with_write(self, tmp_path: Path) -> None:
+        dx = liwca.create_dx({"sport": ["baseball", "hockey"], "weather": ["rain", "snow"]})
+        out = tmp_path / "created.dicx"
+        liwca.write_dx(dx, out)
+        reloaded = liwca.read_dx(out)
+        pd.testing.assert_frame_equal(dx, reloaded)
+
 
 # ---------------------------------------------------------------------------
 # Reading
@@ -77,13 +137,19 @@ class TestReadDx:
 
     def test_dtype(self, toy_dicx_path: Path) -> None:
         dx = liwca.read_dx(toy_dicx_path)
-        for col in dx.columns:
-            assert dx[col].dtype == "int64"
+        assert dx.dtypes.eq("int8").all()
 
     def test_unsupported_extension(self, tmp_path: Path) -> None:
         fp = tmp_path / "bad.txt"
         fp.write_text("hello")
         with pytest.raises(ValueError, match="Unsupported file extension"):
+            liwca.read_dx(fp)
+
+    def test_malformed_dic_no_delimiters(self, tmp_path: Path) -> None:
+        """A .dic file without '%' delimiters raises ValueError."""
+        fp = tmp_path / "bad.dic"
+        fp.write_text("this is not a valid dic file\n")
+        with pytest.raises(ValueError, match="expected.*delimiters"):
             liwca.read_dx(fp)
 
     def test_dic_and_dicx_are_identical(self, toy_dic_path: Path, toy_dicx_path: Path) -> None:
@@ -135,14 +201,14 @@ class TestMergeDx:
         dx = liwca.read_dx(toy_dicx_path)
         dx_a = dx[["Basketball"]]
         dx_b = dx[["Baseball", "Football"]]
-        merged = liwca.merge_dx([dx_a, dx_b])
+        merged = liwca.merge_dx(dx_a, dx_b)
         pd.testing.assert_frame_equal(merged, dx)
 
     def test_union_of_categories(self, toy_dicx_path: Path) -> None:
         dx = liwca.read_dx(toy_dicx_path)
         dx_a = dx[["Basketball"]]
         dx_b = dx[["Football"]]
-        merged = liwca.merge_dx([dx_a, dx_b])
+        merged = liwca.merge_dx(dx_a, dx_b)
         assert sorted(merged.columns) == ["Basketball", "Football"]
 
     def test_fills_missing_terms_with_zero(self, toy_dicx_path: Path) -> None:
@@ -152,8 +218,36 @@ class TestMergeDx:
         bball = dx[dx["Basketball"] == 1][["Basketball"]]
         # Baseball terms only
         base = dx[dx["Baseball"] == 1][["Baseball"]]
-        merged = liwca.merge_dx([bball, base])
+        merged = liwca.merge_dx(bball, base)
         # "hoop" is basketball-only — its Baseball value should be 0
         assert merged.loc["hoop", "Baseball"] == 0
         # "dugout" is baseball-only — its Basketball value should be 0
         assert merged.loc["dugout", "Basketball"] == 0
+
+    def test_error_single_dictionary(self, toy_dicx_path: Path) -> None:
+        """Merging a single dictionary raises ValueError."""
+        dx = liwca.read_dx(toy_dicx_path)
+        with pytest.raises(ValueError, match="at least 2"):
+            liwca.merge_dx(dx)
+
+    def test_error_overlapping_categories(self, toy_dicx_path: Path) -> None:
+        """Merging dictionaries with shared categories raises ValueError."""
+        dx = liwca.read_dx(toy_dicx_path)
+        dx_a = dx[["Basketball", "Baseball"]]
+        dx_b = dx[["Baseball", "Football"]]
+        with pytest.raises(ValueError, match="overlapping categories"):
+            liwca.merge_dx(dx_a, dx_b)
+
+    def test_warns_wildcard_overlap(self) -> None:
+        """Wildcard in one dict matching a literal in another triggers a warning."""
+        import warnings
+
+        dx_a = pd.DataFrame({"CatA": [1]}, index=pd.Index(["sleep*"], name="DicTerm"))
+        dx_a.index = dx_a.index.astype("string")
+        dx_b = pd.DataFrame({"CatB": [1]}, index=pd.Index(["sleeping"], name="DicTerm"))
+        dx_b.index = dx_b.index.astype("string")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            liwca.merge_dx(dx_a, dx_b)
+            wildcard_warnings = [x for x in w if "sleep*" in str(x.message)]
+            assert len(wildcard_warnings) >= 1

@@ -1,24 +1,24 @@
 """
 Python wrapper for the LIWC-22 CLI tool.
 
-Replicates the LIWC-22-cli interface using argparse with subparsers
-for each analysis mode. Builds the appropriate CLI command and runs
-it as a subprocess.
-
-Provides both a Python API (:func:`cli`) and a command-line entrypoint
-(``liwca`` console script).
+Builds and runs LIWC-22-cli commands as subprocesses. All seven analysis
+modes are supported via the :func:`liwc22` Python function.
 
 Requires LIWC-22 to be installed with the CLI on your PATH.
+The LIWC-22 desktop application (or its license server) must be running
+when you call the CLI — start it before invoking :func:`liwc22`, or pass
+``auto_open=True`` to let liwca handle it.
 
-References
-----------
-- https://www.liwc.app/help/cli
-- https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py
+See Also
+--------
+- LIWC CLI documentation: https://www.liwc.app/help/cli
+- Python CLI example: https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import platform
 import shutil
 import subprocess
@@ -28,9 +28,10 @@ from pathlib import Path
 from typing import Any
 
 __all__ = [
-    "cli",
+    "liwc22",
 ]
 
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App management helpers
@@ -68,14 +69,14 @@ def _is_liwc_running() -> bool:
         return False
 
 
-def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
+def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen[bytes] | None:
     """Launch LIWC-22 in the background and return the Popen handle."""
     if use_license_server and shutil.which(LIWC_LICENSE_SERVER):
         exe = LIWC_LICENSE_SERVER
     else:
         app_name = LIWC_APP_NAMES.get(platform.system(), "LIWC-22")
-        exe = shutil.which(app_name)
-        if exe is None:
+        exe_path = shutil.which(app_name)
+        if exe_path is None:
             mac_path = Path("/Applications/LIWC-22.app")
             if mac_path.exists():
                 proc = subprocess.Popen(["open", "-a", "LIWC-22"])
@@ -85,8 +86,9 @@ def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
                 "ERROR: Could not locate LIWC-22 application. "
                 "Make sure it is installed and on your PATH."
             )
+        exe = exe_path
 
-    print(f"Starting {exe} …")
+    logger.info("Starting %s …", exe)
     proc = subprocess.Popen(
         [exe],
         stdout=subprocess.DEVNULL,
@@ -96,7 +98,7 @@ def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen | None:
     return proc
 
 
-def _close_liwc_app(proc: subprocess.Popen | None) -> None:
+def _close_liwc_app(proc: subprocess.Popen[bytes] | None) -> None:
     """Terminate a LIWC process that we opened."""
     if proc is None:
         return
@@ -118,7 +120,7 @@ def _close_liwc_app(proc: subprocess.Popen | None) -> None:
 #   "is_bool" - True for store_true flags (emitted without a value)
 
 
-def _a(flags: list[str], dest: str, *, is_bool: bool = False, **kw: Any) -> dict:
+def _a(flags: list[str], dest: str, *, is_bool: bool = False, **kw: Any) -> dict[str, Any]:
     """Shorthand to build a catalogue entry."""
     entry: dict[str, Any] = {"flags": flags, "dest": dest, "is_bool": is_bool}
     if is_bool:
@@ -130,10 +132,10 @@ def _a(flags: list[str], dest: str, *, is_bool: bool = False, **kw: Any) -> dict
     return entry
 
 
-ARG_CATALOGUE: dict[str, dict] = {}
+ARG_CATALOGUE: dict[str, dict[str, Any]] = {}
 
 
-def _register_args(*entries: dict) -> None:
+def _register_args(*entries: dict[str, Any]) -> None:
     for e in entries:
         ARG_CATALOGUE[e["dest"]] = e
 
@@ -493,7 +495,7 @@ _register_args(
 # Each mode is fully declared as data: which args it uses, which are
 # required, which globals it supports, and a short description.
 
-MODE_DEFS: dict[str, dict] = {
+MODE_DEFS: dict[str, dict[str, Any]] = {
     "wc": {
         "help": "LIWC word count analysis.",
         "description": "Run a standard LIWC-22 word count analysis.",
@@ -698,88 +700,12 @@ MODE_DEFS: dict[str, dict] = {
 
 
 # ---------------------------------------------------------------------------
-# Parser construction
-# ---------------------------------------------------------------------------
-
-
-def _add_arg(parser: argparse.ArgumentParser, dest: str, *, required: bool = False) -> None:
-    """Add a single argument from the catalogue to *parser*."""
-    entry = ARG_CATALOGUE[dest]
-    kw = dict(entry["kw"])  # copy so we don't mutate the catalogue
-    if required and not entry["is_bool"]:
-        kw["required"] = True
-    parser.add_argument(*entry["flags"], dest=dest, **kw)
-
-
-def _make_auto_open_parser() -> argparse.ArgumentParser:
-    """Parent parser for the --auto-open / --dry-run flags."""
-    p = argparse.ArgumentParser(add_help=False)
-    p.add_argument(
-        "--auto-open",
-        action="store_true",
-        default=False,
-        help="If LIWC-22 is not running, launch it before analysis and close it afterwards.",
-    )
-    p.add_argument(
-        "--use-gui",
-        action="store_true",
-        default=False,
-        help="When auto-opening, prefer the GUI app over the headless license server.",
-    )
-    p.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=False,
-        help="Print the CLI command without executing it.",
-    )
-    return p
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Construct the full argument parser from :data:`MODE_DEFS`."""
-    auto_open = _make_auto_open_parser()
-
-    parser = argparse.ArgumentParser(
-        prog="liwca",
-        description="Python wrapper around the LIWC-22 command-line interface.\n"
-        "Select a mode and pass the appropriate arguments.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    subparsers = parser.add_subparsers(
-        dest="mode",
-        title="analysis modes",
-        description="Available LIWC-22 analysis modes.",
-        required=True,
-    )
-
-    for mode, defn in MODE_DEFS.items():
-        # Build a parent parser with only this mode's global flags.
-        global_parent = argparse.ArgumentParser(add_help=False)
-        for key in defn["globals"]:
-            _add_arg(global_parent, key)
-
-        sp = subparsers.add_parser(
-            mode,
-            parents=[global_parent, auto_open],
-            help=defn["help"],
-            description=defn["description"],
-        )
-
-        for dest in defn["required"]:
-            _add_arg(sp, dest, required=True)
-        for dest in defn["optional"]:
-            _add_arg(sp, dest)
-
-    return parser
-
-
-# ---------------------------------------------------------------------------
 # Command builder
 # ---------------------------------------------------------------------------
 
 
 def build_command(args: argparse.Namespace) -> list[str]:
-    """Translate parsed args into a LIWC-22-cli command list."""
+    """Translate parsed :class:`~argparse.Namespace` into a LIWC-22-cli command list."""
     cmd: list[str] = [LIWC_CLI, "-m", args.mode]
 
     defn = MODE_DEFS[args.mode]
@@ -810,7 +736,7 @@ def _quote_for_display(cmd: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def cli(
+def liwc22(
     mode: str,
     *,
     auto_open: bool = False,
@@ -821,41 +747,51 @@ def cli(
     """
     Execute a LIWC-22 CLI analysis from Python.
 
+    The LIWC-22 desktop application (or its license server) must be running
+    before calling this function.  Pass ``auto_open=True`` to let liwca
+    start and stop it automatically.
+
     Parameters
     ----------
-    mode : str
+    mode : :class:`str`
         Analysis mode — one of ``"wc"``, ``"freq"``, ``"mem"``,
         ``"context"``, ``"arc"``, ``"ct"``, ``"lsm"``.
-    auto_open : bool, optional
+    auto_open : :class:`bool`, optional
         If LIWC-22 is not running, launch it before analysis and close
         it afterwards (default ``False``).
-    use_gui : bool, optional
+    use_gui : :class:`bool`, optional
         When auto-opening, prefer the GUI app over the headless license
         server (default ``False``).
-    dry_run : bool, optional
+    dry_run : :class:`bool`, optional
         Print the CLI command without executing it (default ``False``).
-    **kwargs : Any
+    **kwargs : :class:`~typing.Any`
         Mode-specific arguments.  Use the Python ``dest`` names from the
         argument catalogue (underscored, e.g. ``input="data.txt"``,
         ``output="results.csv"``, ``output_format="xlsx"``).
 
     Returns
     -------
-    int
+    :class:`int`
         Return code from the LIWC-22 CLI process (0 = success).
 
     Raises
     ------
-    ValueError
+    :class:`ValueError`
         If *mode* is not a recognised analysis mode.
-    SystemExit
+    :class:`SystemExit`
         If LIWC-22 is not running and *auto_open* is ``False``.
+
+    See Also
+    --------
+    scikit : Pure-Python word counting (no LIWC-22 required).
+    `LIWC CLI documentation <https://www.liwc.app/help/cli>`_
+    `Python CLI example <https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py>`_
 
     Examples
     --------
-    >>> cli("wc", input="data.txt", output="results.csv")
+    >>> liwc22("wc", input="data.txt", output="results.csv")  # doctest: +SKIP
     0
-    >>> cli("wc", input="data.txt", output="results.csv", dry_run=True)
+    >>> liwc22("wc", input="data.txt", output="results.csv", dry_run=True)  # doctest: +SKIP
     0
     """
     if mode not in MODE_DEFS:
@@ -892,7 +828,7 @@ def _run(args: argparse.Namespace) -> int:
 
     if not _is_liwc_running():
         if args.auto_open:
-            print("LIWC-22 is not running — starting it now …")
+            logger.info("LIWC-22 is not running — starting it now …")
             liwc_proc = _open_liwc_app(use_license_server=not args.use_gui)
             we_opened_it = True
         else:
@@ -902,42 +838,22 @@ def _run(args: argparse.Namespace) -> int:
             )
 
     # -- run the analysis ----------------------------------------------------
-    print(f"Running: {_quote_for_display(cmd)}")
+    logger.info("Running: %s", _quote_for_display(cmd))
     try:
         result = subprocess.run(cmd, check=True)
         rc = result.returncode
     except FileNotFoundError:
-        print(
-            f"ERROR: '{LIWC_CLI}' not found. Make sure LIWC-22 is installed "
-            "and the CLI is on your PATH.",
-            file=sys.stderr,
+        logger.error(
+            "'%s' not found. Make sure LIWC-22 is installed and the CLI is on your PATH.",
+            LIWC_CLI,
         )
         rc = 1
     except subprocess.CalledProcessError as exc:
-        print(
-            f"LIWC-22-cli exited with return code {exc.returncode}.",
-            file=sys.stderr,
-        )
+        logger.error("LIWC-22-cli exited with return code %d.", exc.returncode)
         rc = exc.returncode
     finally:
         if we_opened_it:
-            print("Shutting down LIWC-22 …")
+            logger.info("Shutting down LIWC-22 …")
             _close_liwc_app(liwc_proc)
 
     return rc
-
-
-# ---------------------------------------------------------------------------
-# Console entrypoint
-# ---------------------------------------------------------------------------
-
-
-def main() -> int:
-    """Console script entrypoint (``liwca`` command)."""
-    parser = build_parser()
-    args = parser.parse_args()
-    return _run(args)
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

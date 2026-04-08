@@ -1,13 +1,10 @@
 __pycache__/
 .DS_Store
-
-*.code-workspace
-.conda/
+.venv/
 *_cache/
-*.local.*
-
 *.egg-info/
+_autosummary/
+_build/
 build/
 dist/
-
-docs/_build/
+.coverage

@@ -1,45 +1,58 @@
 """
-IO module
+Reading, writing, and merging LIWC dictionary files (``.dic`` and ``.dicx``).
+
+Dictionary File Formats
+-----------------------
+LIWC dictionaries map **terms** to one or more **categories**. Terms may include
+a trailing wildcard (``*``) to match any token that starts with that prefix
+(e.g., ``abandon*`` matches *abandoned*, *abandoning*, etc.). A single term can
+belong to multiple categories.
+
+**.dic format** — tab-delimited, used by LIWC desktop applications::
+
+    %
+    1\tCategoryA
+    2\tCategoryB
+    %
+    term1\t1
+    term2\t2
+    term3\t1\t2
+
+- Lines containing only ``%`` delimit the **header** (category definitions) from
+  the **body** (term-category assignments).
+- Header rows map an integer ID to a category name, separated by a tab.
+- Body rows start with the term, followed by one or more category IDs (tab-separated).
+
+**.dicx format** — CSV, used by LIWC-22 Dictionary Workbench::
+
+    DicTerm,CategoryA,CategoryB
+    term1,X,
+    term2,,X
+    term3,X,X
+
+- First column is ``DicTerm`` (the term).
+- Remaining columns are category names; ``X`` indicates membership, empty means absent.
 """
 
 import csv
-import os
+import logging
 import re
-from importlib.resources import files
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
-import pooch
 
 __all__ = [
-    "fetch_dx",
+    "create_dx",
     "merge_dx",
     "read_dx",
     "write_dx",
 ]
 
 
-_pup = pooch.create(path=pooch.os_cache("liwca"), base_url="")
-_pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
-
-# _dicname_to_registry = {
-#     "honor": "Honor-Dictionary-English_2017.dic",  # Gelfand 2015
-#     "qualia": "qualia.dicx",
-#     # "behav": "behavioral-activation-dictionary.dicx",
-#     # "bodytype": "body-type-dictionary.dicx",
-#     # "eprime": "english-prime-dictionary.dicx",
-#     # "foresight": "foresight-lexicon.dicx",
-#     # "imagination": "imagination-lexicon.dicx",
-#     # "mind": "mind-perception-dictionary.dicx",
-#     # "physio": "physiological-sensations-dictionary.dicx",
-#     # "self": "self-determinationself-talk-dictionary.dicx",
-#     # "vestibular": "vestibular.dic",
-#     # "weiref": "weighted-referential-activity-dictionary.dicx",
-#     # "wellbeing": "well-being-dictionary.dicx",
-# }
+logger = logging.getLogger(__name__)
 
 
 #######################################################################################
@@ -49,15 +62,13 @@ _pup.load_registry(fname=files("liwca.data").joinpath("registry.txt"))
 # Schema to validate LIWC dictionary pandas DataFrames
 dx_schema = pa.DataFrameSchema(
     name="LIWC dictionary DataFrame schema",
-    title="LIWC dictionary DataFrame schema",
     description="Schema for LIWC dictionary DataFrames",
     columns={
         r"\S+": pa.Column(
-            dtype="int64",
+            dtype="int8",
             regex=True,
             checks=[
-                pa.Check(lambda s: s.isin([0, 1]).all(), name="Only binary values (0 or 1)"),
-                pa.Check(lambda s: s.any(), name="Term present in at least one category"),
+                pa.Check.isin([0, 1]),
             ],
             required=True,
             nullable=False,
@@ -77,24 +88,69 @@ dx_schema = pa.DataFrameSchema(
         #     pa.Parser(lambda i: i.str.strip()),
         # ],
         checks=[
-            pa.Check.str_length(min_value=1, name="Term length > 0"),
+            pa.Check(lambda s: s.str.len() >= 1, name="Term length > 0"),
             pa.Check(lambda s: s.str.islower(), name="Term all lowercase"),
         ],
     ),
     parsers=[
         pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0), name="Name index 'DicTerm'"),
         pa.Parser(lambda df: df.rename_axis("Category", axis=1), name="Name columns 'Category'"),
+        pa.Parser(lambda df: df.rename(index=str.lower), name="Lowercase index"),
         pa.Parser(lambda df: df.sort_index(axis=0), name="Sort index"),
         pa.Parser(lambda df: df.sort_index(axis=1), name="Sort columns"),
+        pa.Parser(lambda df: df.loc[df.any(axis=1)], name="Drop terms with no categories"),
     ],
     strict=True,
     coerce=True,
     unique_column_names=True,
     checks=[
-        pa.Check(lambda df: df.columns.name == "Category", name="Column index is named 'Category'"),
-        # pa.Check(lambda df: df.columns.isunique),
+        pa.Check(lambda df: len(df) > 0, name="At least one term (row)"),
+        pa.Check(lambda df: len(df.columns) > 0, name="At least one category (column)"),
+        pa.Check(
+            lambda df: df.any(axis=1).all(),
+            name="Each term present in at least one category",
+        ),
     ],
 )
+
+
+#######################################################################################
+# LIWC dictionary DataFrame creation
+#######################################################################################
+
+
+@pa.check_output(schema=dx_schema)
+def create_dx(categories: dict[str, list[str]]) -> pd.DataFrame:
+    """
+    Create a dictionary DataFrame from category-to-terms mapping.
+
+    Parameters
+    ----------
+    categories : dict[str, list[str]]
+        Mapping of category names to lists of dictionary terms.
+        Terms may include LIWC-style wildcards (e.g., ``"abandon*"``).
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Validated dictionary DataFrame with terms as rows and categories as
+        columns (binary int8 values).
+
+    Examples
+    --------
+    >>> import liwca
+    >>> dx = liwca.create_dx(
+    ...     {
+    ...         "sports": ["baseball", "football", "hockey"],
+    ...         "weather": ["rain*", "snow", "wind*"],
+    ...     }
+    ... )
+    """
+    all_terms = sorted({term for terms in categories.values() for term in terms})
+    df = pd.DataFrame(0, index=pd.Index(all_terms, dtype="string"), columns=list(categories))
+    for cat, terms in categories.items():
+        df.loc[terms, cat] = 1
+    return df
 
 
 #######################################################################################
@@ -104,21 +160,21 @@ dx_schema = pa.DataFrameSchema(
 
 def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
-    Reads a dictionary file and returns a pandas DataFrame.
+    Reads a dictionary file and returns a pandas :py:class:`~pandas.DataFrame`.
     The file is expected to have a specific format where the header and body are
     separated by '%' characters. The header contains category IDs and names,
     while the body contains entries and their associated category IDs.
 
     Parameters
     ----------
-    fp : Union[str, Path]
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The file path to the dictionary file.
     **kwargs : Any
         Additional keyword arguments to pass to the `open` function.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         A DataFrame with the dictionary terms as the index and categories as columns.
         The values are binary (1 or 0) indicating the presence of a term in a category.
 
@@ -134,18 +190,21 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
     # Use regex to get everything between the first and last '%' character (both start on new lines)
     m = re.match(r"^%.*?$(?P<header>.*)^%.*?(?P<body>.*)", data, flags=re.DOTALL | re.MULTILINE)
-    if m is not None:
-        header = m.group("header").strip()
-        body = m.group("body").strip()
-    cat_ids, cat_names = zip(*[row.split() for row in header.split("\n")])
+    if m is None:
+        raise ValueError(
+            f"Failed to parse .dic file '{fp}': expected '%' delimiters separating header and body."
+        )
+    header = m.group("header").strip()
+    body = m.group("body").strip()
+    cat_ids, cat_names = zip(*[row.split("\t") for row in header.split("\n")])
     columns = pd.Index(cat_names, name="Category")
     data = {}
     for row in body.split("\n"):
         entry, *ids = row.split("\t")
         row_data = [1 if x in ids else 0 for x in cat_ids]
         data[entry] = row_data
-    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int", orient="index").rename_axis(
-        "DictTerm"
+    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int8", orient="index").rename_axis(
+        "DicTerm"
     )
     df.index = df.index.astype("string")
     return df
@@ -157,14 +216,14 @@ def _read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
     Parameters
     ----------
-    fp : Path
+    fp : Union[:class:`~str`, :class:`~pathlib.Path`]
         The filepath to read the dictionary from.
-    kwargs : dict
+    kwargs : Any
         Additional keyword arguments to pass to `pd.read_csv`.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         The dictionary read from the file.
     """
     kwargs.setdefault("index_col", "DicTerm")
@@ -174,7 +233,7 @@ def _read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         .rename_axis("Category", axis=1)
         .fillna(False)
         .astype(bool)
-        .astype(int)
+        .astype("int8")
     )
     return dic
 
@@ -186,16 +245,17 @@ def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
     Parameters
     ----------
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to read the dictionary from.
-    kwargs : dict
+    kwargs : Any
         Additional keyword arguments to pass to `pd.read_csv`.
 
     Returns
     -------
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         The dictionary read from the file.
     """
+    logger.info("Reading dictionary from %s", fp)
     if (suffix := Path(fp).suffix) == ".dic":
         return _read_dic(fp, **kwargs)
     elif suffix == ".dicx":
@@ -215,12 +275,12 @@ def _write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
     Parameters
     ----------
-    dic : pd.DataFrame
+    dx : :class:`pandas.DataFrame`
         The dictionary to write.
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to write the dictionary to.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.DataFrame.to_csv`.
+    kwargs : any
+        Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
     """
     kwargs.setdefault("sep", ",")
     kwargs.setdefault("index", True)
@@ -237,9 +297,9 @@ def _write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
 
     Parameters
     ----------
-    dic : pd.DataFrame
+    dx : :class:`pandas.DataFrame`
         The dictionary to write.
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to write the dictionary to.
     """
     with open(fp, "wt", encoding="utf-8", newline="") as f:
@@ -260,13 +320,14 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
     Parameters
     ----------
-    dx : pd.DataFrame
+    dx : :class:`pandas.DataFrame`
         The dictionary to write.
-    fp : Path
+    fp : Union[:class:`str`, :class:`~pathlib.Path`]
         The filepath to write the dictionary to.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.DataFrame.to_csv`.
+    kwargs : Any
+        Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
     """
+    logger.info("Writing dictionary (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
     if (suffix := Path(fp).suffix) == ".dic":
         return _write_dic(dx, fp)
     elif suffix == ".dicx":
@@ -281,104 +342,89 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
 
 @pa.check_output(schema=dx_schema)
-def merge_dx(dxs: list[pd.DataFrame], **kwargs: Any) -> pd.DataFrame:
+def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     """
     Merge multiple dictionaries into a single dictionary.
 
     Parameters
     ----------
-    dxs : list of pd.DataFrame
-        The list of dictionaries to merge.
-    kwargs : dict
-        Additional keyword arguments to pass to `pd.concat`.
+    *dxs : :class:`pandas.DataFrame`
+        Two or more dictionary DataFrames to merge.
 
     Returns
     -------
-
-    pd.DataFrame
+    :class:`pandas.DataFrame`
         The merged dictionary.
+
+    Raises
+    ------
+    ValueError
+        If fewer than two dictionaries are provided, or if any dictionaries
+        share category names (columns).
+
+    Examples
+    --------
+    >>> import liwca
+    >>> dx_sleep = liwca.fetch_sleep()  # doctest: +SKIP
+    >>> dx_threat = liwca.fetch_threat()  # doctest: +SKIP
+    >>> merged = liwca.merge_dx(dx_sleep, dx_threat)  # doctest: +SKIP
+    >>> merged.tail(3)  # doctest: +SKIP
+    Category   sleep  threat
+    DicTerm
+    worse          0       1
+    worst          0       1
+    you awake      1       0
     """
-    kwargs.setdefault("axis", 1)
-    kwargs.setdefault("join", "outer")
-    return pd.concat(dxs, **kwargs).fillna(0)
+    if len(dxs) < 2:
+        raise ValueError(f"merge_dx requires at least 2 dictionaries, got {len(dxs)}.")
+
+    # Check for overlapping categories across all pairs.
+    all_cols: list[str] = []
+    for dx in dxs:
+        overlap = set(dx.columns) & set(all_cols)
+        if overlap:
+            raise ValueError(
+                f"Dictionaries have overlapping categories: {sorted(overlap)}. "
+                "Each dictionary must have unique category names."
+            )
+        all_cols.extend(dx.columns)
+
+    _warn_wildcard_overlaps(dxs)
+
+    logger.info("Merging %d dictionaries", len(dxs))
+    return pd.concat(dxs, axis=1, join="outer").fillna(0)
 
 
-#######################################################################################
-# Pooch remote fetching and processing
-#######################################################################################
+def _warn_wildcard_overlaps(dxs: tuple[pd.DataFrame, ...]) -> None:
+    """Check for wildcard patterns that match literal terms in other dictionaries.
 
+    A wildcard like ``sleep*`` in dictionary A will match a literal term like
+    ``sleeping`` in dictionary B during counting. This means ``sleeping`` would
+    be counted in both categories, while other words matching ``sleep*``
+    (e.g., ``sleepy``) would only be counted in A's category. This asymmetry
+    can produce misleading results.
 
-def _get_processor(dic_name: str) -> Optional[Callable[[str], pd.DataFrame]]:
+    Issues a :func:`warnings.warn` for each detected overlap.
     """
-    Get the processor function for a dictionary.
+    import warnings
 
-    Parameters
-    ----------
-    dic_name : str
-        The name of the dictionary.
-
-    Returns
-    -------
-    Optional[Callable[[str], pd.DataFrame]]
-        The processor function for the dictionary, if available.
-    """
-    from . import _remoteprocessors
-
-    return getattr(_remoteprocessors, f"read_raw_{dic_name}", None)
-
-
-def _get_downloader(dic_name: str) -> Optional[pooch.HTTPDownloader]:
-    """
-    Get the downloader for a dictionary.
-
-    Parameters
-    ----------
-    dic_name : str
-        The name of the dictionary.
-
-    Returns
-    -------
-    Optional[pooch.HTTPDownloader]
-        The downloader for the dictionary, if available.
-    """
-    _requires_github_auth = ["tbd"]
-    if dic_name in _requires_github_auth:
-        evar = "GITHUB_TOKEN"
-        if (token := os.getenv(evar)) is not None:
-            return pooch.HTTPDownloader(auth=("token", token))
-        raise ValueError(f"Must set `{evar}` environment variable fetch '{dic_name}' dictionary.")
-    return None
-
-
-@pa.check_output(schema=dx_schema)
-def fetch_dx(dic_name: str, **kwargs: Any) -> pd.DataFrame:
-    """
-    Fetch a remote dictionary and load as a :class:`~pandas.DataFrame`.
-
-    This will first use :mod:`pooch` to download raw file to local cache if not already downloaded.
-    Then it will read the file, applying any custom corrections, into a :class:`~pandas.DataFrame`.
-
-    If raw file is not a readable `.dic` or `.dicx` file, it will be unpacked, processed, and
-    rewritten as `.dicx`.
-
-    Fetch/retrieve a dictionary from the registry.
-    Download the dictionary file if it is not already downloaded.
-
-    Parameters
-    ----------
-    dic_name : str
-        The name of the dictionary to fetch.
-
-    Returns
-    -------
-    dict
-        The dictionary local filepath.
-    """
-    for fname in _pup.registry_files:
-        if Path(fname).stem == dic_name:
-            kwargs.setdefault("processor", _get_processor(dic_name=dic_name))
-            kwargs.setdefault("downloader", _get_downloader(dic_name=dic_name))
-            fp = _pup.fetch(fname, **kwargs)
-            df = read_dx(fp)
-            return df
-    raise ValueError(f"Dictionary '{dic_name}' not found in registry.")
+    for i, dx_a in enumerate(dxs):
+        wildcards_a = [t for t in dx_a.index if t.endswith("*")]
+        if not wildcards_a:
+            continue
+        for j, dx_b in enumerate(dxs):
+            if i == j:
+                continue
+            terms_b = set(dx_b.index)
+            for wc in wildcards_a:
+                prefix = wc[:-1]
+                matches = sorted(t for t in terms_b if t.startswith(prefix) and t != wc)
+                if matches:
+                    warnings.warn(
+                        f"Wildcard '{wc}' (in dictionary {i + 1}) matches terms in "
+                        f"dictionary {j + 1}: {matches}. During counting, these terms "
+                        f"will be counted in both dictionaries' categories, while other "
+                        f"words matching '{wc}' will only be counted in dictionary "
+                        f"{i + 1}'s categories.",
+                        stacklevel=3,
+                    )
