@@ -269,3 +269,106 @@ class TestScikit:
         assert result.loc[0, "Baseball"] == 3
         assert result.loc[0, "Basketball"] == 1
         assert result.loc[0, "Football"] == 1
+
+    # -- return_words -------------------------------------------------------
+
+    def test_return_words_default_is_dataframe(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """Default return_words=False returns a single DataFrame."""
+        result = liwca.scikit(["hoop"], toy_dx_wildcards)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_return_words_returns_tuple(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        cats, words = liwca.scikit(["hoop"], toy_dx_wildcards, return_words=True)
+        assert isinstance(cats, pd.DataFrame)
+        assert isinstance(words, pd.DataFrame)
+
+    def test_return_words_shape(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        texts = ["the player dunked and grabbed the rebound near the hoop"]
+        cats, words = liwca.scikit(texts, toy_dx_wildcards, as_percentage=False, return_words=True)
+        assert cats.shape[0] == 1
+        assert words.shape[0] == 1
+        # Words should have WC + one column per matched dictionary token
+        assert "WC" in words.columns
+        assert words.shape[1] > 1  # at least WC + some tokens
+
+    def test_return_words_values(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """Word counts match expected values for known tokens."""
+        cats, words = liwca.scikit(
+            ["hoop dunk dunk layup"],
+            toy_dx_wildcards,
+            as_percentage=False,
+            return_words=True,
+        )
+        assert words.loc[0, "WC"] == 4
+        assert words.loc[0, "hoop"] == 1
+        assert words.loc[0, "layup"] == 1
+
+    def test_return_words_wildcard_expanded(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """Wildcard entries appear as expanded corpus tokens, not stems."""
+        _, words = liwca.scikit(
+            ["the pitcher dunked"],
+            toy_dx_wildcards,
+            as_percentage=False,
+            return_words=True,
+        )
+        # "dunked" matches dunk*, "pitcher" matches pitch*
+        assert "dunked" in words.columns
+        assert "pitcher" in words.columns
+        assert "dunk*" not in words.columns
+        assert "pitch*" not in words.columns
+
+    def test_return_words_percentage(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """Word percentages use the same normalisation as categories."""
+        cats, words = liwca.scikit(
+            ["hoop and layup"],
+            toy_dx_wildcards,
+            return_words=True,
+        )
+        # 3 tokens, hoop=1 → 33.33%, layup=1 → 33.33%
+        expected_pct = 1 / 3 * 100
+        assert abs(words.loc[0, "hoop"] - expected_pct) < 0.01
+        assert abs(words.loc[0, "layup"] - expected_pct) < 0.01
+
+    def test_return_words_precision(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        _, words = liwca.scikit(
+            ["hoop and layup"],
+            toy_dx_wildcards,
+            precision=2,
+            return_words=True,
+        )
+        assert words.loc[0, "hoop"] == 33.33
+
+    def test_return_words_no_matches_all_zero(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """No dictionary matches → word columns are all zero."""
+        _, words = liwca.scikit(
+            ["the quick brown fox"],
+            toy_dx_wildcards,
+            as_percentage=False,
+            return_words=True,
+        )
+        assert words.loc[0, "WC"] == 4
+        # All token columns should be zero
+        token_cols = [c for c in words.columns if c != "WC"]
+        assert (words[token_cols].loc[0] == 0).all()
+
+    def test_return_words_empty_vocab(self) -> None:
+        """All-wildcard dictionary with no corpus matches → WC-only columns."""
+        dx = pd.DataFrame(
+            {"CatA": [1]},
+            index=pd.Index(["zzz*"], dtype="string", name="DicTerm"),
+        )
+        dx.columns.name = "Category"
+        _, words = liwca.scikit(["hello world"], dx, as_percentage=False, return_words=True)
+        assert list(words.columns) == ["WC"]
+        assert words.loc[0, "WC"] == 2
+
+    def test_return_words_categories_unchanged(self, toy_dx_wildcards: pd.DataFrame) -> None:
+        """Category results are identical whether or not return_words is set."""
+        cats_only = liwca.scikit(["hoop and layup"], toy_dx_wildcards, as_percentage=False)
+        cats_both, _ = liwca.scikit(
+            ["hoop and layup"],
+            toy_dx_wildcards,
+            as_percentage=False,
+            return_words=True,
+        )
+        pd.testing.assert_frame_equal(cats_only, cats_both)

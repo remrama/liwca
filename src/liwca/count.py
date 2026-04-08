@@ -24,11 +24,10 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable, Iterable
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 import pandas as pd
-from scipy import sparse
 from sklearn.feature_extraction.text import CountVectorizer
 
 __all__ = [
@@ -122,8 +121,61 @@ def _expand_wildcards(
 
 
 # ---------------------------------------------------------------------------
+# Word-level output helper
+# ---------------------------------------------------------------------------
+
+
+def _build_word_result(
+    dtm: object | None,
+    doc_index: pd.Index,
+    vocab_tokens: list[str],
+    word_counts: np.ndarray,
+    as_percentage: bool,
+    precision: int | None,
+) -> pd.DataFrame:
+    """Assemble a documents x tokens DataFrame from the raw DTM."""
+    if dtm is None:
+        word_result = pd.DataFrame(index=doc_index)
+    else:
+        word_result = pd.DataFrame.sparse.from_spmatrix(dtm, index=doc_index, columns=vocab_tokens)
+        if as_percentage:
+            safe_wc = np.where(word_counts > 0, word_counts, 1)
+            word_result = word_result.div(safe_wc, axis=0) * 100
+        if as_percentage and precision is not None:
+            # Sparse arrays don't support .round(); densify first.
+            word_result = word_result.sparse.to_dense().round(precision)
+
+    word_result.insert(0, "WC", word_counts)
+    return word_result
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+@overload
+def scikit(
+    texts: Union[Iterable[str], pd.Series],
+    dx: pd.DataFrame,
+    *,
+    tokenizer: Callable[[str], list[str]] | None = ...,
+    as_percentage: bool = ...,
+    precision: int | None = ...,
+    return_words: Literal[False] = ...,
+) -> pd.DataFrame: ...
+
+
+@overload
+def scikit(
+    texts: Union[Iterable[str], pd.Series],
+    dx: pd.DataFrame,
+    *,
+    tokenizer: Callable[[str], list[str]] | None = ...,
+    as_percentage: bool = ...,
+    precision: int | None = ...,
+    return_words: Literal[True],
+) -> tuple[pd.DataFrame, pd.DataFrame]: ...
 
 
 def scikit(
@@ -133,7 +185,8 @@ def scikit(
     tokenizer: Callable[[str], list[str]] | None = None,
     as_percentage: bool = True,
     precision: int | None = None,
-) -> pd.DataFrame:
+    return_words: bool = False,
+) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
     """
     Count LIWC dictionary categories across documents (pure-Python).
 
@@ -157,14 +210,28 @@ def scikit(
         If set, round category value columns to this many decimal places.
         Only applies when ``as_percentage=True``. The ``"WC"`` column is
         never rounded.
+    return_words : :class:`bool`, optional
+        If ``True``, return a tuple ``(categories, words)`` where *words* is
+        a *documents × tokens* DataFrame holding per-word counts (or
+        percentages) for every dictionary token that appeared in the corpus.
+        Wildcard entries are expanded to the actual corpus tokens that
+        matched (e.g., ``recall*`` → ``recalled``, ``recalling``, …).
+        The same ``as_percentage`` and ``precision`` settings apply to both
+        DataFrames.  Default ``False``.
 
     Returns
     -------
-    :class:`~pandas.DataFrame`
-        A *documents × categories* DataFrame.  Index matches the input order
-        (or the :class:`~pandas.Series` index if a Series was passed).  Columns are the
-        dictionary category names.  An additional ``"WC"`` column contains
-        the total word count for each document.
+    :class:`~pandas.DataFrame` or tuple of :class:`~pandas.DataFrame`
+        When ``return_words=False`` (default): a *documents × categories*
+        DataFrame.  Index matches the input order (or the
+        :class:`~pandas.Series` index if a Series was passed).  Columns are
+        the dictionary category names.  An additional ``"WC"`` column
+        contains the total word count for each document.
+
+        When ``return_words=True``: a tuple ``(categories, words)`` where
+        *categories* is the DataFrame described above and *words* is a
+        *documents × tokens* DataFrame with one column per matched
+        dictionary token plus a ``"WC"`` column.
 
     Examples
     --------
@@ -175,6 +242,12 @@ def scikit(
     Category  WC  threat
     0          8    12.5
     1          4     0.0
+
+    Get per-word contributions:
+
+    >>> cats, words = liwca.scikit(texts, dx, return_words=True)
+    >>> words.columns.tolist()
+    ['WC', 'grave', 'threat']
     """
     if tokenizer is None:
         tokenizer = _default_tokenize
@@ -210,13 +283,14 @@ def scikit(
     if not vocab_map:
         # No dictionary terms matched any corpus tokens — all counts are zero.
         cat_counts = np.zeros((n_docs, n_cats), dtype=int)
+        dtm = None
     else:
         vectorizer = CountVectorizer(
             analyzer=tokenizer,
             vocabulary=vocab_map,
             lowercase=False,  # tokenizer already lowercases
         )
-        dtm: sparse.csr_matrix = vectorizer.fit_transform(docs)  # (n_docs, n_vocab)
+        dtm = vectorizer.fit_transform(docs)  # (n_docs, n_vocab), sparse csr
 
         # -- Step 4: map token counts to category counts ---------------------
         # category_matrix: (n_vocab, n_categories), binary
@@ -262,4 +336,12 @@ def scikit(
         word_counts.min() if len(word_counts) else 0,
         word_counts.max() if len(word_counts) else 0,
     )
-    return result
+
+    if not return_words:
+        return result
+
+    # -- Build word-level DataFrame -----------------------------------------
+    word_result = _build_word_result(
+        dtm, doc_index, vocab_tokens, word_counts, as_percentage, precision
+    )
+    return result, word_result
