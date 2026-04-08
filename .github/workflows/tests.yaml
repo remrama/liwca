@@ -80,10 +80,12 @@ jobs:
         run: pip install uv
 
       - name: Install minimum dependency versions
-        run: uv pip install --system --resolution=lowest-direct -e ".[dev]"
+        run: |
+          uv pip install --system --resolution=lowest-direct -e .
+          uv pip install --system pytest
 
       - name: Run tests
-        run: pytest --ignore=tests/test_remote.py
+        run: pytest tests/ --ignore=tests/test_remote.py
 
   test-remote:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
