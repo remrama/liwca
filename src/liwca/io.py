@@ -98,6 +98,7 @@ dx_schema = pa.DataFrameSchema(
         pa.Parser(lambda df: df.rename(index=str.lower), name="Lowercase index"),
         pa.Parser(lambda df: df.sort_index(axis=0), name="Sort index"),
         pa.Parser(lambda df: df.sort_index(axis=1), name="Sort columns"),
+        pa.Parser(lambda df: df.loc[df.any(axis=1)], name="Drop terms with no categories"),
     ],
     strict=True,
     coerce=True,
