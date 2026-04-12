@@ -31,7 +31,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 
 __all__ = [
-    "scikit",
+    "count",
 ]
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ def _build_word_result(
 
 
 @overload
-def scikit(
+def count(
     texts: Union[Iterable[str], pd.Series],
     dx: pd.DataFrame,
     *,
@@ -167,7 +167,7 @@ def scikit(
 
 
 @overload
-def scikit(
+def count(
     texts: Union[Iterable[str], pd.Series],
     dx: pd.DataFrame,
     *,
@@ -178,7 +178,7 @@ def scikit(
 ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
 
 
-def scikit(
+def count(
     texts: Union[Iterable[str], pd.Series],
     dx: pd.DataFrame,
     *,
@@ -241,14 +241,14 @@ def scikit(
     ...     "This is a grave threat to our safety.",
     ...     "All is calm today.",
     ... ]  # doctest: +SKIP
-    >>> liwca.scikit(texts, dx)  # doctest: +SKIP
+    >>> liwca.count(texts, dx)  # doctest: +SKIP
     Category  WC  threat
     0          8    12.5
     1          4     0.0
 
     Get per-word contributions:
 
-    >>> cats, words = liwca.scikit(texts, dx, return_words=True)  # doctest: +SKIP
+    >>> cats, words = liwca.count(texts, dx, return_words=True)  # doctest: +SKIP
     >>> words.columns.tolist()  # doctest: +SKIP
     ['WC', 'grave', 'threat']
     """

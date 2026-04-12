@@ -3,7 +3,7 @@ Distributed Dictionary Representation (DDR) scoring.
 
 Scores documents against dictionary categories using cosine similarity in
 word-embedding space, following the DDR method (Garten et al., 2018).  Unlike
-exact word counting (:func:`liwca.scikit`), DDR captures semantic proximity
+exact word counting (:func:`liwca.count`), DDR captures semantic proximity
 even when the exact dictionary words are absent from a document.
 
 Algorithm
@@ -225,7 +225,7 @@ def ddr(
     tokenizer : :class:`~collections.abc.Callable`, optional
         A function ``str -> list[str]`` used to split each document into
         lowercase tokens.  Defaults to a regex tokenizer that preserves
-        contractions (identical to :func:`liwca.scikit`'s default).
+        contractions (identical to :func:`liwca.count`'s default).
     precision : :class:`int`, optional
         If set, round cosine similarity values to this many decimal places.
 
@@ -253,7 +253,7 @@ def ddr(
     if tokenizer is None:
         tokenizer = _default_tokenize
 
-    # -- Materialise texts + build index (same pattern as scikit()) -----------
+    # -- Materialise texts + build index (same pattern as count()) -------------
     if isinstance(texts, pd.Series):
         doc_index = texts.index
         if doc_index.name is None:

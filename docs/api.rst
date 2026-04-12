@@ -42,7 +42,7 @@ Pure-Python LIWC-style word counting.
 .. autosummary::
    :toctree: _autosummary
 
-   scikit
+   count
 
 
 .. _api-ddr:

@@ -44,16 +44,16 @@ before importing liwca:
 Counting words
 --------------
 
-:func:`~liwca.scikit` takes texts and a dictionary DataFrame, and returns a
+:func:`~liwca.count` takes texts and a dictionary DataFrame, and returns a
 documents × categories table:
 
 .. code-block:: python
 
    texts = ["The threat of danger loomed over the city", "A calm morning"]
-   results = liwca.scikit(texts, dx)
+   results = liwca.count(texts, dx)
 
 Values are percentages of total words per document by default. See
-:func:`~liwca.scikit` for options including raw counts and custom tokenizers.
+:func:`~liwca.count` for options including raw counts and custom tokenizers.
 
 
 DDR (semantic scoring)

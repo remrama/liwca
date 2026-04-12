@@ -783,7 +783,7 @@ def liwc22(
 
     See Also
     --------
-    scikit : Pure-Python word counting (no LIWC-22 required).
+    count : Pure-Python word counting (no LIWC-22 required).
     `LIWC CLI documentation <https://www.liwc.app/help/cli>`_
     `Python CLI example <https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py>`_
 
