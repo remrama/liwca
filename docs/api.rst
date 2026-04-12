@@ -17,6 +17,7 @@ Reading, writing, and merging LIWC dictionaries.
    read_dx
    write_dx
    merge_dx
+   drop_category
 
 
 .. _api-liwc22:
@@ -42,7 +43,20 @@ Pure-Python LIWC-style word counting.
 .. autosummary::
    :toctree: _autosummary
 
-   scikit
+   count
+
+
+.. _api-ddr:
+
+DDR Scoring
+-----------
+
+Distributed Dictionary Representation — semantic scoring via word embeddings.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   ddr
 
 
 .. _api-fetchers:

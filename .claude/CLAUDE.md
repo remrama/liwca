@@ -29,11 +29,13 @@ uv run mypy
 
 ## Architecture
 
-Four modules under `src/liwca/`:
+Five modules under `src/liwca/`:
 
 - **`io.py`** — Read/write `.dic` and `.dicx` dictionary files, create and merge dictionaries. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
 
 - **`count.py`** — Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
+
+- **`ddr.py`** — Distributed Dictionary Representation (DDR) scoring. Computes cosine similarity between document vectors and dictionary category centroids in word-embedding space. Accepts embeddings as a gensim model name (string) or any dict-like mapping. Optional dependency: `gensim>=4.0` via `pip install liwca[ddr]`.
 
 - **`fetchers.py`** — Per-dictionary `fetch_*()` functions that download remote LIWC-format dictionaries via Pooch and return validated DataFrames. The Pooch registry (`data/registry.txt`) is the single source of truth for filenames, MD5 hashes, and download URLs. Includes custom parsers for non-standard formats (Excel, TSV, plain text).
 

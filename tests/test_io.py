@@ -251,3 +251,58 @@ class TestMergeDx:
             liwca.merge_dx(dx_a, dx_b)
             wildcard_warnings = [x for x in w if "sleep*" in str(x.message)]
             assert len(wildcard_warnings) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Dropping categories
+# ---------------------------------------------------------------------------
+
+
+class TestDropCategory:
+    """Tests for drop_category."""
+
+    def test_drop_single_string(self, toy_dicx_path: Path) -> None:
+        dx = liwca.read_dx(toy_dicx_path)
+        result = liwca.drop_category(dx, "Football")
+        assert "Football" not in result.columns
+        assert sorted(result.columns) == ["Baseball", "Basketball"]
+
+    def test_drop_multiple(self, toy_dicx_path: Path) -> None:
+        dx = liwca.read_dx(toy_dicx_path)
+        result = liwca.drop_category(dx, ["Baseball", "Football"])
+        assert list(result.columns) == ["Basketball"]
+
+    def test_orphaned_terms_removed(self, toy_dicx_path: Path) -> None:
+        """Terms belonging only to dropped categories are removed."""
+        dx = liwca.read_dx(toy_dicx_path)
+        result = liwca.drop_category(dx, ["Baseball", "Football"])
+        # "dugout" is Baseball-only, "quarterback" is Football-only
+        assert "dugout" not in result.index
+        assert "quarterback" not in result.index
+
+    def test_shared_terms_kept(self, toy_dicx_path: Path) -> None:
+        """Terms shared with remaining categories survive."""
+        dx = liwca.read_dx(toy_dicx_path)
+        result = liwca.drop_category(dx, "Football")
+        # "coach" belongs to all three categories, so it stays
+        assert "coach" in result.index
+
+    def test_schema_valid(self, toy_dicx_path: Path) -> None:
+        """Output passes dx_schema validation (index, dtypes, sorted)."""
+        dx = liwca.read_dx(toy_dicx_path)
+        result = liwca.drop_category(dx, "Football")
+        assert result.index.name == "DicTerm"
+        assert result.columns.name == "Category"
+        assert (result.dtypes == "int8").all()
+
+    def test_missing_category_raises(self, toy_dicx_path: Path) -> None:
+        dx = liwca.read_dx(toy_dicx_path)
+        with pytest.raises(KeyError, match="NoSuchCategory"):
+            liwca.drop_category(dx, "NoSuchCategory")
+
+    def test_original_unchanged(self, toy_dicx_path: Path) -> None:
+        """Dropping does not mutate the input DataFrame."""
+        dx = liwca.read_dx(toy_dicx_path)
+        original_shape = dx.shape
+        liwca.drop_category(dx, "Football")
+        assert dx.shape == original_shape
