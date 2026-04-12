@@ -17,6 +17,7 @@ Reading, writing, and merging LIWC dictionaries.
    read_dx
    write_dx
    merge_dx
+   drop_category
 
 
 .. _api-liwc22:

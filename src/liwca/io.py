@@ -46,6 +46,7 @@ import pandera.pandas as pa
 
 __all__ = [
     "create_dx",
+    "drop_category",
     "merge_dx",
     "read_dx",
     "write_dx",
@@ -339,6 +340,50 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 #######################################################################################
 # DX DataFrame processing
 #######################################################################################
+
+
+@pa.check_output(schema=dx_schema)
+def drop_category(dx: pd.DataFrame, categories: Union[str, list[str]]) -> pd.DataFrame:
+    """
+    Remove one or more categories from a dictionary.
+
+    Terms that no longer belong to any remaining category are dropped
+    automatically.
+
+    Parameters
+    ----------
+    dx : :class:`pandas.DataFrame`
+        A dictionary DataFrame as returned by :func:`read_dx`.
+    categories : :class:`str` or list of :class:`str`
+        Category name(s) to remove.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        A new dictionary DataFrame without the specified categories.
+
+    Raises
+    ------
+    KeyError
+        If any of the given category names are not present in *dx*.
+
+    Examples
+    --------
+    >>> import liwca
+    >>> dx = liwca.create_dx({"sports": ["baseball", "hockey"], "weather": ["rain*", "snow"]})
+    >>> liwca.drop_category(dx, "weather")
+    Category  sports
+    DicTerm
+    baseball       1
+    hockey         1
+    """
+    if isinstance(categories, str):
+        categories = [categories]
+    missing = sorted(set(categories) - set(dx.columns))
+    if missing:
+        raise KeyError(f"Categories not found in dictionary: {missing}")
+    logger.info("Dropping %d categories from %d-category dictionary", len(categories), dx.shape[1])
+    return dx.drop(columns=categories)
 
 
 @pa.check_output(schema=dx_schema)
