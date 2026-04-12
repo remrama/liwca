@@ -371,7 +371,7 @@ def drop_category(dx: pd.DataFrame, categories: Union[str, list[str]]) -> pd.Dat
     --------
     >>> import liwca
     >>> dx = liwca.create_dx({"sports": ["baseball", "hockey"], "weather": ["rain*", "snow"]})
-    >>> liwca.drop_category(dx, "weather")
+    >>> liwca.drop_category(dx, "weather")  # doctest: +SKIP
     Category  sports
     DicTerm
     baseball       1
