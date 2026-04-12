@@ -42,6 +42,7 @@ classifiers = [
 Homepage = "https://github.com/remrama/liwca"
 
 [project.optional-dependencies]
+ddr = ["gensim>=4.0"]
 dev = [
   "mypy>=1.12",
   "pre-commit>=3.0",

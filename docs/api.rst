@@ -45,6 +45,19 @@ Pure-Python LIWC-style word counting.
    scikit
 
 
+.. _api-ddr:
+
+DDR Scoring
+-----------
+
+Distributed Dictionary Representation — semantic scoring via word embeddings.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   ddr
+
+
 .. _api-fetchers:
 
 Fetching Dictionaries

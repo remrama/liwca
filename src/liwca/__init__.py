@@ -1,6 +1,7 @@
 import logging
 
 from .count import *
+from .ddr import *
 from .fetchers import *
 from .io import *
 from .liwc22 import *
