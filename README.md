@@ -64,7 +64,7 @@ The LIWC-22 desktop application (or its license server) must be running when you
 See the [LIWC CLI documentation](https://www.liwc.app/help/cli) and [Python CLI example](https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py) for more details.
 
 ```python
-liwca.liwc22("wc", input="data.csv", output="results.csv")
+liwca.liwc22.wc(input="data.csv", output="results.csv")
 ```
 
 ## Similar Projects

@@ -25,12 +25,19 @@ Reading, writing, and merging LIWC dictionaries.
 LIWC-22 CLI
 -----------
 
-Python wrapper for the LIWC-22 command-line tool.
+Python wrappers for the LIWC-22 command-line tool. One function per
+analysis mode.
 
 .. autosummary::
    :toctree: _autosummary
 
-   liwc22
+   liwc22.wc
+   liwc22.freq
+   liwc22.mem
+   liwc22.context
+   liwc22.arc
+   liwc22.ct
+   liwc22.lsm
 
 
 .. _api-count:

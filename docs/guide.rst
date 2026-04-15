@@ -99,11 +99,16 @@ If LIWC-22 is installed, call it from Python. The LIWC-22 desktop application
 
 .. code-block:: python
 
-   liwca.liwc22("wc", input="data.csv", output="results.csv")
+   liwca.liwc22.wc(input="data.csv", output="results.csv")
 
-Pass ``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
+There is one function per analysis mode: :func:`~liwca.liwc22.wc`,
+:func:`~liwca.liwc22.freq`, :func:`~liwca.liwc22.mem`,
+:func:`~liwca.liwc22.context`, :func:`~liwca.liwc22.arc`,
+:func:`~liwca.liwc22.ct`, :func:`~liwca.liwc22.lsm`. Pass
+``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
 
-See :func:`~liwca.liwc22` for the full argument reference, and the
+See the :ref:`API reference <api-liwc22>` for each mode's full argument
+list, and the
 `LIWC CLI documentation <https://www.liwc.app/help/cli>`_ and
 `Python CLI example <https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py>`_
 for more details.

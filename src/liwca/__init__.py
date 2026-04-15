@@ -1,10 +1,10 @@
 import logging
 
+from . import liwc22
 from .count import *
 from .ddr import *
 from .fetchers import *
 from .io import *
-from .liwc22 import *
 
 __author__ = "Remington Mallett <mallett.remy@gmail.com>"
 __version__ = "0.1.0.alpha.2"
