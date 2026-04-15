@@ -51,7 +51,7 @@ Pure-Python LIWC-style word counting.
 DDR Scoring
 -----------
 
-Distributed Dictionary Representation — semantic scoring via word embeddings.
+Distributed Dictionary Representation - semantic scoring via word embeddings.
 
 .. autosummary::
    :toctree: _autosummary

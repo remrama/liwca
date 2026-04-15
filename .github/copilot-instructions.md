@@ -31,11 +31,11 @@ uv run mypy
 
 Three main modules under `src/liwca/`:
 
-- **`io.py`** — Read/write `.dic` and `.dicx` dictionary files, merge dictionaries, fetch remote dictionaries via Pooch. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
+- **`io.py`** - Read/write `.dic` and `.dicx` dictionary files, merge dictionaries, fetch remote dictionaries via Pooch. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
 
-- **`count.py`** — Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
+- **`count.py`** - Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
 
-- **`liwc22.py`** — CLI wrapper around `liwc-22-cli`. Uses a data-driven design: all arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Also exposes `cli()` for Python-level invocation. The `liwca` console script entry point is `main()` in this module.
+- **`liwc22.py`** - CLI wrapper around `liwc-22-cli`. Uses a data-driven design: all arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Also exposes `cli()` for Python-level invocation. The `liwca` console script entry point is `main()` in this module.
 
 Supporting module `_catalogue.py` loads `data/registry.json` (the single source of truth for all dictionary metadata and download info), builds the `CATALOGUE` dict of `DictInfo` objects at import time, and defines reader functions for non-standard remote dictionary formats. Supports versioned dictionaries.
 

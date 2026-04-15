@@ -1,4 +1,4 @@
-"""Tests for liwca.liwc22 — Python API and command builder."""
+"""Tests for liwca.liwc22 - Python API and command builder."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ class TestModeDefs:
 
 
 class TestBuildCommand:
-    """Tests for build_command — namespace → CLI args list."""
+    """Tests for build_command - namespace → CLI args list."""
 
     def test_basic_wc_command(self) -> None:
         cmd = build_command(_ns("wc", input="data.txt", output="results.csv"))
@@ -68,7 +68,7 @@ class TestBuildCommand:
 
     def test_optional_args_excluded_when_none(self) -> None:
         cmd = build_command(_ns("wc", input="in.txt", output="out.csv"))
-        # dictionary was not set — should not appear
+        # dictionary was not set - should not appear
         assert "-d" not in cmd
 
     def test_bool_flag_included_when_true(self) -> None:

@@ -225,7 +225,7 @@ class TestDDREdgeCases:
 
 
 class TestLoadEmbeddings:
-    """_load_embeddings helper — string and mapping paths."""
+    """_load_embeddings helper - string and mapping paths."""
 
     def test_mapping_returned_as_is(self, toy_embeddings):
         result = _load_embeddings(toy_embeddings)

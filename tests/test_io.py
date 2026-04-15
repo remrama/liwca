@@ -1,4 +1,4 @@
-"""Tests for liwca.io — dictionary creation, reading, writing, and merging."""
+"""Tests for liwca.io - dictionary creation, reading, writing, and merging."""
 
 from __future__ import annotations
 
@@ -175,7 +175,7 @@ class TestWriteDx:
         pd.testing.assert_frame_equal(original, reloaded)
 
     def test_dic_roundtrip(self, toy_dicx_path: Path, tmp_path: Path) -> None:
-        """Read from dicx, write as dic, read back — should be identical."""
+        """Read from dicx, write as dic, read back - should be identical."""
         original = liwca.read_dx(toy_dicx_path)
         out_path = tmp_path / "roundtrip.dic"
         liwca.write_dx(original, out_path)
@@ -219,9 +219,9 @@ class TestMergeDx:
         # Baseball terms only
         base = dx[dx["Baseball"] == 1][["Baseball"]]
         merged = liwca.merge_dx(bball, base)
-        # "hoop" is basketball-only — its Baseball value should be 0
+        # "hoop" is basketball-only - its Baseball value should be 0
         assert merged.loc["hoop", "Baseball"] == 0
-        # "dugout" is baseball-only — its Basketball value should be 0
+        # "dugout" is baseball-only - its Basketball value should be 0
         assert merged.loc["dugout", "Basketball"] == 0
 
     def test_error_single_dictionary(self, toy_dicx_path: Path) -> None:

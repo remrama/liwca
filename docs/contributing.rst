@@ -23,7 +23,7 @@ Running tests, linting, and type checking:
 Code style
 ----------
 
-- **Formatter/linter:** `Ruff <https://docs.astral.sh/ruff/>`_ — line length
+- **Formatter/linter:** `Ruff <https://docs.astral.sh/ruff/>`_ - line length
   100, target Python 3.14, rules ``E, F, I, W, C90, NPY201``
 - **Docstrings:** `NumPy convention <https://numpydoc.readthedocs.io/en/latest/format.html>`_
 - **Formatting:** double quotes, LF line endings

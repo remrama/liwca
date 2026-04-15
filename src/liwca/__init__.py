@@ -11,7 +11,7 @@ __version__ = "0.1.0.alpha.2"
 
 # NullHandler prevents "No handlers could be found" warnings when liwca is
 # imported as a library and the caller hasn't configured logging at all.
-# On its own this produces no output — set_log_level() adds a real handler.
+# On its own this produces no output - set_log_level() adds a real handler.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
@@ -21,7 +21,7 @@ def set_log_level(level: int | str = logging.INFO) -> None:
 
     Adds a :class:`~logging.StreamHandler` with a simple format to the
     ``"liwca"`` logger and sets the given level.  Safe to call multiple
-    times — the handler is only added once.
+    times - the handler is only added once.
 
     Parameters
     ----------

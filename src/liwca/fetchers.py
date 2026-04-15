@@ -1,4 +1,4 @@
-"""Remote LIWC-format dictionaries — per-dictionary fetch functions.
+"""Remote LIWC-format dictionaries - per-dictionary fetch functions.
 
 Each function downloads its dictionary to a local cache (if not already
 present) and returns it as a :class:`~pandas.DataFrame`.  The cache location

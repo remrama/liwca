@@ -6,7 +6,7 @@ modes are supported via the :func:`liwc22` Python function.
 
 Requires LIWC-22 to be installed with the CLI on your PATH.
 The LIWC-22 desktop application (or its license server) must be running
-when you call the CLI — start it before invoking :func:`liwc22`, or pass
+when you call the CLI - start it before invoking :func:`liwc22`, or pass
 ``auto_open=True`` to let liwca handle it.
 
 See Also
@@ -112,7 +112,7 @@ def _close_liwc_app(proc: subprocess.Popen[bytes] | None) -> None:
 # ---------------------------------------------------------------------------
 # Argument catalogue
 # ---------------------------------------------------------------------------
-# Every CLI argument — global, shared-mode, and mode-unique — is defined
+# Every CLI argument - global, shared-mode, and mode-unique - is defined
 # exactly once here.  Each entry is a dict of kwargs to pass to
 # ``parser.add_argument()``, plus two extra keys:
 #
@@ -236,7 +236,7 @@ _register_args(
     _a(
         ["-s", "--segmentation"],
         "segmentation",
-        help="Split text into segments. Syntax varies by mode — see mode help for details.",
+        help="Split text into segments. Syntax varies by mode - see mode help for details.",
     ),
     _a(
         ["-skip", "--skip-wc"],
@@ -287,14 +287,14 @@ _register_args(
         help="LIWC dictionary name (e.g. LIWC22, LIWC2015) or path to a "
         "custom .dicx file (default: LIWC22).",
     ),
-    # -sl as stop-list (freq, mem) — value flag
+    # -sl as stop-list (freq, mem) - value flag
     _a(
         ["-sl", "--stop-list"],
         "stop_list",
         help="Path to a stop list, an internal list name (e.g. internal-EN), "
         'or "none" (default: internal-EN).',
     ),
-    # -sl as single-line (ct, lsm) — bool flag
+    # -sl as single-line (ct, lsm) - bool flag
     _a(
         ["-sl", "--single-line"],
         "single_line",
@@ -754,7 +754,7 @@ def liwc22(
     Parameters
     ----------
     mode : :class:`str`
-        Analysis mode — one of ``"wc"``, ``"freq"``, ``"mem"``,
+        Analysis mode - one of ``"wc"``, ``"freq"``, ``"mem"``,
         ``"context"``, ``"arc"``, ``"ct"``, ``"lsm"``.
     auto_open : :class:`bool`, optional
         If LIWC-22 is not running, launch it before analysis and close
@@ -828,7 +828,7 @@ def _run(args: argparse.Namespace) -> int:
 
     if not _is_liwc_running():
         if args.auto_open:
-            logger.info("LIWC-22 is not running — starting it now …")
+            logger.info("LIWC-22 is not running - starting it now …")
             liwc_proc = _open_liwc_app(use_license_server=not args.use_gui)
             we_opened_it = True
         else:

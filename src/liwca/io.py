@@ -8,7 +8,7 @@ a trailing wildcard (``*``) to match any token that starts with that prefix
 (e.g., ``abandon*`` matches *abandoned*, *abandoning*, etc.). A single term can
 belong to multiple categories.
 
-**.dic format** — tab-delimited, used by LIWC desktop applications::
+**.dic format** - tab-delimited, used by LIWC desktop applications::
 
     %
     1\tCategoryA
@@ -23,7 +23,7 @@ belong to multiple categories.
 - Header rows map an integer ID to a category name, separated by a tab.
 - Body rows start with the term, followed by one or more category IDs (tab-separated).
 
-**.dicx format** — CSV, used by LIWC-22 Dictionary Workbench::
+**.dicx format** - CSV, used by LIWC-22 Dictionary Workbench::
 
     DicTerm,CategoryA,CategoryB
     term1,X,

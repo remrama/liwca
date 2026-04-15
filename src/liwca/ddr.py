@@ -8,9 +8,9 @@ even when the exact dictionary words are absent from a document.
 
 Algorithm
 ---------
-1. For each dictionary category, compute a **centroid vector** — the mean of
+1. For each dictionary category, compute a **centroid vector** - the mean of
    its terms' word embeddings.
-2. For each document, compute a **document vector** — the mean of its tokens'
+2. For each document, compute a **document vector** - the mean of its tokens'
    word embeddings.
 3. Score each (document, category) pair as the cosine similarity between the
    document vector and the category centroid.
@@ -220,7 +220,7 @@ def ddr(
         model via :func:`gensim.downloader.load` (requires
         ``pip install liwca[ddr]``), e.g. ``"glove-wiki-gigaword-100"``.
         Or pass any mapping that supports ``embeddings[word]`` and
-        ``word in embeddings`` — a plain :class:`dict`, gensim
+        ``word in embeddings`` - a plain :class:`dict`, gensim
         :class:`~gensim.models.keyedvectors.KeyedVectors`, etc.
     tokenizer : :class:`~collections.abc.Callable`, optional
         A function ``str -> list[str]`` used to split each document into

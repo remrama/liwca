@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 # Matches sequences of word characters + apostrophes (to keep contractions
 # like "don't" as single tokens), then lowercases.  This is intentionally
-# simple — users who need spaCy / NLTK tokenisation can pass their own
+# simple - users who need spaCy / NLTK tokenisation can pass their own
 # callable via the *tokenizer* parameter.
 _TOKEN_RE = re.compile(r"[a-zA-Z\u00C0-\u024F][''\w]*", re.UNICODE)
 
@@ -75,7 +75,7 @@ def _expand_wildcards(
     :class:`~pandas.DataFrame`
         A new dictionary DataFrame with wildcards replaced by their matching
         corpus tokens.  Exact-match entries are preserved as-is (even if they
-        don't appear in the corpus — :class:`~sklearn.feature_extraction.text.CountVectorizer`
+        don't appear in the corpus - :class:`~sklearn.feature_extraction.text.CountVectorizer`
         will simply ignore them).  If a corpus token matches both an exact entry
         and a wildcard, category memberships are merged (logical OR).
     """
@@ -287,7 +287,7 @@ def count(
     n_cats = dx_expanded.shape[1]
 
     if not vocab_map:
-        # No dictionary terms matched any corpus tokens — all counts are zero.
+        # No dictionary terms matched any corpus tokens - all counts are zero.
         cat_counts = np.zeros((n_docs, n_cats), dtype=int)
         dtm = None
     else:
@@ -308,7 +308,7 @@ def count(
     # -- Step 5: compute word counts (total tokens per doc, not just matched)
     # We need a separate pass because the vocab-restricted DTM only counts
     # dictionary tokens.  If the corpus has zero unique tokens (all docs
-    # empty), CountVectorizer would raise — short-circuit to zeros.
+    # empty), CountVectorizer would raise - short-circuit to zeros.
     if not corpus_vocab:
         word_counts = np.zeros(len(docs), dtype=int)
     else:
