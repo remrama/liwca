@@ -1,10 +1,11 @@
-[![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Tests](https://github.com/remrama/liwca/actions/workflows/tests.yaml/badge.svg)](https://github.com/remrama/liwca/actions/workflows/tests.yaml)
-[![PyPI](https://img.shields.io/pypi/v/liwca.svg)](https://pypi.org/project/liwca/)
-[![Downloads](https://img.shields.io/pypi/dm/liwca.svg)](https://pypi.org/project/liwca/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/liwca.svg)](https://pypi.org/project/liwca/)
+[![PyPI](https://img.shields.io/pypi/v/liwca.svg)](https://pypi.org/project/liwca)
+[![Python Versions](https://img.shields.io/pypi/pyversions/liwca.svg)](https://pypi.org/project/liwca)
+[![Downloads](https://static.pepy.tech/badge/liwca)](https://pepy.tech/projects/liwca)
 [![License](https://img.shields.io/pypi/l/liwca.svg)](https://github.com/remrama/liwca/blob/main/LICENSE.txt)
+[![Tests](https://github.com/remrama/liwca/actions/workflows/tests.yaml/badge.svg)](https://github.com/remrama/liwca/actions/workflows/tests.yaml)
+[![Coverage](https://codecov.io/gh/remrama/liwca/branch/main/graph/badge.svg)](https://codecov.io/gh/remrama/liwca)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Repo Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
 # LIWCA
 
