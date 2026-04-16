@@ -7,9 +7,15 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Repo Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
-# LIWCA
+<p align="center">
+    <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/_static/banner-dark.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/_static/banner.png">
+        <img alt="liwca logo banner" src="docs/_static/banner.png">
+    </picture>
+</p>
 
-LIWCA (Linguistic Inquiry Word Count Assistant) offers helper functions for working with LIWC dictionaries. Useful when you want end-to-end pipelines or notebook workflows that don't require the LIWC-22 app to be open, or when you just need reusable `.dic[x]` file I/O without writing it from scratch every project.
+**_liwca_** (Linguistic Inquiry Word Count Assistant) offers helper functions for working with LIWC dictionaries. Useful when you want end-to-end pipelines or notebook workflows that don't require the LIWC-22 app to be open, or when you just need reusable `.dic[x]` file I/O without writing it from scratch every project.
 
 Features:
 

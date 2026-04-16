@@ -1,7 +1,14 @@
-liwca
-=====
+.. image:: _static/banner.png
+   :class: only-light
+   :align: center
 
-**liwca** is a Python helper library for working with `LIWC <https://liwc.app>`_
+.. image:: _static/banner-dark.png
+   :class: only-dark
+   :align: center
+
+|
+
+:bolditalic:`liwca` is a Python helper library for working with `LIWC <https://liwc.app>`_
 dictionaries. It is useful when you want end-to-end pipelines or notebook workflows
 that don't require the LIWC-22 app to be open, or when you just need reusable
 ``.dic[x]`` file I/O without writing it from scratch every project.
