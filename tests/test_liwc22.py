@@ -209,8 +209,9 @@ class TestLiwc22Class:
     @pytest.mark.parametrize("mode", sorted(ALL_MODES))
     def test_dry_run_per_mode(self, mode: str) -> None:
         liwc = Liwc22(dry_run=True)
-        result = getattr(liwc, mode)(**MODE_REQUIRED_KWARGS[mode])
-        assert result is None
+        kwargs = MODE_REQUIRED_KWARGS[mode]
+        result = getattr(liwc, mode)(**kwargs)
+        assert result == kwargs["output"]
 
     def test_module_attribute_access(self) -> None:
         """Liwc22 is reachable via liwca.liwc22.Liwc22."""
@@ -293,8 +294,8 @@ class TestLiwc22Class:
     def test_instance_reuse(self) -> None:
         """One instance can drive multiple mode calls with no state leakage."""
         liwc = Liwc22(dry_run=True)
-        assert liwc.wc(input="x", output="y") is None
-        assert liwc.freq(input="x", output="y", n_gram=2) is None
+        assert liwc.wc(input="x", output="y") == "y"
+        assert liwc.freq(input="x", output="y", n_gram=2) == "y"
 
 
 # ---------------------------------------------------------------------------
@@ -720,13 +721,14 @@ class TestDataFrameInput:
 
 
 class TestReturnFilepath:
-    """Mode methods now return the output path (str) or None (dry_run)."""
+    """Mode methods return the *output* path string, including on dry runs."""
 
     @pytest.mark.parametrize("mode", sorted(ALL_MODES))
-    def test_dry_run_returns_none(self, mode: str) -> None:
+    def test_dry_run_returns_output_path(self, mode: str) -> None:
         liwc = Liwc22(dry_run=True)
-        result = getattr(liwc, mode)(**MODE_REQUIRED_KWARGS[mode])
-        assert result is None
+        kwargs = MODE_REQUIRED_KWARGS[mode]
+        result = getattr(liwc, mode)(**kwargs)
+        assert result == kwargs["output"]
 
     def test_successful_call_returns_output_path(
         self, stub_run: dict[str, Any], tmp_path: Path

@@ -834,8 +834,10 @@ class Liwc22:
         Number of decimal places in output (0-16, default: ``2``).
     auto_open : :class:`bool`, optional
         If LIWC-22 is not running, launch it before each analysis and close
-        it afterwards (default ``False``).  When used as a context manager,
-        the app is launched once on ``__enter__`` and closed on ``__exit__``.
+        it afterwards (default ``True``).  Set to ``False`` to require that
+        the app (or its license server) is already running.  When used as a
+        context manager, the app is launched once on ``__enter__`` and closed
+        on ``__exit__``.
     use_gui : :class:`bool`, optional
         When auto-opening, prefer the GUI app over the headless license
         server (default ``False``).
@@ -871,7 +873,7 @@ class Liwc22:
         # Output
         precision: int = 2,
         # Execution control
-        auto_open: bool = False,
+        auto_open: bool = True,
         use_gui: bool = False,
         dry_run: bool = False,
     ) -> None:
@@ -910,7 +912,7 @@ class Liwc22:
 
     # -- internal seam -------------------------------------------------------
 
-    def _run_mode(self, mode: str, cli_args: dict[str, Any]) -> str | None:
+    def _run_mode(self, mode: str, cli_args: dict[str, Any]) -> str:
         """Merge hoisted globals, prepare I/O, run, and shape the output.
 
         Pipeline:
@@ -922,13 +924,15 @@ class Liwc22:
         3. Soft-warn on ``.tsv`` file input without an explicit
            ``csv_delimiter`` (DataFrame input never triggers this).
         4. Resolve column args (0-based int -> 1-based; name -> 1-based).
-        5. Run the CLI (raises on non-zero exit).
+        5. Run the CLI (raises on non-zero exit).  Skipped when
+           ``dry_run=True`` - the command is printed instead.
         6. For mode ``wc``: reshape the output file in place via
-           :func:`_shape_wc_output_file`.
+           :func:`_shape_wc_output_file`.  Skipped on dry runs (nothing was
+           written).
         7. Delete the temp input (if any) in ``finally``.
 
-        Returns the caller's ``output`` path on success, or ``None`` when
-        ``dry_run=True``.
+        Always returns the caller's ``output`` path - on dry runs this is
+        "the path LIWC-22-cli *would* have written".
         """
         # 1. Merge hoisted globals.
         applicable = MODE_GLOBALS[mode]
@@ -936,7 +940,9 @@ class Liwc22:
         merged.update(cli_args)
 
         user_input = merged.get("input")
-        output_path: str | None = merged.get("output")
+        # `output` is a required kwarg on every mode method, so it's always
+        # present in cli_args.
+        output_path: str = merged["output"]
 
         # 2. DataFrame input -> temp CSV.  Track for cleanup.
         temp_input: Path | None = None
@@ -991,11 +997,9 @@ class Liwc22:
                 dry_run=self._dry_run,
             )
 
-            if self._dry_run:
-                return None
-
-            # 6. wc-only: reshape the output file in place.
-            if mode == "wc" and output_path is not None:
+            # 6. wc-only: reshape the output file in place.  Nothing was
+            #    written on a dry run, so the shaping step is skipped.
+            if not self._dry_run and mode == "wc":
                 _shape_wc_output_file(
                     output_path,
                     row_id_names=row_id_names,
@@ -1026,7 +1030,7 @@ class Liwc22:
         segmentation: str | None = None,
         output_format: str = "csv",
         threads: int | None = None,
-    ) -> str | None:
+    ) -> str:
         """
         Run a standard LIWC-22 word count analysis.
 
@@ -1082,9 +1086,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
@@ -1164,7 +1168,7 @@ class Liwc22:
         prune_interval: int = 10_000_000,
         prune_threshold_value: int = 5,
         output_format: str = "csv",
-    ) -> str | None:
+    ) -> str:
         """
         Compute word (and n-gram) frequencies across input texts.
 
@@ -1206,9 +1210,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
@@ -1270,7 +1274,7 @@ class Liwc22:
         prune_interval: int = 10_000_000,
         prune_threshold_value: int = 5,
         output_format: str = "csv",
-    ) -> str | None:
+    ) -> str:
         """
         Run Meaning Extraction Method (MEM) analysis.
 
@@ -1331,9 +1335,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
@@ -1394,7 +1398,7 @@ class Liwc22:
         word_window_left: int = 3,
         word_window_right: int = 3,
         keep_punctuation: bool = True,
-    ) -> str | None:
+    ) -> str:
         """
         Run LIWC-22 Contextualizer analysis.
 
@@ -1439,9 +1443,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
@@ -1488,7 +1492,7 @@ class Liwc22:
         skip_wc: int = 10,
         output_data_points: bool = True,
         output_format: str = "csv",
-    ) -> str | None:
+    ) -> str:
         """
         Analyse the narrative arc of texts.
 
@@ -1525,9 +1529,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
@@ -1569,7 +1573,7 @@ class Liwc22:
         omit_speakers_num_turns: int = 0,
         omit_speakers_word_count: int = 10,
         single_line: bool = False,
-    ) -> str | None:
+    ) -> str:
         """
         Convert separate transcript files into a single spreadsheet.
 
@@ -1595,9 +1599,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
@@ -1646,7 +1650,7 @@ class Liwc22:
         omit_speakers_word_count: int = 10,
         single_line: bool = False,
         output_format: str = "csv",
-    ) -> str | None:
+    ) -> str:
         """
         Run Language Style Matching (LSM) analysis.
 
@@ -1690,9 +1694,9 @@ class Liwc22:
 
         Returns
         -------
-        :class:`str` or ``None``
-            The *output* path on success.  ``None`` when the instance was
-            constructed with ``dry_run=True``.
+        :class:`str`
+            The *output* path.  On dry runs this is the path LIWC-22-cli
+            *would* have written to - no file is created.
 
         Raises
         ------
