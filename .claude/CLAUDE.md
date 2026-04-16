@@ -39,7 +39,7 @@ Five modules under `src/liwca/`:
 
 - **`fetchers.py`** - Per-dictionary `fetch_*()` functions that download remote LIWC-format dictionaries via Pooch and return validated DataFrames. The Pooch registry (`data/registry.txt`) is the single source of truth for filenames, MD5 hashes, and download URLs. Includes custom parsers for non-standard formats (Excel, TSV, plain text).
 
-- **`liwc22.py`** - Python wrapper around `liwc-22-cli`. Uses a data-driven design: all CLI arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Exposes one public function per mode (`wc`, `freq`, `mem`, `context`, `arc`, `ct`, `lsm`) accessed as `liwca.liwc22.<mode>(...)`. Each mode function has an explicit keyword-only signature of exactly the args that mode accepts; drift from `MODE_DEFS` is enforced by `TestSignatureMatchesModeDefs` in the test suite.
+- **`liwc22.py`** - Python wrapper around `liwc-22-cli`. Exposes a `Liwc22` class whose constructor hoists the cross-cutting CLI args (args that apply to ≥5 of the 7 modes: `encoding`, `count_urls`, `preprocess_cjk`, `include_subfolders`, `url_regexp`, `csv_delimiter`, `csv_escape`, `csv_quote`, `skip_header`, `precision`) plus execution-control flags (`auto_open`, `use_gui`, `dry_run`). The seven per-mode methods (`wc`, `freq`, `mem`, `context`, `arc`, `ct`, `lsm`) take only mode-specific kwargs. Can be used as a context manager to amortize LIWC-22 app launch/shutdown. Internally: `FLAG_BY_DEST` maps each Python dest to its CLI flag; `BOOL_FLAGS` lists the value-less flags; `MODE_GLOBALS` filters which hoisted args apply to each mode (e.g. `count_urls` is dropped for `lsm`).
 
 ## LIWC Domain Context
 

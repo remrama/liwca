@@ -35,7 +35,7 @@ Three main modules under `src/liwca/`:
 
 - **`count.py`** - Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
 
-- **`liwc22.py`** - CLI wrapper around `liwc-22-cli`. Uses a data-driven design: all arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Also exposes `cli()` for Python-level invocation. The `liwca` console script entry point is `main()` in this module.
+- **`liwc22.py`** - Python wrapper around `liwc-22-cli` via the `Liwc22` class. Hoisted constructor args (those applying to ≥5 of the 7 modes) plus execution-control flags (`auto_open`, `use_gui`, `dry_run`) are set once; the seven per-mode methods (`wc`, `freq`, `mem`, `context`, `arc`, `ct`, `lsm`) take only mode-specific kwargs. `FLAG_BY_DEST` + `BOOL_FLAGS` drive command assembly; `MODE_GLOBALS` filters which hoisted args apply to each mode. Supports use as a context manager.
 
 Supporting module `_catalogue.py` loads `data/registry.json` (the single source of truth for all dictionary metadata and download info), builds the `CATALOGUE` dict of `DictInfo` objects at import time, and defines reader functions for non-standard remote dictionary formats. Supports versioned dictionaries.
 

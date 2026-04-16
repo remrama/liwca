@@ -94,21 +94,34 @@ Reading and writing local files
 LIWC-22 wrapper
 ---------------
 
-If LIWC-22 is installed, call it from Python. The LIWC-22 desktop application
-(or its license server) must be running when you call the CLI:
+If LIWC-22 is installed, call it from Python through the
+:class:`~liwca.liwc22.Liwc22` class. The LIWC-22 desktop application (or
+its license server) must be running when you call the CLI:
 
 .. code-block:: python
 
-   liwca.liwc22.wc(input="data.csv", output="results.csv")
+   liwc = liwca.liwc22.Liwc22(encoding="utf-8", precision=4)
+   liwc.wc(input="data.csv", output="results.csv")
 
-There is one function per analysis mode: :func:`~liwca.liwc22.wc`,
-:func:`~liwca.liwc22.freq`, :func:`~liwca.liwc22.mem`,
-:func:`~liwca.liwc22.context`, :func:`~liwca.liwc22.arc`,
-:func:`~liwca.liwc22.ct`, :func:`~liwca.liwc22.lsm`. Pass
-``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
+Cross-cutting options (encoding, CSV formatting, URL handling, precision,
+execution-control flags) are set once at construction. Each of the seven
+mode methods - :meth:`~liwca.liwc22.Liwc22.wc`,
+:meth:`~liwca.liwc22.Liwc22.freq`, :meth:`~liwca.liwc22.Liwc22.mem`,
+:meth:`~liwca.liwc22.Liwc22.context`, :meth:`~liwca.liwc22.Liwc22.arc`,
+:meth:`~liwca.liwc22.Liwc22.ct`, :meth:`~liwca.liwc22.Liwc22.lsm` - then
+takes only mode-specific kwargs.
 
-See the :ref:`API reference <api-liwc22>` for each mode's full argument
-list, and the
-`LIWC CLI documentation <https://www.liwc.app/help/cli>`_ and
+Pass ``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
+Use as a context manager to amortize the app-launch cost across multiple
+calls:
+
+.. code-block:: python
+
+   with liwca.liwc22.Liwc22(auto_open=True) as liwc:
+       liwc.wc(input="data.csv", output="wc.csv")
+       liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
+
+See the :ref:`API reference <api-liwc22>` for the full argument lists, and
+the `LIWC CLI documentation <https://www.liwc.app/help/cli>`_ and
 `Python CLI example <https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py>`_
 for more details.
