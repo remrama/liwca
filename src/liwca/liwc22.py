@@ -14,7 +14,6 @@ Examples
 >>> import liwca
 >>> liwc = liwca.liwc22.Liwc22(dry_run=True)
 >>> liwc.wc(input="data.csv", output="results.csv")  # doctest: +SKIP
-0
 
 Amortize app-launch across many calls with the context-manager form:
 
@@ -806,32 +805,33 @@ class Liwc22:
     Parameters
     ----------
     encoding : :class:`str`, optional
-        Input file encoding (CLI default: UTF-8).
+        Input file encoding (default: ``"utf-8"``).
     csv_delimiter : :class:`str`, optional
         CSV delimiter character (CLI default: ``,``).  Use ``"\\t"`` for tab-
-        separated files.  Passing a ``.tsv`` input without setting this emits a
-        :class:`UserWarning`.
+        separated files.  Left as ``None`` by default so that ``.tsv`` inputs
+        are auto-detected; passing a ``.tsv`` input without setting this emits
+        a :class:`UserWarning`.
     csv_escape : :class:`str`, optional
         CSV escape character (CLI default: none).
     csv_quote : :class:`str`, optional
-        CSV quote character (CLI default: ``"``).
+        CSV quote character (default: ``"``).
     include_subfolders : :class:`bool`, optional
-        If ``True``, include subfolders when analysing a directory input.
-        ``None`` leaves the CLI default ("yes") in place.
+        If ``True`` (default), include subfolders when analysing a directory
+        input.
     skip_header : :class:`bool`, optional
-        If ``True``, skip the first row of an Excel/CSV file (i.e. treat it as
-        a header).  ``None`` leaves the CLI default ("yes") in place.  Setting
-        ``False`` disables column-*name* resolution in the mode methods.
+        If ``True`` (default), skip the first row of an Excel/CSV file (i.e.
+        treat it as a header).  Setting ``False`` disables column-*name*
+        resolution in the mode methods.
     preprocess_cjk : :class:`str`, optional
         Preprocess CJK text with Jieba (Chinese) or Kuromoji (Japanese)
         tokeniser - one of ``"chinese"``, ``"japanese"``, ``"none"``.
     url_regexp : :class:`str`, optional
         Regular expression used to capture URLs in text.
     count_urls : :class:`bool`, optional
-        If ``True``, count URLs as a single word.  Only meaningful if
-        *url_regexp* is set.  ``None`` leaves the CLI default ("yes") in place.
+        If ``True`` (default), count URLs as a single word.  Only meaningful
+        if *url_regexp* is set.
     precision : :class:`int`, optional
-        Number of decimal places in output (0-16, CLI default: 2).
+        Number of decimal places in output (0-16, default: ``2``).
     auto_open : :class:`bool`, optional
         If LIWC-22 is not running, launch it before each analysis and close
         it afterwards (default ``False``).  When used as a context manager,
@@ -847,7 +847,6 @@ class Liwc22:
     >>> import liwca
     >>> liwc = liwca.liwc22.Liwc22(dry_run=True)
     >>> liwc.wc(input="data.csv", output="results.csv")  # doctest: +SKIP
-    0
 
     >>> with liwca.liwc22.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
     ...     liwc.wc(input="data.csv", output="wc.csv")
@@ -858,19 +857,19 @@ class Liwc22:
         self,
         *,
         # I/O encoding
-        encoding: str | None = None,
+        encoding: str = "utf-8",
         csv_delimiter: str | None = None,
         csv_escape: str | None = None,
-        csv_quote: str | None = None,
+        csv_quote: str = '"',
         # File / folder handling
-        include_subfolders: bool | None = None,
-        skip_header: bool | None = None,
+        include_subfolders: bool = True,
+        skip_header: bool = True,
         # Text preprocessing
         preprocess_cjk: str | None = None,
         url_regexp: str | None = None,
-        count_urls: bool | None = None,
+        count_urls: bool = True,
         # Output
-        precision: int | None = None,
+        precision: int = 2,
         # Execution control
         auto_open: bool = False,
         use_gui: bool = False,
@@ -1017,15 +1016,15 @@ class Liwc22:
         output: str,
         console_text: str | None = None,
         environment_variable: str | None = None,
-        clean_escaped_spaces: bool | None = None,
+        clean_escaped_spaces: bool = True,
         column_indices: Iterable[int | str] | None = None,
-        combine_columns: bool | None = None,
+        combine_columns: bool = True,
         row_id_indices: Iterable[int | str] | None = None,
-        dictionary: str | None = None,
+        dictionary: str = "LIWC22",
         include_categories: Iterable[str] | None = None,
         exclude_categories: Iterable[str] | None = None,
         segmentation: str | None = None,
-        output_format: str | None = None,
+        output_format: str = "csv",
         threads: int | None = None,
     ) -> str | None:
         """
@@ -1155,16 +1154,16 @@ class Liwc22:
         input: str | pd.DataFrame,
         output: str,
         column_indices: Iterable[int | str] | None = None,
-        combine_columns: bool | None = None,
+        combine_columns: bool = True,
         conversion_list: str | None = None,
         stop_list: str | None = None,
-        trim_s: bool | None = None,
-        n_gram: int | None = None,
-        skip_wc: int | None = None,
-        drop_words: int | None = None,
-        prune_interval: int | None = None,
-        prune_threshold_value: int | None = None,
-        output_format: str | None = None,
+        trim_s: bool = True,
+        n_gram: int = 1,
+        skip_wc: int = 10,
+        drop_words: int = 5,
+        prune_interval: int = 10_000_000,
+        prune_threshold_value: int = 5,
+        output_format: str = "csv",
     ) -> str | None:
         """
         Compute word (and n-gram) frequencies across input texts.
@@ -1254,23 +1253,23 @@ class Liwc22:
         input: str | pd.DataFrame,
         output: str,
         column_indices: Iterable[int | str] | None = None,
-        combine_columns: bool | None = None,
+        combine_columns: bool = True,
         index_of_id_column: int | str | None = None,
         conversion_list: str | None = None,
         stop_list: str | None = None,
-        trim_s: bool | None = None,
-        n_gram: int | None = None,
-        skip_wc: int | None = None,
+        trim_s: bool = True,
+        n_gram: int = 1,
+        skip_wc: int = 10,
         segmentation: str | None = None,
-        threshold_type: str | None = None,
-        threshold_value: float | None = None,
-        mem_output_type: str | None = None,
+        threshold_type: str = "min-obspct",
+        threshold_value: float = 10.0,
+        mem_output_type: str = "binary",
         enable_pca: bool = False,
         save_theme_scores: bool = False,
-        column_delimiter: str | None = None,
-        prune_interval: int | None = None,
-        prune_threshold_value: int | None = None,
-        output_format: str | None = None,
+        column_delimiter: str = " ",
+        prune_interval: int = 10_000_000,
+        prune_threshold_value: int = 5,
+        output_format: str = "csv",
     ) -> str | None:
         """
         Run Meaning Extraction Method (MEM) analysis.
@@ -1386,15 +1385,15 @@ class Liwc22:
         input: str | pd.DataFrame,
         output: str,
         column_indices: Iterable[int | str] | None = None,
-        combine_columns: bool | None = None,
+        combine_columns: bool = True,
         index_of_id_column: int | str | None = None,
-        dictionary: str | None = None,
+        dictionary: str = "LIWC22",
         category_to_contextualize: str | None = None,
         word_list: str | None = None,
         words_to_contextualize: Iterable[str] | None = None,
-        word_window_left: int | None = None,
-        word_window_right: int | None = None,
-        keep_punctuation: bool | None = None,
+        word_window_left: int = 3,
+        word_window_right: int = 3,
+        keep_punctuation: bool = True,
     ) -> str | None:
         """
         Run LIWC-22 Contextualizer analysis.
@@ -1482,13 +1481,13 @@ class Liwc22:
         input: str | pd.DataFrame,
         output: str,
         column_indices: Iterable[int | str] | None = None,
-        combine_columns: bool | None = None,
+        combine_columns: bool = True,
         index_of_id_column: int | str | None = None,
-        segments_number: int | None = None,
-        scaling_method: int | None = None,
-        skip_wc: int | None = None,
-        output_data_points: bool | None = None,
-        output_format: str | None = None,
+        segments_number: int = 5,
+        scaling_method: int = 1,
+        skip_wc: int = 10,
+        output_data_points: bool = True,
+        output_format: str = "csv",
     ) -> str | None:
         """
         Analyse the narrative arc of texts.
@@ -1567,8 +1566,8 @@ class Liwc22:
         output: str,
         speaker_list: str,
         regex_removal: str | None = None,
-        omit_speakers_num_turns: int | None = None,
-        omit_speakers_word_count: int | None = None,
+        omit_speakers_num_turns: int = 0,
+        omit_speakers_word_count: int = 10,
         single_line: bool = False,
     ) -> str | None:
         """
@@ -1639,14 +1638,14 @@ class Liwc22:
         text_column: int | str,
         person_column: int | str,
         group_column: int | str | None = None,
-        calculate_lsm: int | None = None,
-        output_type: int | None = None,
+        calculate_lsm: int = 3,
+        output_type: int = 1,
         expanded_output: bool = False,
         segmentation: str | None = None,
-        omit_speakers_num_turns: int | None = None,
-        omit_speakers_word_count: int | None = None,
+        omit_speakers_num_turns: int = 0,
+        omit_speakers_word_count: int = 10,
         single_line: bool = False,
-        output_format: str | None = None,
+        output_format: str = "csv",
     ) -> str | None:
         """
         Run Language Style Matching (LSM) analysis.
