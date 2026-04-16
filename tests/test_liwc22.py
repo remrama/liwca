@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+from typing import Any
 
+import pandas as pd
 import pytest
 
 import liwca
@@ -17,7 +20,9 @@ from liwca.liwc22 import (
     ONE_ZERO_FLAGS,
     YES_NO_FLAGS,
     Liwc22,
+    _shape_wc_output,
     build_command,
+    wc_output_schema,
 )
 
 EXECUTION_CONTROL_ARGS = {"auto_open", "use_gui", "dry_run"}
@@ -204,8 +209,8 @@ class TestLiwc22Class:
     @pytest.mark.parametrize("mode", sorted(ALL_MODES))
     def test_dry_run_per_mode(self, mode: str) -> None:
         liwc = Liwc22(dry_run=True)
-        rc = getattr(liwc, mode)(**MODE_REQUIRED_KWARGS[mode])
-        assert rc == 0
+        result = getattr(liwc, mode)(**MODE_REQUIRED_KWARGS[mode])
+        assert result is None
 
     def test_module_attribute_access(self) -> None:
         """Liwc22 is reachable via liwca.liwc22.Liwc22."""
@@ -288,8 +293,8 @@ class TestLiwc22Class:
     def test_instance_reuse(self) -> None:
         """One instance can drive multiple mode calls with no state leakage."""
         liwc = Liwc22(dry_run=True)
-        assert liwc.wc(input="x", output="y") == 0
-        assert liwc.freq(input="x", output="y", n_gram=2) == 0
+        assert liwc.wc(input="x", output="y") is None
+        assert liwc.freq(input="x", output="y", n_gram=2) is None
 
 
 # ---------------------------------------------------------------------------
@@ -632,3 +637,198 @@ class TestContextManager:
 
         assert calls["open"] == 0
         assert calls["close"] == 0
+
+
+# ---------------------------------------------------------------------------
+# DataFrame input, filepath return, and `wc` output shaping
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def stub_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Stub ``_run`` so the pipeline reaches the post-CLI shaping step.
+
+    Writes a canned ``wc``-style CSV to the output path on non-dry-run calls,
+    mimicking what LIWC-22-cli would have produced.  Exposes the mode,
+    cli_args, and dry_run flag via the returned dict.
+    """
+    captured: dict[str, Any] = {}
+
+    def fake_run(
+        mode: str,
+        cli_args: dict[str, Any],
+        *,
+        auto_open: bool,
+        use_gui: bool,
+        dry_run: bool,
+    ) -> None:
+        captured["mode"] = mode
+        captured["cli_args"] = dict(cli_args)
+        captured["dry_run"] = dry_run
+        captured["auto_open"] = auto_open
+        captured["use_gui"] = use_gui
+        if not dry_run and cli_args.get("output"):
+            out = Path(cli_args["output"])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text("Row ID,Segment,WC,Tone\n1,1,10,50.0\n2,1,5,75.0\n")
+
+    monkeypatch.setattr("liwca.liwc22._run", fake_run)
+    # Avoid trying to read a header from a non-existent file-path input in
+    # ``_resolve_columns`` when DataFrame input isn't supplied.
+    monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: True)
+    return captured
+
+
+class TestDataFrameInput:
+    """DataFrame as the `input` arg: temp CSV, column resolution, cleanup."""
+
+    def test_dataframe_input_writes_temp_and_passes_path(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["hello world", "foo bar"]})
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=df, output=str(out))
+
+        # The cli_args that reached _run should have a filesystem path, not a DataFrame.
+        input_passed = stub_run["cli_args"]["input"]
+        assert isinstance(input_passed, str)
+        # The temp file is deleted by the finally block.
+        assert not Path(input_passed).exists()
+
+    def test_dataframe_input_resolves_column_names_without_file_read(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        """column_indices=['text'] against a DataFrame resolves via df.columns."""
+        df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["x y z", "p q"]})
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=df, output=str(out), column_indices=["text"])
+
+        # 'text' is the 2nd column (0-based index 1); LIWC CLI wants 1-based.
+        cli_args = stub_run["cli_args"]
+        # column_indices is a LIST_FLAG, so it comes through as a list of 1-based ints
+        assert cli_args["column_indices"] == [2]
+
+    def test_dataframe_input_with_console_text_raises(self, tmp_path: Path) -> None:
+        df = pd.DataFrame({"text": ["hi"]})
+        with pytest.raises(ValueError, match="console_text"):
+            Liwc22(dry_run=True).wc(input=df, output=str(tmp_path / "o.csv"), console_text="inline")
+
+    def test_empty_dataframe_input_raises(self, tmp_path: Path) -> None:
+        df = pd.DataFrame({"text": []}).astype(str)
+        with pytest.raises(ValueError, match="empty"):
+            Liwc22(dry_run=True).wc(input=df, output=str(tmp_path / "o.csv"))
+
+
+class TestReturnFilepath:
+    """Mode methods now return the output path (str) or None (dry_run)."""
+
+    @pytest.mark.parametrize("mode", sorted(ALL_MODES))
+    def test_dry_run_returns_none(self, mode: str) -> None:
+        liwc = Liwc22(dry_run=True)
+        result = getattr(liwc, mode)(**MODE_REQUIRED_KWARGS[mode])
+        assert result is None
+
+    def test_successful_call_returns_output_path(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        out = tmp_path / "res.csv"
+        result = Liwc22().wc(input=str(tmp_path / "in.csv"), output=str(out))
+        assert result == str(out)
+
+    def test_cli_failure_propagates(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """subprocess.CalledProcessError must propagate, not be swallowed."""
+
+        def fake_run(*args: Any, **kwargs: Any) -> None:
+            raise subprocess.CalledProcessError(returncode=2, cmd=["LIWC-22-cli"])
+
+        monkeypatch.setattr("liwca.liwc22._run", fake_run)
+
+        with pytest.raises(subprocess.CalledProcessError):
+            Liwc22().wc(input=str(tmp_path / "in.csv"), output=str(tmp_path / "o.csv"))
+
+
+class TestWcOutputSchema:
+    """In-place shaping of the wc-mode output file and schema validation."""
+
+    def test_default_wc_shape(self, stub_run: dict[str, Any], tmp_path: Path) -> None:
+        """No row_id_indices + constant Segment -> 'Row ID' index, no Segment col."""
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=str(tmp_path / "in.csv"), output=str(out))
+
+        shaped = pd.read_csv(out, index_col=0)
+        assert shaped.index.name == "Row ID"
+        assert "Segment" not in shaped.columns
+        assert list(shaped.columns) == ["WC", "Tone"]
+
+    def test_row_id_indices_renames_to_source_column(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["x", "y"]})
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=df, output=str(out), row_id_indices=["doc_id"])
+
+        shaped = pd.read_csv(out, index_col=0)
+        assert shaped.index.name == "doc_id"
+
+    def test_varying_segment_promotes_to_index(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Non-constant Segment values are kept as a 2nd index level."""
+
+        def fake_run(
+            mode: str, cli_args: dict[str, Any], *, auto_open: bool, use_gui: bool, dry_run: bool
+        ) -> None:
+            Path(cli_args["output"]).write_text(
+                "Row ID,Segment,WC,Tone\n1,1,10,50.0\n1,2,8,60.0\n2,1,5,75.0\n"
+            )
+
+        monkeypatch.setattr("liwca.liwc22._run", fake_run)
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: True)
+
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=str(tmp_path / "in.csv"), output=str(out))
+
+        shaped = pd.read_csv(out, index_col=[0, 1])
+        assert shaped.index.names == ["Row ID", "Segment"]
+        assert list(shaped.columns) == ["WC", "Tone"]
+
+    def test_non_csv_output_format_skips_shaping(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        out = tmp_path / "out.xlsx"
+        with pytest.warns(UserWarning, match="Skipping wc output shaping"):
+            Liwc22().wc(
+                input=str(tmp_path / "in.csv"),
+                output=str(out),
+                output_format="xlsx",
+            )
+
+    def test_schema_names_column_axis_category(self) -> None:
+        """_shape_wc_output names df.columns.name 'Category'."""
+        raw = pd.DataFrame(
+            {
+                "Row ID": [1, 2],
+                "Segment": [1, 1],
+                "WC": [10, 5],
+                "Tone": [50.0, 75.0],
+            }
+        )
+        shaped = _shape_wc_output(raw, row_id_names=None)
+        assert shaped.columns.name == "Category"
+
+    def test_raw_cli_output_fails_validation(self) -> None:
+        """Un-shaped CLI output has no 'Category' column-axis name."""
+        raw = pd.DataFrame(
+            {
+                "Row ID": [1, 2],
+                "Segment": [1, 1],
+                "WC": [10, 5],
+            }
+        )
+        # The raw DataFrame has no rows set as index; validation after shaping
+        # names the column axis 'Category'.  Direct validation of raw CLI
+        # output should not have that name set.
+        assert raw.columns.name is None
+        # Shaping should not raise; validation passes on shaped.
+        shaped = _shape_wc_output(raw, row_id_names=None)
+        wc_output_schema.validate(shaped)

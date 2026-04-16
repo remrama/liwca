@@ -100,8 +100,26 @@ its license server) must be running when you call the CLI:
 
 .. code-block:: python
 
+   import pandas as pd
+
    liwc = liwca.liwc22.Liwc22(encoding="utf-8", precision=4)
-   liwc.wc(input="data.csv", output="results.csv")
+   df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
+   out_path = liwc.wc(
+       input=df,                    # DataFrame or path
+       output="results.csv",
+       row_id_indices=["doc_id"],
+   )
+   results = pd.read_csv(out_path, index_col=0)
+
+The ``input`` argument accepts either a filepath or a
+:class:`pandas.DataFrame` - DataFrames are written to a temp CSV, fed to
+``liwc-22-cli``, and cleaned up afterwards. Each mode method returns the
+``output`` path on success (or ``None`` when ``dry_run=True``). For mode
+``wc`` the output file is reshaped in place via ``wc_output_schema``:
+``Row ID`` is renamed back to the source column name when
+``row_id_indices`` is given, the constant ``Segment`` column is dropped
+(or promoted to a second index level when segmentation is used), and the
+column axis is named ``Category``.
 
 Cross-cutting options (encoding, CSV formatting, URL handling, precision,
 execution-control flags) are set once at construction. Each of the seven

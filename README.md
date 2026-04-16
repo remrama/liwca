@@ -70,12 +70,17 @@ The LIWC-22 desktop application (or its license server) must be running when you
 See the [LIWC CLI documentation](https://www.liwc.app/help/cli) and [Python CLI example](https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py) for more details.
 
 ```python
+import pandas as pd
+
 liwc = liwca.liwc22.Liwc22(encoding="utf-8", count_urls=True)
-liwc.wc(
-    input="data.csv",
+df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
+out_path = liwc.wc(
+    input=df,                      # DataFrame or path
     output="results.csv",
+    row_id_indices=["doc_id"],
     include_categories=["anger", "joy"],
 )
+results = pd.read_csv(out_path, index_col=0)
 ```
 
 ## Similar Projects
