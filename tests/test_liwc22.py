@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 import liwca
 from liwca.liwc22 import (
     BOOL_FLAGS,
+    COLUMN_FLAGS,
+    COLUMN_LIST_FLAGS,
     FLAG_BY_DEST,
+    LIST_FLAGS,
     MODE_GLOBALS,
+    ONE_ZERO_FLAGS,
+    YES_NO_FLAGS,
     Liwc22,
     build_command,
 )
@@ -17,7 +24,9 @@ EXECUTION_CONTROL_ARGS = {"auto_open", "use_gui", "dry_run"}
 
 ALL_MODES = {"wc", "freq", "mem", "context", "arc", "ct", "lsm"}
 
-# Minimum kwargs each mode needs to construct a legal call.
+# Minimum kwargs each mode needs to construct a legal call.  Column args use
+# 0-based Python ``int`` and numeric-coded args use plain ``int`` - the new
+# Pythonic types.
 MODE_REQUIRED_KWARGS: dict[str, dict[str, object]] = {
     "wc": {"input": "data.txt", "output": "results.csv"},
     "freq": {"input": "corpus/", "output": "freqs.csv"},
@@ -28,17 +37,17 @@ MODE_REQUIRED_KWARGS: dict[str, dict[str, object]] = {
     "lsm": {
         "input": "chat.csv",
         "output": "lsm.csv",
-        "calculate_lsm": "3",
-        "group_column": 1,
-        "output_type": "1",
-        "person_column": 2,
-        "text_column": 3,
+        "calculate_lsm": 3,
+        "group_column": 0,
+        "output_type": 1,
+        "person_column": 1,
+        "text_column": 2,
     },
 }
 
 
 # ---------------------------------------------------------------------------
-# Flag catalogue (FLAG_BY_DEST, BOOL_FLAGS, MODE_GLOBALS)
+# Flag catalogue (FLAG_BY_DEST, BOOL_FLAGS, YES_NO_FLAGS, etc., MODE_GLOBALS)
 # ---------------------------------------------------------------------------
 
 
@@ -51,6 +60,29 @@ class TestFlagCatalogue:
 
     def test_bool_flags_subset_of_flag_catalogue(self) -> None:
         assert BOOL_FLAGS <= set(FLAG_BY_DEST)
+
+    def test_yes_no_flags_subset_of_flag_catalogue(self) -> None:
+        assert YES_NO_FLAGS <= set(FLAG_BY_DEST)
+
+    def test_one_zero_flags_subset_of_flag_catalogue(self) -> None:
+        assert ONE_ZERO_FLAGS <= set(FLAG_BY_DEST)
+
+    def test_list_flags_subset_of_flag_catalogue(self) -> None:
+        assert LIST_FLAGS <= set(FLAG_BY_DEST)
+
+    def test_column_flags_subset_of_flag_catalogue(self) -> None:
+        assert COLUMN_FLAGS <= set(FLAG_BY_DEST)
+
+    def test_column_list_flags_subset_of_flag_catalogue(self) -> None:
+        assert COLUMN_LIST_FLAGS <= set(FLAG_BY_DEST)
+
+    def test_bool_and_yes_no_disjoint(self) -> None:
+        """Value-less bools and yes/no bools must not overlap."""
+        assert BOOL_FLAGS.isdisjoint(YES_NO_FLAGS)
+
+    def test_column_list_flags_subset_of_list_flags(self) -> None:
+        """Column-list args are also list args (comma-joined when emitted)."""
+        assert COLUMN_LIST_FLAGS <= LIST_FLAGS
 
     def test_mode_globals_keys(self) -> None:
         assert set(MODE_GLOBALS) == ALL_MODES
@@ -118,6 +150,48 @@ class TestBuildCommand:
         # Nothing after -epca, or next token is another flag (starts with '-').
         assert idx == len(cmd) - 1 or cmd[idx + 1].startswith("-")
 
+    def test_yes_no_flag_true_emits_yes(self) -> None:
+        cmd = build_command("wc", {"input": "a", "output": "b", "count_urls": True})
+        idx = cmd.index("-curls")
+        assert cmd[idx + 1] == "yes"
+
+    def test_yes_no_flag_false_emits_no(self) -> None:
+        cmd = build_command("wc", {"input": "a", "output": "b", "count_urls": False})
+        idx = cmd.index("-curls")
+        assert cmd[idx + 1] == "no"
+
+    def test_one_zero_flag_true_emits_one(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "clean_escaped_spaces": True},
+        )
+        idx = cmd.index("-ces")
+        assert cmd[idx + 1] == "1"
+
+    def test_one_zero_flag_false_emits_zero(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "clean_escaped_spaces": False},
+        )
+        idx = cmd.index("-ces")
+        assert cmd[idx + 1] == "0"
+
+    def test_list_flag_comma_joined(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "include_categories": ["anger", "joy"]},
+        )
+        idx = cmd.index("-ic")
+        assert cmd[idx + 1] == "anger,joy"
+
+    def test_list_flag_single_element(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "include_categories": ["anger"]},
+        )
+        idx = cmd.index("-ic")
+        assert cmd[idx + 1] == "anger"
+
 
 # ---------------------------------------------------------------------------
 # Liwc22 class
@@ -168,7 +242,7 @@ class TestLiwc22Class:
 
         monkeypatch.setattr("liwca.liwc22.build_command", fake_build_command)
 
-        Liwc22(count_urls="yes", dry_run=True).lsm(**MODE_REQUIRED_KWARGS["lsm"])
+        Liwc22(count_urls=True, dry_run=True).lsm(**MODE_REQUIRED_KWARGS["lsm"])
 
         cli_args = captured["cli_args"]
         assert isinstance(cli_args, dict)
@@ -216,6 +290,249 @@ class TestLiwc22Class:
         liwc = Liwc22(dry_run=True)
         assert liwc.wc(input="x", output="y") == 0
         assert liwc.freq(input="x", output="y", n_gram=2) == 0
+
+
+# ---------------------------------------------------------------------------
+# Argument translation (bool -> yes/no, iterable -> comma-join, 0-based -> 1-based)
+# ---------------------------------------------------------------------------
+
+
+def _capture_cli_args(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    """Install a fake build_command and return the dict that captures its input."""
+    captured: dict[str, object] = {}
+
+    def fake_build_command(mode: str, cli_args: dict[str, object]) -> list[str]:
+        captured["mode"] = mode
+        captured["cli_args"] = dict(cli_args)
+        return ["LIWC-22-cli", "-m", mode]
+
+    monkeypatch.setattr("liwca.liwc22.build_command", fake_build_command)
+    return captured
+
+
+class TestArgTranslation:
+    """Tests for the Pythonic-type -> CLI-value translations in build_command."""
+
+    # -- yes/no ------------------------------------------------------------
+
+    def test_yes_no_true_reaches_cli_as_yes(self) -> None:
+        """Liwc22(count_urls=True) -> '... -curls yes ...'."""
+        cmd = build_command("wc", {"input": "a", "output": "b", "count_urls": True})
+        idx = cmd.index("-curls")
+        assert cmd[idx + 1] == "yes"
+
+    def test_yes_no_false_reaches_cli_as_no(self) -> None:
+        cmd = build_command("wc", {"input": "a", "output": "b", "count_urls": False})
+        idx = cmd.index("-curls")
+        assert cmd[idx + 1] == "no"
+
+    def test_yes_no_via_instance_end_to_end(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Bool on the instance propagates to the cli_args dict as a bool."""
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(count_urls=True, dry_run=True).wc(input="x", output="y")
+        assert captured["cli_args"]["count_urls"] is True  # type: ignore[index]
+
+    # -- 1/0 ---------------------------------------------------------------
+
+    def test_one_zero_true(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "clean_escaped_spaces": True},
+        )
+        idx = cmd.index("-ces")
+        assert cmd[idx + 1] == "1"
+
+    def test_one_zero_false(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "clean_escaped_spaces": False},
+        )
+        idx = cmd.index("-ces")
+        assert cmd[idx + 1] == "0"
+
+    # -- list/iterable -----------------------------------------------------
+
+    def test_include_categories_list(self) -> None:
+        cmd = build_command(
+            "wc",
+            {"input": "a", "output": "b", "include_categories": ["anger", "joy"]},
+        )
+        idx = cmd.index("-ic")
+        assert cmd[idx + 1] == "anger,joy"
+
+    def test_include_categories_via_instance(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).wc(input="x", output="y", include_categories=["anger", "joy"])
+        assert captured["cli_args"]["include_categories"] == ["anger", "joy"]  # type: ignore[index]
+
+    def test_words_to_contextualize_list(self) -> None:
+        cmd = build_command(
+            "context",
+            {"input": "a", "output": "b", "words_to_contextualize": ["hope", "fear"]},
+        )
+        idx = cmd.index("-words")
+        assert cmd[idx + 1] == "hope,fear"
+
+    # -- column int -> 1-based --------------------------------------------
+
+    def test_column_int_is_shifted_to_one_based(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """text_column=0 (first column, Pythonic) -> -tc 1 (CLI, 1-based)."""
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).lsm(
+            input="x.csv",
+            output="y.csv",
+            text_column=0,
+            person_column=1,
+            calculate_lsm=3,
+            output_type=1,
+        )
+        cli_args = captured["cli_args"]
+        assert isinstance(cli_args, dict)
+        assert cli_args["text_column"] == 1
+        assert cli_args["person_column"] == 2
+
+    def test_group_column_default_none_becomes_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """group_column=None (lsm's 'no groups' sentinel) -> -gc 0."""
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).lsm(
+            input="x.csv",
+            output="y.csv",
+            text_column=0,
+            person_column=1,
+            calculate_lsm=3,
+            output_type=1,
+        )
+        cli_args = captured["cli_args"]
+        assert isinstance(cli_args, dict)
+        assert cli_args["group_column"] == 0
+
+    def test_column_int_emitted_as_one_based_in_command(self) -> None:
+        """Integration: text_column=0 produces '-tc 1' in the final argv."""
+        # Use build_command directly with a post-resolution dict.
+        cmd = build_command(
+            "lsm",
+            {
+                "input": "x.csv",
+                "output": "y.csv",
+                "text_column": 1,  # already 1-based (post-_resolve_columns)
+                "person_column": 2,
+                "group_column": 0,
+            },
+        )
+        idx = cmd.index("-tc")
+        assert cmd[idx + 1] == "1"
+
+    def test_numeric_coded_int_args_stringified(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """calculate_lsm=3 (int) -> '-clsm 3' (str)."""
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).lsm(
+            input="x.csv",
+            output="y.csv",
+            text_column=0,
+            person_column=1,
+            calculate_lsm=3,
+            output_type=1,
+        )
+        cli_args = captured["cli_args"]
+        assert isinstance(cli_args, dict)
+        assert cli_args["calculate_lsm"] == 3
+        assert cli_args["output_type"] == 1
+
+    # -- column name -> 1-based via header read ---------------------------
+
+    def test_column_name_resolves_via_header(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """text_column='text' resolves to the 1-based position from the CSV header."""
+        fixture = tmp_path / "chat.csv"
+        fixture.write_text("id,text,speaker\n1,hi,alice\n2,hey,bob\n", encoding="utf-8")
+
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).lsm(
+            input=str(fixture),
+            output="y.csv",
+            text_column="text",
+            person_column="speaker",
+            calculate_lsm=3,
+            output_type=1,
+        )
+        cli_args = captured["cli_args"]
+        assert isinstance(cli_args, dict)
+        # "text" is the second column -> 1-based index 2.
+        assert cli_args["text_column"] == 2
+        # "speaker" is the third column -> 1-based index 3.
+        assert cli_args["person_column"] == 3
+
+    def test_column_name_not_in_header_raises(self, tmp_path: Path) -> None:
+        fixture = tmp_path / "chat.csv"
+        fixture.write_text("id,text,speaker\n1,hi,alice\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="not found in header"):
+            Liwc22(dry_run=True).lsm(
+                input=str(fixture),
+                output="y.csv",
+                text_column="nonexistent_column",
+                person_column="speaker",
+                calculate_lsm=3,
+                output_type=1,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+
+class TestValidation:
+    """Tests for the user-friendly guards added to Liwc22."""
+
+    def test_include_and_exclude_both_set_raises(self) -> None:
+        """wc() refuses to accept both include_categories and exclude_categories."""
+        with pytest.raises(ValueError, match="include_categories and exclude_categories"):
+            Liwc22(dry_run=True).wc(
+                input="x",
+                output="y",
+                include_categories=["anger"],
+                exclude_categories=["joy"],
+            )
+
+    def test_tsv_input_without_delimiter_warns(self) -> None:
+        """`.tsv` input with default csv_delimiter emits a UserWarning."""
+        with pytest.warns(UserWarning, match="TSV"):
+            Liwc22(dry_run=True).wc(input="x.tsv", output="y.csv")
+
+    def test_tsv_input_with_tab_delimiter_does_not_warn(self) -> None:
+        """Passing csv_delimiter='\\t' silences the TSV warning."""
+        import warnings as _warnings
+
+        with _warnings.catch_warnings():
+            _warnings.simplefilter("error")  # any warning becomes an error
+            Liwc22(csv_delimiter="\t", dry_run=True).wc(input="x.tsv", output="y.csv")
+
+    def test_column_name_with_skip_header_false_raises(self, tmp_path: Path) -> None:
+        """Column names require a header row - skip_header=False must error."""
+        fixture = tmp_path / "chat.csv"
+        fixture.write_text("id,text,speaker\n1,hi,alice\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="skip_header=False"):
+            Liwc22(skip_header=False, dry_run=True).lsm(
+                input=str(fixture),
+                output="y.csv",
+                text_column="text",
+                person_column="speaker",
+                calculate_lsm=3,
+                output_type=1,
+            )
+
+    def test_column_name_with_console_input_raises(self) -> None:
+        """input='console' has no header - column names must error."""
+        with pytest.raises(ValueError, match="console"):
+            Liwc22(dry_run=True).wc(
+                input="console",
+                output="y.csv",
+                console_text="hello world",
+                column_indices=["text"],
+            )
 
 
 # ---------------------------------------------------------------------------

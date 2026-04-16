@@ -111,6 +111,27 @@ mode methods - :meth:`~liwca.liwc22.Liwc22.wc`,
 :meth:`~liwca.liwc22.Liwc22.ct`, :meth:`~liwca.liwc22.Liwc22.lsm` - then
 takes only mode-specific kwargs.
 
+Arguments are Pythonic: booleans for yes/no flags, iterables of strings for
+comma-list args, and column references as either 0-based ``int`` or column
+names (``str``, resolved against the input's header row):
+
+.. code-block:: python
+
+   liwc = liwca.liwc22.Liwc22(count_urls=True, encoding="utf-8")
+   liwc.wc(
+       input="data.csv",
+       output="results.csv",
+       include_categories=["anger", "joy"],
+   )
+   liwc.lsm(
+       input="chat.csv",
+       output="lsm.csv",
+       text_column="text",       # by name
+       person_column="speaker",
+       calculate_lsm=3,
+       output_type=1,
+   )
+
 Pass ``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
 Use as a context manager to amortize the app-launch cost across multiple
 calls:
