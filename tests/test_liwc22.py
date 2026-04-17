@@ -214,8 +214,8 @@ class TestLiwc22Class:
         assert result == kwargs["output"]
 
     def test_module_attribute_access(self) -> None:
-        """Liwc22 is reachable via liwca.liwc22.Liwc22."""
-        assert liwca.liwc22.Liwc22 is Liwc22
+        """Liwc22 is reachable via liwca.Liwc22."""
+        assert liwca.Liwc22 is Liwc22
 
     def test_globals_injected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Hoisted globals set on the instance flow through to build_command."""

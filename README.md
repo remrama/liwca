@@ -72,7 +72,7 @@ See the [LIWC CLI documentation](https://www.liwc.app/help/cli) and [Python CLI 
 ```python
 import pandas as pd
 
-liwc = liwca.liwc22.Liwc22(encoding="utf-8", count_urls=True)
+liwc = liwca.Liwc22(encoding="utf-8", count_urls=True)
 df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
 out_path = liwc.wc(
     input=df,                      # DataFrame or path

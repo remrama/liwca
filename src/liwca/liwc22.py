@@ -12,12 +12,12 @@ when you call the CLI - start it before using :class:`Liwc22`, or pass
 Examples
 --------
 >>> import liwca
->>> liwc = liwca.liwc22.Liwc22(dry_run=True)
+>>> liwc = liwca.Liwc22(dry_run=True)
 >>> liwc.wc(input="data.csv", output="results.csv")  # doctest: +SKIP
 
 Amortize app-launch across many calls with the context-manager form:
 
->>> with liwca.liwc22.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
+>>> with liwca.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
 ...     liwc.wc(input="data.csv", output="wc.csv")
 ...     liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
 
@@ -847,10 +847,10 @@ class Liwc22:
     Examples
     --------
     >>> import liwca
-    >>> liwc = liwca.liwc22.Liwc22(dry_run=True)
+    >>> liwc = liwca.Liwc22(dry_run=True)
     >>> liwc.wc(input="data.csv", output="results.csv")  # doctest: +SKIP
 
-    >>> with liwca.liwc22.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
+    >>> with liwca.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
     ...     liwc.wc(input="data.csv", output="wc.csv")
     ...     liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
     """

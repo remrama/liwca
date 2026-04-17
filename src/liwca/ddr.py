@@ -36,7 +36,7 @@ import functools
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
-from typing import Union
+from typing import Union, cast
 
 import numpy as np
 import pandas as pd
@@ -77,7 +77,7 @@ def _load_gensim_model(name: str) -> Mapping[str, ArrayLike]:
             "Install it with:  pip install liwca[ddr]"
         ) from None
     logger.info("Loading gensim model '%s'", name)
-    return gensim_api.load(name)  # type: ignore[return-value]
+    return cast(Mapping[str, ArrayLike], gensim_api.load(name))
 
 
 def _load_embeddings(embeddings: str | Mapping[str, ArrayLike]) -> Mapping[str, ArrayLike]:

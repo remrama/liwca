@@ -26,16 +26,12 @@ LIWC-22 CLI
 -----------
 
 Python wrapper for the LIWC-22 command-line tool. All seven analysis
-modes are exposed as methods on the :class:`~liwca.liwc22.Liwc22` class.
-
-.. currentmodule:: liwca.liwc22
+modes are exposed as methods on the :class:`~liwca.Liwc22` class.
 
 .. autoclass:: Liwc22
    :members: wc, freq, mem, context, arc, ct, lsm, __enter__, __exit__
    :member-order: bysource
    :show-inheritance:
-
-.. currentmodule:: liwca
 
 
 .. _api-count:

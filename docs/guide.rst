@@ -97,14 +97,14 @@ LIWC-22 wrapper
 ---------------
 
 If LIWC-22 is installed, call it from Python through the
-:class:`~liwca.liwc22.Liwc22` class. The LIWC-22 desktop application (or
+:class:`~liwca.Liwc22` class. The LIWC-22 desktop application (or
 its license server) must be running when you call the CLI:
 
 .. code-block:: python
 
    import pandas as pd
 
-   liwc = liwca.liwc22.Liwc22(encoding="utf-8", precision=4)
+   liwc = liwca.Liwc22(encoding="utf-8", precision=4)
    df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
    out_path = liwc.wc(
        input=df,                    # DataFrame or path
@@ -125,10 +125,10 @@ column axis is named ``Category``.
 
 Cross-cutting options (encoding, CSV formatting, URL handling, precision,
 execution-control flags) are set once at construction. Each of the seven
-mode methods - :meth:`~liwca.liwc22.Liwc22.wc`,
-:meth:`~liwca.liwc22.Liwc22.freq`, :meth:`~liwca.liwc22.Liwc22.mem`,
-:meth:`~liwca.liwc22.Liwc22.context`, :meth:`~liwca.liwc22.Liwc22.arc`,
-:meth:`~liwca.liwc22.Liwc22.ct`, :meth:`~liwca.liwc22.Liwc22.lsm` - then
+mode methods - :meth:`~liwca.Liwc22.wc`,
+:meth:`~liwca.Liwc22.freq`, :meth:`~liwca.Liwc22.mem`,
+:meth:`~liwca.Liwc22.context`, :meth:`~liwca.Liwc22.arc`,
+:meth:`~liwca.Liwc22.ct`, :meth:`~liwca.Liwc22.lsm` - then
 takes only mode-specific kwargs.
 
 Arguments are Pythonic: booleans for yes/no flags, iterables of strings for
@@ -137,7 +137,7 @@ names (``str``, resolved against the input's header row):
 
 .. code-block:: python
 
-   liwc = liwca.liwc22.Liwc22(count_urls=True, encoding="utf-8")
+   liwc = liwca.Liwc22(count_urls=True, encoding="utf-8")
    liwc.wc(
        input="data.csv",
        output="results.csv",
@@ -158,7 +158,7 @@ calls:
 
 .. code-block:: python
 
-   with liwca.liwc22.Liwc22(auto_open=True) as liwc:
+   with liwca.Liwc22(auto_open=True) as liwc:
        liwc.wc(input="data.csv", output="wc.csv")
        liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
 
