@@ -1,5 +1,5 @@
 """Fetchers for public LIWC-format dictionaries, published tables, and text corpora."""
 
-from . import dictionaries
+from . import corpora, dictionaries, tables
 
-__all__ = ["dictionaries"]
+__all__ = ["corpora", "dictionaries", "tables"]

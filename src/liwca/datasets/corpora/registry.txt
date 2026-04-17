@@ -1,0 +1,2 @@
+hippocorpus-u20220112.zip md5:d6ed2985d2c95f370684e95b780fd2a9 https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip
+liwc-22-demo-data.zip md5:05dd3bdb404392e11bf5c0b2775b539a https://www.liwc.app/static/files/liwc-22-demo-data.zip

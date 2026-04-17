@@ -64,7 +64,7 @@ namespaces = false
 where = ["src"]
 
 [tool.setuptools.package-data]
-liwca = ["datasets/dictionaries/registry.txt"]
+liwca = ["datasets/*/registry.txt"]
 
 [tool.mypy]
 files = ["src/"]

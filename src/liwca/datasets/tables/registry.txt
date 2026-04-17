@@ -1,0 +1,2 @@
+LIWC2015.Descriptive.Statistics.Full.xlsx md5:477e2af4c663d45dde90d91631451846 https://www.liwc.app/static/documents/LIWC2015.Descriptive.Statistics.Full.xlsx
+LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx md5:c5de2f1e047767ad753c4a11ab35fe15 https://www.liwc.app/static/documents/LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx
