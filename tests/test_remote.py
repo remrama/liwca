@@ -9,14 +9,14 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-import liwca
+from liwca.datasets import dictionaries
 
 _FETCH_FUNCTIONS = [
-    ("bigtwo", liwca.fetch_bigtwo),
-    ("honor", liwca.fetch_honor),
-    ("mystical", liwca.fetch_mystical),
-    ("sleep", liwca.fetch_sleep),
-    ("threat", liwca.fetch_threat),
+    ("bigtwo", dictionaries.fetch_bigtwo),
+    ("honor", dictionaries.fetch_honor),
+    ("mystical", dictionaries.fetch_mystical),
+    ("sleep", dictionaries.fetch_sleep),
+    ("threat", dictionaries.fetch_threat),
 ]
 
 _EXAMPLES: dict[str, list[str]] = {
@@ -40,7 +40,7 @@ def test_fetch_and_validate(name: str, fetch_fn) -> None:
 @pytest.mark.parametrize("name,examples", _EXAMPLES.items())
 def test_example_terms_in_dictionary(name: str, examples: list[str]) -> None:
     """Verify that known example terms actually exist in the fetched dictionary."""
-    fetch_fn = getattr(liwca, f"fetch_{name}")
+    fetch_fn = getattr(dictionaries, f"fetch_{name}")
     dx = fetch_fn()
     missing = [term for term in examples if term not in dx.index]
     assert not missing, f"Example terms not found in '{name}': {missing}"

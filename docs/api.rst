@@ -64,12 +64,20 @@ Distributed Dictionary Representation - semantic scoring via word embeddings.
    ddr
 
 
-.. _api-fetchers:
+.. _api-datasets:
 
-Fetching Dictionaries
----------------------
+Datasets
+--------
 
-Remote LIWC-format dictionaries, fetched on demand and cached locally.
+Remote LIWC-format dictionaries (and, in the future, published tables and
+text corpora), fetched on demand and cached locally.
+
+.. _api-dictionaries:
+
+Dictionaries
+~~~~~~~~~~~~
+
+.. currentmodule:: liwca.datasets.dictionaries
 
 .. autosummary::
    :toctree: _autosummary
@@ -79,6 +87,8 @@ Remote LIWC-format dictionaries, fetched on demand and cached locally.
    fetch_mystical
    fetch_sleep
    fetch_threat
+
+.. currentmodule:: liwca
 
 
 .. _api-utility:

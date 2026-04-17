@@ -25,16 +25,18 @@ the file on first use and returns it as a :class:`~pandas.DataFrame`:
 
 .. code-block:: python
 
-   import liwca
+   from liwca.datasets import dictionaries
 
-   dx = liwca.fetch_threat()
+   dx = dictionaries.fetch_threat()
 
-See :ref:`api-fetchers` for all available dictionaries and their options.
+See :ref:`api-dictionaries` for all available dictionaries and their options.
 
 Downloaded files are cached locally via
-`Pooch <https://www.fatiando.org/pooch/latest/>`_. By default, files are
-cached in your OS data directory. You can override this by setting the ``LIWCA_DATA_DIR`` environment variable
-before importing liwca:
+`Pooch <https://www.fatiando.org/pooch/latest/>`_. By default, each dataset
+category caches into its own subfolder under your OS data directory
+(e.g. ``.../liwca/dictionaries/``). You can override the cache root by
+setting the ``LIWCA_DATA_DIR`` environment variable before importing
+liwca - dictionaries are then cached in ``$LIWCA_DATA_DIR/dictionaries/``:
 
 .. code-block:: bash
 

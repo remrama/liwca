@@ -34,11 +34,11 @@ Adding a new dictionary
 
 To add a new publicly available dictionary to the registry:
 
-1. **Add a fetch function.** Edit ``src/liwca/fetchers.py`` and add a
-   ``fetch_<name>()`` function following the existing pattern. Include a NumPy
-   docstring with a short summary, ``Returns``, ``Notes`` (with footnote
-   references to the paper and source), ``References`` (numbered citations
-   with doi links), and ``Examples``.
+1. **Add a fetch function.** Edit ``src/liwca/datasets/dictionaries/__init__.py``
+   and add a ``fetch_<name>()`` function following the existing pattern.
+   Include a NumPy docstring with a short summary, ``Returns``, ``Notes``
+   (with footnote references to the paper and source), ``References``
+   (numbered citations with doi links), and ``Examples``.
 
    For standard ``.dic`` or ``.dicx`` files:
 
@@ -68,8 +68,8 @@ To add a new publicly available dictionary to the registry:
 
           Examples
           --------
-          >>> import liwca
-          >>> dx = liwca.fetch_mydict()  # doctest: +SKIP
+          >>> from liwca.datasets import dictionaries
+          >>> dx = dictionaries.fetch_mydict()  # doctest: +SKIP
           """
           return read_dx(_pup.fetch("mydict.dic"))
 
@@ -77,8 +77,9 @@ To add a new publicly available dictionary to the registry:
    parsing inline in the function body and call ``dx_schema.validate(df)``
    before returning.
 
-2. **Add to the registry.** Edit ``src/liwca/data/registry.txt`` and append
-   a line with the filename, MD5 hash, and download URL:
+2. **Add to the registry.** Edit
+   ``src/liwca/datasets/dictionaries/registry.txt`` and append a line with
+   the filename, MD5 hash, and download URL:
 
    .. code-block:: text
 
@@ -88,7 +89,8 @@ To add a new publicly available dictionary to the registry:
    or ``certutil -hashfile filename.ext MD5`` on Windows).
 
 3. **Export from the package.** Add ``fetch_<name>`` to ``__all__`` in
-   ``src/liwca/fetchers.py`` and verify it is importable as
-   ``liwca.fetch_<name>()``.
+   ``src/liwca/datasets/dictionaries/__init__.py`` and verify it is
+   importable as ``from liwca.datasets import dictionaries;
+   dictionaries.fetch_<name>()``.
 
 Sphinx picks up the new function automatically via ``autosummary``.

@@ -2,22 +2,26 @@
 
 Each function downloads its dictionary to a local cache (if not already
 present) and returns it as a :class:`~pandas.DataFrame`.  The cache location
-defaults to the OS user cache directory (``pooch.os_cache("liwca")``) and can
-be overridden with the ``LIWCA_DATA_DIR`` environment variable.
+defaults to the OS user cache directory
+(``pooch.os_cache("liwca") / "dictionaries"``) and can be overridden by
+setting the ``LIWCA_DATA_DIR`` environment variable - dictionaries are then
+cached in ``$LIWCA_DATA_DIR/dictionaries/``.
 
 Power users who want the raw local file path can call
-``fetchers._pup.fetch(filename)`` directly.
+``liwca.datasets.dictionaries._pup.fetch(filename)`` directly.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from importlib.resources import files as _files
+from pathlib import Path
 
 import pandas as pd
 import pooch
 
-from .io import dx_schema, read_dx
+from ...io import dx_schema, read_dx
 
 __all__ = [
     "fetch_bigtwo",
@@ -33,8 +37,13 @@ logger = logging.getLogger(__name__)
 # Pooch download registry
 # ---------------------------------------------------------------------------
 
-_pup = pooch.create(path=pooch.os_cache("liwca"), base_url="", env="LIWCA_DATA_DIR")
-with open(str(_files("liwca.data").joinpath("registry.txt"))) as _f:
+# Resolve LIWCA_DATA_DIR manually (instead of via pooch's env= kwarg) so each
+# dataset category gets its own subfolder even when the user overrides the
+# cache root - otherwise dictionaries, tables, and corpora would collide in a
+# single flat directory.
+_root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
+_pup = pooch.create(path=_root / "dictionaries", base_url="")
+with open(str(_files("liwca.datasets.dictionaries").joinpath("registry.txt"))) as _f:
     _pup.load_registry(_f)
 
 
@@ -76,9 +85,9 @@ def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
 
     Examples
     --------
-    >>> import liwca
-    >>> dx = liwca.fetch_bigtwo()  # doctest: +SKIP
-    >>> dx = liwca.fetch_bigtwo(version="b")  # doctest: +SKIP
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_bigtwo()  # doctest: +SKIP
+    >>> dx = dictionaries.fetch_bigtwo(version="b")  # doctest: +SKIP
     """
     if version not in _BIGTWO_VERSIONS:
         raise ValueError(f"version must be one of {list(_BIGTWO_VERSIONS)}; got {version!r}")
@@ -110,8 +119,8 @@ def fetch_honor() -> pd.DataFrame:
 
     Examples
     --------
-    >>> import liwca
-    >>> dx = liwca.fetch_honor()  # doctest: +SKIP
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_honor()  # doctest: +SKIP
     """
     return read_dx(_pup.fetch("honor.dic"))
 
@@ -141,8 +150,8 @@ def fetch_mystical() -> pd.DataFrame:
 
     Examples
     --------
-    >>> import liwca
-    >>> dx = liwca.fetch_mystical()  # doctest: +SKIP
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_mystical()  # doctest: +SKIP
     """
     path = _pup.fetch("mystical.xlsx")
     df = pd.read_excel(
@@ -186,8 +195,8 @@ def fetch_sleep() -> pd.DataFrame:
 
     Examples
     --------
-    >>> import liwca
-    >>> dx = liwca.fetch_sleep()  # doctest: +SKIP
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_sleep()  # doctest: +SKIP
     >>> "cant sleep" in dx.index  # doctest: +SKIP
     True
     """
@@ -227,8 +236,8 @@ def fetch_threat() -> pd.DataFrame:
 
     Examples
     --------
-    >>> import liwca
-    >>> dx = liwca.fetch_threat()  # doctest: +SKIP
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_threat()  # doctest: +SKIP
     >>> "accidents" in dx.index  # doctest: +SKIP
     True
     """
