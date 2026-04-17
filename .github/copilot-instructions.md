@@ -31,11 +31,11 @@ uv run mypy
 
 Three main modules under `src/liwca/`:
 
-- **`io.py`** — Read/write `.dic` and `.dicx` dictionary files, merge dictionaries, fetch remote dictionaries via Pooch. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
+- **`io.py`** - Read/write `.dic` and `.dicx` dictionary files, merge dictionaries, fetch remote dictionaries via Pooch. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
 
-- **`count.py`** — Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
+- **`count.py`** - Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
 
-- **`liwc22.py`** — CLI wrapper around `liwc-22-cli`. Uses a data-driven design: all arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Also exposes `cli()` for Python-level invocation. The `liwca` console script entry point is `main()` in this module.
+- **`liwc22.py`** - Python wrapper around `liwc-22-cli` via the `Liwc22` class. Hoisted constructor args (those applying to ≥5 of the 7 modes) plus execution-control flags (`auto_open`, `use_gui`, `dry_run`) are set once; the seven per-mode methods (`wc`, `freq`, `mem`, `context`, `arc`, `ct`, `lsm`) take only mode-specific kwargs. Each method accepts `input` as either a filepath (`str`) or a `pandas.DataFrame` (written to a temp CSV, fed to the CLI, then removed), and returns the `output` path on success (`None` for dry-run; `subprocess.CalledProcessError` on CLI failure). `wc`-mode output is reshaped in place via `wc_output_schema` (Row ID renamed to source column, constant Segment dropped, column axis named `Category`). `FLAG_BY_DEST` maps each dest to its CLI flag; flag-category frozensets drive command assembly — `BOOL_FLAGS` (value-less), `YES_NO_FLAGS` (`bool` → `yes`/`no`), `ONE_ZERO_FLAGS` (`bool` → `1`/`0`), `LIST_FLAGS` (`Iterable[str]` → comma-joined), plus `COLUMN_FLAGS` and `COLUMN_LIST_FLAGS` (0-based int or column-name str → 1-based int, resolved by `_resolve_columns`). `MODE_GLOBALS` filters which hoisted args apply to each mode. Supports use as a context manager.
 
 Supporting module `_catalogue.py` loads `data/registry.json` (the single source of truth for all dictionary metadata and download info), builds the `CATALOGUE` dict of `DictInfo` objects at import time, and defines reader functions for non-standard remote dictionary formats. Supports versioned dictionaries.
 

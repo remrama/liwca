@@ -1,4 +1,4 @@
-"""Tests for liwca.fetchers — fetch functions and registry integrity."""
+"""Tests for liwca.fetchers - fetch functions and registry integrity."""
 
 from __future__ import annotations
 

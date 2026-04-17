@@ -1,4 +1,4 @@
-"""Tests for liwca.count — LIWC word counting (count and liwc22)."""
+"""Tests for liwca.count - LIWC word counting (count and liwc22)."""
 
 from __future__ import annotations
 

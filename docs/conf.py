@@ -24,6 +24,11 @@ extensions = [
 
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+rst_prolog = """
+.. role:: bolditalic
+   :class: bolditalic
+"""
+
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = "pydata_sphinx_theme"
@@ -33,8 +38,9 @@ html_show_copyright = False
 html_show_sphinx = False
 html_use_index = False
 html_favicon = "_static/favicon.webp"
-html_logo = "_static/logo.png"
+# html_logo = "_static/banner.png"
 html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]
 
 html_theme_options = {
     "github_url": "https://github.com/remrama/liwca",
@@ -48,6 +54,13 @@ html_theme_options = {
     "secondary_sidebar_items": {
         "**": ["page-toc"],
         "index": [],
+    },
+    "pygments_light_style": "github-light-colorblind",
+    "pygments_dark_style": "github-dark-colorblind",
+    "logo": {
+        "alt_text": f"{project} - Home",  # read first by screen readers
+        "image_light": "_static/banner.png",
+        "image_dark": "_static/banner-dark.png",
     },
 }
 

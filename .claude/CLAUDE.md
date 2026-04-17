@@ -31,15 +31,15 @@ uv run mypy
 
 Five modules under `src/liwca/`:
 
-- **`io.py`** — Read/write `.dic` and `.dicx` dictionary files, create and merge dictionaries. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
+- **`io.py`** - Read/write `.dic` and `.dicx` dictionary files, create and merge dictionaries. All dictionary DataFrames are validated through a Pandera schema (`dx_schema`) that enforces: lowercase string index named "DicTerm", binary int8 values, sorted columns named "Category".
 
-- **`count.py`** — Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
+- **`count.py`** - Pure-Python LIWC-style word counting (no LIWC-22 needed). Uses scikit-learn's `CountVectorizer`. Dictionary wildcards (e.g., `abandon*`) are expanded against the actual corpus vocabulary before counting.
 
-- **`ddr.py`** — Distributed Dictionary Representation (DDR) scoring. Computes cosine similarity between document vectors and dictionary category centroids in word-embedding space. Accepts embeddings as a gensim model name (string) or any dict-like mapping. Optional dependency: `gensim>=4.0` via `pip install liwca[ddr]`.
+- **`ddr.py`** - Distributed Dictionary Representation (DDR) scoring. Computes cosine similarity between document vectors and dictionary category centroids in word-embedding space. Accepts embeddings as a gensim model name (string) or any dict-like mapping. Optional dependency: `gensim>=4.0` via `pip install liwca[ddr]`.
 
-- **`fetchers.py`** — Per-dictionary `fetch_*()` functions that download remote LIWC-format dictionaries via Pooch and return validated DataFrames. The Pooch registry (`data/registry.txt`) is the single source of truth for filenames, MD5 hashes, and download URLs. Includes custom parsers for non-standard formats (Excel, TSV, plain text).
+- **`fetchers.py`** - Per-dictionary `fetch_*()` functions that download remote LIWC-format dictionaries via Pooch and return validated DataFrames. The Pooch registry (`data/registry.txt`) is the single source of truth for filenames, MD5 hashes, and download URLs. Includes custom parsers for non-standard formats (Excel, TSV, plain text).
 
-- **`liwc22.py`** — Python wrapper around `liwc-22-cli`. Uses a data-driven design: all arguments defined once in `ARG_CATALOGUE`, modes defined in `MODE_DEFS`. Exposes `liwc22()` for Python-level invocation.
+- **`liwc22.py`** - Python wrapper around `liwc-22-cli`. Exposes a `Liwc22` class whose constructor hoists the cross-cutting CLI args (args that apply to ≥5 of the 7 modes: `encoding`, `count_urls`, `preprocess_cjk`, `include_subfolders`, `url_regexp`, `csv_delimiter`, `csv_escape`, `csv_quote`, `skip_header`, `precision`) plus execution-control flags (`auto_open`, `use_gui`, `dry_run`). The seven per-mode methods (`wc`, `freq`, `mem`, `context`, `arc`, `ct`, `lsm`) take only mode-specific kwargs. Each method accepts `input` as either a filepath (`str`) or a `pandas.DataFrame` (written to a temp CSV and cleaned up afterwards) and returns the `output` path on success (`None` when `dry_run=True`); CLI errors propagate as `subprocess.CalledProcessError`. The `wc` output file is reshaped in place via `wc_output_schema` (Row ID renamed, constant Segment dropped, column axis named `Category`). Can be used as a context manager to amortize LIWC-22 app launch/shutdown. Internally: `FLAG_BY_DEST` maps each Python dest to its CLI flag; flag-category frozensets dispatch translation in `build_command` — `BOOL_FLAGS` (value-less), `YES_NO_FLAGS` (`bool` → `"yes"`/`"no"`), `ONE_ZERO_FLAGS` (`bool` → `"1"`/`"0"`), `LIST_FLAGS` (`Iterable[str]` → comma-joined), plus `COLUMN_FLAGS` and `COLUMN_LIST_FLAGS` (0-based `int` or column-name `str` → 1-based int, resolved upstream by `_resolve_columns`). `MODE_GLOBALS` filters which hoisted args apply to each mode (e.g. `count_urls` is dropped for `lsm`).
 
 ## LIWC Domain Context
 
@@ -47,7 +47,7 @@ LIWC (Linguistic Inquiry and Word Count) is a dictionary-based text analysis met
 
 Key concepts relevant to this codebase:
 
-- **Dictionary terms** can include a trailing wildcard (`*`). During counting, `abandon*` is expanded against the actual corpus vocabulary to match tokens like *abandoned*, *abandoning*, etc. Expansion is per-corpus — only tokens present in the text are matched.
+- **Dictionary terms** can include a trailing wildcard (`*`). During counting, `abandon*` is expanded against the actual corpus vocabulary to match tokens like *abandoned*, *abandoning*, etc. Expansion is per-corpus - only tokens present in the text are matched.
 - **Multi-category membership**: a single term can belong to multiple categories (e.g., "coach" in Basketball, Baseball, and Football). Categories can also be hierarchical in LIWC's built-in dictionaries (e.g., anger → negative emotion → emotion), though liwca treats them as flat columns.
 - **File formats**: `.dic` (tab-delimited with `%` header delimiters) and `.dicx` (CSV with `X`/empty values). See the `io.py` module docstring for full format specs.
 

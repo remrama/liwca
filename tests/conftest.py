@@ -1,7 +1,7 @@
 """Shared fixtures for liwca tests.
 
-The toy dictionary uses three sports categories — Basketball, Baseball, and
-Football — so that expected counts are obvious at a glance.
+The toy dictionary uses three sports categories - Basketball, Baseball, and
+Football - so that expected counts are obvious at a glance.
 
 Both .dic and .dicx fixtures represent the **same** 16-term dictionary
 (5 per sport + "coach" in all three).  This makes format-conversion tests
@@ -53,7 +53,7 @@ def toybad_dicx_path() -> Path:
 def toy_dx() -> pd.DataFrame:
     """Small in-memory dictionary with only exact-match terms (no wildcards).
 
-    3 terms, one per category — useful when wildcard behaviour is irrelevant.
+    3 terms, one per category - useful when wildcard behaviour is irrelevant.
     """
     dx = pd.DataFrame(
         {

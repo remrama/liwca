@@ -39,7 +39,7 @@ path = POOCH.fetch("archive.zip", processor=pooch.Unzip())
 
 ---
 
-## `pooch.create()` — All Parameters
+## `pooch.create()` - All Parameters
 
 ```python
 pooch.create(
@@ -49,7 +49,7 @@ pooch.create(
     version_dev="master",  # fallback version name for dev builds (contain +XX.XXXXX)
     env=None,         # env var name the user can set to override path
     registry=None,    # dict: {filename: "alg:hash"} or {filename: None}
-    urls=None,        # dict: {filename: "full_url"} — overrides base_url per file
+    urls=None,        # dict: {filename: "full_url"} - overrides base_url per file
     retry_if_failed=0,     # retries on download failure; waits 1s→10s between attempts
     allow_updates=True,    # re-download if local hash mismatches; or env var name (str)
 )
@@ -114,7 +114,7 @@ p.is_available(fname, downloader=None)  # → bool
 
 ---
 
-## `pooch.retrieve()` — Standalone Single-File Download
+## `pooch.retrieve()` - Standalone Single-File Download
 
 ```python
 path = pooch.retrieve(
@@ -313,7 +313,7 @@ POOCH = pooch.create(
 import logging
 pooch.get_logger().setLevel(logging.WARNING)
 
-# Default level is INFO — logs downloads, cache hits, hash checks
+# Default level is INFO - logs downloads, cache hits, hash checks
 
 # Progress bar (requires tqdm)
 path = POOCH.fetch("large.zip", progressbar=True)
@@ -400,10 +400,10 @@ path = POOCH.fetch("private.csv", downloader=dl)
 
 ### No hash (unknown file, development)
 ```python
-# pooch logs the SHA256 — copy it and hard-code it
+# pooch logs the SHA256 - copy it and hard-code it
 path = pooch.retrieve(url, known_hash=None)
 ```
 
 ---
 
-When answering questions, always read the project's existing pooch setup first. Prefer `create()` + `fetch()` over `retrieve()` for project data. Never hard-code credentials — recommend environment variables.
+When answering questions, always read the project's existing pooch setup first. Prefer `create()` + `fetch()` over `retrieve()` for project data. Never hard-code credentials - recommend environment variables.

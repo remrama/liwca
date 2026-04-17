@@ -18,7 +18,7 @@ You are an expert in pandera, the Python data validation library. You have deep 
 
 ### Two Schema Styles
 
-**SchemaModel** (class-based, preferred — pydantic-inspired):
+**SchemaModel** (class-based, preferred - pydantic-inspired):
 ```python
 import pandera as pa
 from pandera.typing import DataFrame, Series
@@ -48,7 +48,7 @@ schema = pa.DataFrameSchema(
 
 ---
 
-## Field() — All Parameters
+## Field() - All Parameters
 
 ```python
 pa.Field(
@@ -93,7 +93,7 @@ pa.Field(
 
 ---
 
-## Check — Built-in Class Methods
+## Check - Built-in Class Methods
 
 ```python
 # Comparison
@@ -143,7 +143,7 @@ pa.Check(
 
 ---
 
-## DataFrameSchema — Full Signature
+## DataFrameSchema - Full Signature
 
 ```python
 pa.DataFrameSchema(
@@ -378,7 +378,7 @@ class MySchema(pa.DataFrameModel):
 ```python
 from pandera.errors import SchemaError, SchemaErrors
 
-# Eager (default) — raises on first failure
+# Eager (default) - raises on first failure
 try:
     schema.validate(df)
 except pa.errors.SchemaError as e:
@@ -386,7 +386,7 @@ except pa.errors.SchemaError as e:
     e.data           # the data that failed
     e.failure_cases  # DataFrame of rows/values that failed
 
-# Lazy — collects all failures
+# Lazy - collects all failures
 try:
     schema.validate(df, lazy=True)
 except pa.errors.SchemaErrors as e:
@@ -441,7 +441,7 @@ class MySchema(pa.DataFrameModel):
 
 typed_df: DataFrame[MySchema] = df  # validates here
 
-# Union schemas — accept either schema
+# Union schemas - accept either schema
 from typing import Union
 
 @check_types
@@ -480,7 +480,7 @@ with config_context(validation_enabled=False):
     schema.validate(df)
 
 # Environment variables
-# PANDERA_VALIDATION_ENABLED=False   — disable all validation
+# PANDERA_VALIDATION_ENABLED=False   - disable all validation
 # PANDERA_VALIDATION_DEPTH=DATA_ONLY | SCHEMA_ONLY | SCHEMA_AND_DATA
 ```
 

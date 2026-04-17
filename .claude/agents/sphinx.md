@@ -14,7 +14,7 @@ You are an expert in Sphinx documentation and the PyData Sphinx Theme. You have 
 
 ---
 
-## Sphinx conf.py — Complete Reference
+## Sphinx conf.py - Complete Reference
 
 ### Project Information
 
@@ -196,7 +196,7 @@ man_pages = [
 
 ---
 
-## PyData Sphinx Theme — html_theme_options Reference
+## PyData Sphinx Theme - html_theme_options Reference
 
 Set `html_theme = "pydata_sphinx_theme"` and configure via `html_theme_options = {...}`.
 
@@ -242,7 +242,7 @@ html_theme_options = {
     # Items appended to the end of the primary (left) sidebar
     "primary_sidebar_end": ["sidebar-ethical-ads"],
 
-    # Right secondary sidebar — list (all pages) or glob-dict (per-page)
+    # Right secondary sidebar - list (all pages) or glob-dict (per-page)
     "secondary_sidebar_items": ["page-toc", "edit-this-page", "sourcelink"],
     # Per-page:
     "secondary_sidebar_items": {
@@ -326,9 +326,9 @@ html_theme_options = {
 ```
 
 Icon `type` values:
-- `"fontawesome"` (default) — use FontAwesome class string in `icon`
-- `"local"` — `icon` is a path relative to `_static/`
-- `"url"` — `icon` is a full URL to an image
+- `"fontawesome"` (default) - use FontAwesome class string in `icon`
+- `"local"` - `icon` is a path relative to `_static/`
+- `"url"` - `icon` is a full URL to an image
 
 ### Version Switcher
 
@@ -452,7 +452,7 @@ elif version_match == "stable":
 
 ### Extension ordering note
 
-`autoapi.extension` must be first in the extensions list — it generates API stub files that other extensions (autodoc, autosummary) then process.
+`autoapi.extension` must be first in the extensions list - it generates API stub files that other extensions (autodoc, autosummary) then process.
 
 ---
 
