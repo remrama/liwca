@@ -8,7 +8,7 @@
 
 |
 
-:bolditalic:`liwca` is a Python helper library for working with `LIWC <https://liwc.app>`_
+:bolditalic:`liwca` (Linguistic Inquiry Word Count Assistant) is a Python helper library for working with `LIWC <https://liwc.app>`_
 dictionaries. It is useful when you want end-to-end pipelines or notebook workflows
 that don't require the LIWC-22 app to be open, or when you just need reusable
 ``.dic[x]`` file I/O without writing it from scratch every project.
