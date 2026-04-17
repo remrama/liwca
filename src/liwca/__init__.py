@@ -7,7 +7,7 @@ from .fetchers import *
 from .io import *
 
 __author__ = "Remington Mallett <mallett.remy@gmail.com>"
-__version__ = "0.1.0.alpha.2"
+__version__ = "0.1.0.alpha.3"
 
 # NullHandler prevents "No handlers could be found" warnings when liwca is
 # imported as a library and the caller hasn't configured logging at all.
