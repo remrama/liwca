@@ -21,10 +21,11 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
-from ...io import dx_schema, read_dx
+from ...io import create_dx, dx_schema, read_dx
 
 __all__ = [
     "fetch_bigtwo",
+    "fetch_emfd",
     "fetch_honor",
     "fetch_mystical",
     "fetch_sleep",
@@ -45,6 +46,14 @@ _root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
 _pup = pooch.create(path=_root / "dictionaries", base_url="")
 with open(str(_files("liwca.datasets.dictionaries").joinpath("registry.txt"))) as _f:
     _pup.load_registry(_f)
+
+
+def _authorized_zenodo_downloader(**kwargs) -> pooch.HTTPDownloader:
+    if (token := os.environ.get("ZENODO_TOKEN")) is None:
+        raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
+    authorization = f"Bearer {token}"
+    downloader = pooch.HTTPDownloader(headers={"Authorization": authorization}, **kwargs)
+    return downloader
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +101,15 @@ def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
     if version not in _BIGTWO_VERSIONS:
         raise ValueError(f"version must be one of {list(_BIGTWO_VERSIONS)}; got {version!r}")
     return read_dx(_pup.fetch(_BIGTWO_VERSIONS[version]))
+
+
+def fetch_emfd() -> pd.DataFrame:
+    """
+    Fetch the extended moral foundations 2.0 dictionary.
+
+    See the `Moral Foundations Dictionary 2.0 OSF page <https://osf.io/ezn37>`__.
+    """
+    return read_dx(_pup.fetch("mfd2.0.dic"))
 
 
 def fetch_honor() -> pd.DataFrame:
@@ -247,3 +265,95 @@ def fetch_threat() -> pd.DataFrame:
     df = pd.Series(1, name="threat", index=words).to_frame()
     logger.debug("Read threat dictionary: %d terms from %s", len(df), path)
     return dx_schema.validate(df)
+
+
+def fetch_empath() -> pd.DataFrame:
+    """
+    Fetch the pre-build Empath dictionary.
+
+    See the `Empath GitHub repository <https://github.com/Ejhfast/empath-client>`__
+    for more details and the direct download file.
+
+    `Direct download link
+    <https://raw.githubusercontent.com/Ejhfast/empath-client/refs/heads/master/empath/data/categories.tsv>`__.
+    """
+    fname = _pup.fetch("categories.tsv")
+    fpath = Path(fname)
+    with open(fpath, "r") as f:
+        data = [x.strip().split("\t") for x in f.readlines()]
+    categories = {x[0]: x[1:] for x in data}
+    dx = create_dx(categories)
+    return dx
+
+
+def _fetch_liwc2015() -> pd.DataFrame:
+    """
+    Fetch the LIWC2015 dictionary.
+
+    .. note:: This is a restricted file that requires approved access.
+    """
+    fname = _pup.fetch("LIWC2015.xlsx", downloader=_authorized_zenodo_downloader())
+    fpath = Path(fname)
+    df = pd.read_excel(fpath, skiprows=[0, 1, 2, 4]).rename_axis("Category", axis=1)
+    df.columns = df.columns.str.split("\n").str[1]
+    df.columns = pd.Series(df.columns).ffill()
+    df = df.melt(value_name="DicTerm").dropna()
+    df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
+    as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
+    dx = create_dx(as_dict)
+    return dx
+
+
+def _fetch_liwc22() -> pd.DataFrame:
+    """
+    Fetch the LIWC22 dictionary.
+
+    .. note:: This is a restricted file that requires approved access.
+    """
+    fname = _pup.fetch("LIWC22.xlsx", downloader=_authorized_zenodo_downloader())
+    fpath = Path(fname)
+    df = pd.read_excel(fpath, skiprows=2).rename_axis("Category", axis=1)
+    df.columns = pd.Series(df.columns).replace(r"^Unnamed: \d+$", pd.NA, regex=True).ffill()
+    df = df.melt(value_name="DicTerm").dropna()
+    df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
+    as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
+    dx = create_dx(as_dict)
+    return dx
+
+
+def _fetch_translated(fstem: str) -> pd.DataFrame:
+    """
+    Fetch a translated dictionary shared on the LIWC site.
+
+    Dictionaries are available on the
+    `LIWC dictionaries page <https://www.liwc.app/dictionaries>`__.
+
+    .. note:: These dictionaries require login for access.
+    """
+    downloader = _authorized_zenodo_downloader()
+    processor = pooch.Unzip()
+    fname = f"{fstem}.dicx"
+    fnames = _pup.fetch("translations.zip", downloader=downloader, processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    fpath = fpaths[fname]
+    dx = read_dx(fpath)
+    return dx
+
+
+def _fetch_usermade(fstem: str) -> pd.DataFrame:
+    """
+    Fetch a user-made dictionary shared on the LIWC site.
+
+    Dictionaries are available on the
+    `LIWC dictionaries page <https://www.liwc.app/dictionaries>`__.
+
+    .. note:: These dictionaries require login for access.
+    """
+    downloader = _authorized_zenodo_downloader()
+    processor = pooch.Unzip()
+    fname = f"{fstem}.dicx"
+    fnames = _pup.fetch("user-made.zip", downloader=downloader, processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    fpath = fpaths[fname]
+    dx = read_dx(fpath)
+    return dx

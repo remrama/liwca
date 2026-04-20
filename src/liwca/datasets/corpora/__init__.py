@@ -18,6 +18,7 @@ import os
 from importlib.resources import files as _files
 from pathlib import Path
 
+import pandas as pd
 import pooch
 
 __all__ = [
@@ -37,12 +38,20 @@ with open(str(_files("liwca.datasets.corpora").joinpath("registry.txt"))) as _f:
     _pup.load_registry(_f)
 
 
+def _authorized_zenodo_downloader(**kwargs) -> pooch.HTTPDownloader:
+    if (token := os.environ.get("ZENODO_TOKEN")) is None:
+        raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
+    authorization = f"Bearer {token}"
+    downloader = pooch.HTTPDownloader(headers={"Authorization": authorization}, **kwargs)
+    return downloader
+
+
 # ---------------------------------------------------------------------------
 # Fetch functions
 # ---------------------------------------------------------------------------
 
 
-def fetch_hippocorpus() -> Path:
+def fetch_hippocorpus() -> pd.DataFrame:
     """
     Fetch the Hippocorpus dataset of imagined, recalled, and retold stories.
 
@@ -52,10 +61,8 @@ def fetch_hippocorpus() -> Path:
 
     Returns
     -------
-    :class:`pathlib.Path`
-        Local path to the downloaded ``hippocorpus-u20220112.zip`` file.
-        The archive is not extracted - use :mod:`zipfile` or your
-        preferred tool to read entries.
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of the ``hcV3-stories.csv`` file.
 
     Notes
     -----
@@ -73,7 +80,22 @@ def fetch_hippocorpus() -> Path:
     >>> from liwca.datasets import corpora
     >>> path = corpora.fetch_hippocorpus()  # doctest: +SKIP
     """
-    return Path(_pup.fetch("hippocorpus-u20220112.zip"))
+    processor = pooch.Unzip(
+        members=[
+            "hcV3-eventAnnots.csv",
+            "hcv3-eventAnnotsAggOverWorkers.csv",
+            "hcV3-stories.csv",
+            "hippoCorpusV2.csv",
+            "LinktoStudyTemplates.txt",
+            "V2README.txt",
+            "V3README.txt",
+        ]
+    )
+    fnames = _pup.fetch("hippocorpus-u20220112.zip", processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    fpath = fpaths["hcV3-stories.csv"]
+    df = pd.read_csv(fpath)
+    return df
 
 
 def fetch_liwc_demo_data() -> Path:
@@ -86,10 +108,8 @@ def fetch_liwc_demo_data() -> Path:
 
     Returns
     -------
-    :class:`pathlib.Path`
-        Local path to the downloaded ``liwc-22-demo-data.zip`` file.
-        The archive is not extracted - use :mod:`zipfile` or your
-        preferred tool to read entries.
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of all the individual ``.txt`` files from unzipped file.
 
     Notes
     -----
@@ -105,4 +125,37 @@ def fetch_liwc_demo_data() -> Path:
     >>> from liwca.datasets import corpora
     >>> path = corpora.fetch_liwc_demo_data()  # doctest: +SKIP
     """
-    return Path(_pup.fetch("liwc-22-demo-data.zip"))
+    fnames = _pup.fetch("liwc-22-demo-data.zip", processor=pooch.Unzip())
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    data = {}
+    for k, v in fpaths.items():
+        if k not in {"LICENSE.txt", "README.txt"}:
+            data[v.stem] = v.read_text()
+    ser = pd.Series(data, name="text").rename_axis("text_id")
+    df = ser.to_frame()
+    return df
+
+
+def _fetch_testkitchen() -> pd.DataFrame:
+    """
+    Fetch the LIWC Test Kitchen corpus.
+
+    .. note:: This is a restricted file that requires approved access.
+    """
+    downloader = _authorized_zenodo_downloader()
+    processor = pooch.Unzip()
+    fnames = _pup.fetch("testkitchen.zip", downloader=downloader, processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    source_map = {}
+    for fp in fpaths["AP_0001.txt"].parent.parent.glob("TK_*/*_0001.txt"):
+        source_fullname = fp.parent.name.split("_", 1)[1]
+        source_shortname = fp.stem.split("_")[0]
+        source_map[source_shortname] = source_fullname
+    data = {}
+    # for fp in fpaths.values():
+    for fp in list(fpaths.values())[:10]:
+        data[fp.stem] = fp.read_text()
+    ser = pd.Series(data, name="text").rename_axis("text_id")
+    df = ser.to_frame()
+    df.index = df.index.str.split("_").str[0].map(source_map)
+    return df

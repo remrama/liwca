@@ -1,2 +1,5 @@
 LIWC2015.Descriptive.Statistics.Full.xlsx md5:477e2af4c663d45dde90d91631451846 https://www.liwc.app/static/documents/LIWC2015.Descriptive.Statistics.Full.xlsx
 LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx md5:c5de2f1e047767ad753c4a11ab35fe15 https://www.liwc.app/static/documents/LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx
+data_with_metadata.xlsx md5:63149285526c0db096b229dbfc395ff1 https://sc.edu/scopedb/fulldb/data_with_metadata.xlsx
+psychNorms_metadata.csv md5:3b44f2117b535572f2ee79e7adeb64a6 https://raw.githubusercontent.com/Zak-Hussain/psychNorms/refs/heads/main/psychNorms_metadata.csv
+psychNorms.zip md5:04b96f3ba49b35b59273fac17b40cd17 https://github.com/Zak-Hussain/psychNorms/raw/refs/heads/main/psychNorms.zip
