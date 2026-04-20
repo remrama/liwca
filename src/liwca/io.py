@@ -90,7 +90,8 @@ dx_schema = pa.DataFrameSchema(
         # ],
         checks=[
             pa.Check(lambda s: s.str.len() >= 1, name="Term length > 0"),
-            pa.Check(lambda s: s.str.islower(), name="Term all lowercase"),
+            pa.Check(lambda s: s.str.isupper().eq(False), name="No uppercase terms"),
+            # pa.Check(lambda s: s.str.contains(r"[A-Z]", regex=True), name="No uppercase terms"),
         ],
     ),
     parsers=[
@@ -255,6 +256,11 @@ def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     -------
     :class:`pandas.DataFrame`
         The dictionary read from the file.
+
+    Raises
+    ------
+    ValueError
+        If an unsupported file extension is provided (must be ``.dic`` or ``.dicx``).
     """
     logger.info("Reading dictionary from %s", fp)
     if (suffix := Path(fp).suffix) == ".dic":
@@ -327,6 +333,11 @@ def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
         The filepath to write the dictionary to.
     kwargs : Any
         Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
+
+    Raises
+    ------
+    ValueError
+        If an unsupported file extension is provided (must be ``.dic`` or ``.dicx``).
     """
     logger.info("Writing dictionary (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
     if (suffix := Path(fp).suffix) == ".dic":
