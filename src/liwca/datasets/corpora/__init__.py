@@ -22,8 +22,13 @@ import pandas as pd
 import pooch
 
 __all__ = [
+    "fetch_autobiomemsim",
+    "fetch_cmu_books",
+    "fetch_cmu_movies",
     "fetch_hippocorpus",
     "fetch_liwc_demo_data",
+    "fetch_sherlock",
+    "fetch_rwritingprompts",
 ]
 
 logger = logging.getLogger(__name__)
@@ -51,6 +56,98 @@ def _authorized_zenodo_downloader(**kwargs) -> pooch.HTTPDownloader:
 # ---------------------------------------------------------------------------
 
 
+def fetch_autobiomemsim() -> pd.DataFrame:
+    """
+    Fetch Autobiographical Memory Similarity corpus.
+
+    See the `GitHub repository <https://github.com/HLab/AutobioMemorySimilarity>`__ for more info.
+
+    Citation: doi:`10.1101/2021.01.28.428278 <https://doi.org/10.1101/2021.01.28.428278>`__
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of the ``memories_dataset*.txt`` files.
+    """
+    member_fnames = [
+        "Dataset1.xlsx",
+        "Dataset2.xlsx",
+        "memories_dataset1.txt",
+        "memories_dataset2.txt",
+    ]
+    members = [f"AutobioMemorySimilarity-main/{fn}" for fn in member_fnames]
+    processor = pooch.Unzip(members=members)
+    fnames = _pup.fetch("AutobioMemorySimilarity-main.zip", processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    data = []
+    for i in range(2):
+        fpath = fpaths[f"memories_dataset{i + 1}.txt"]
+        txt = fpath.read_text(encoding="utf-8").strip()
+        entry_list = txt.split("=" * 49 + "\n" + "=" * 49)
+        for entry in entry_list:
+            if entry:
+                components = entry.strip().split("\n\n\n")
+                author, condition, memory_a, memory_b, similarity = components
+                author = int(author.split()[1])
+                memory_a = memory_a.split("Memory A:", 1)[1].strip()
+                memory_b = memory_b.split("Memory B:", 1)[1].strip()
+                # similarity = similarity.split("How A and B are similar/dissimilar:", 1)[1].strip()
+                # save both memory A and memory B (2 rows w/ same author ID)
+                data.append({"author": author, "text": memory_a})
+                data.append({"author": author, "text": memory_b})
+    df = pd.DataFrame.from_records(data, index="author")
+    return df
+
+
+def fetch_cmu_books() -> pd.DataFrame:
+    """
+    Fetch the CMU Book Summary Dataset.
+
+    https://www.cs.cmu.edu/~dbamman/booksummaries.html
+    http://arxiv.org/abs/1305.1319
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of the ``booksummaries.txt`` file.
+    """
+    processor = pooch.Untar(members=["booksummaries/booksummaries.txt"])
+    fnames = _pup.fetch("booksummaries.tar.gz", processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    fpath = fpaths["booksummaries.txt"]
+    column_names = [
+        "WikipediaID",
+        "FreebaseID",
+        "BookTitle",
+        "BookAuthor",
+        "PublicationDate",
+        "Genres",
+        "Summary",
+    ]
+    df = pd.read_csv(fpath, sep="\t", names=column_names, index_col="WikipediaID").sort_index()
+    return df
+
+
+def fetch_cmu_movies() -> pd.DataFrame:
+    """
+    Fetch the CMU Movie Summaries Dataset.
+
+    http://www.cs.cmu.edu/~ark/personas
+    http://www.cs.cmu.edu/~dbamman/pubs/pdf/bamman+oconnor+smith.acl13.pdf
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of the ``plot_summaries.txt`` file.
+    """
+    fnames = _pup.fetch("MovieSummaries.tar.gz", processor=pooch.Untar())
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    fpath = fpaths["plot_summaries.txt"]
+    column_names = ["WikipediaID", "Summary"]
+    df = pd.read_csv(fpath, sep="\t", names=column_names, index_col="WikipediaID").sort_index()
+    return df
+
+
 def fetch_hippocorpus() -> pd.DataFrame:
     """
     Fetch the Hippocorpus dataset of imagined, recalled, and retold stories.
@@ -74,11 +171,6 @@ def fetch_hippocorpus() -> pd.DataFrame:
     .. [1] TBD
     .. [2] `https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip
            <https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip>`__
-
-    Examples
-    --------
-    >>> from liwca.datasets import corpora
-    >>> path = corpora.fetch_hippocorpus()  # doctest: +SKIP
     """
     processor = pooch.Unzip(
         members=[
@@ -119,11 +211,6 @@ def fetch_liwc_demo_data() -> Path:
     ----------
     .. [1] `https://www.liwc.app/static/files/liwc-22-demo-data.zip
            <https://www.liwc.app/static/files/liwc-22-demo-data.zip>`__
-
-    Examples
-    --------
-    >>> from liwca.datasets import corpora
-    >>> path = corpora.fetch_liwc_demo_data()  # doctest: +SKIP
     """
     fnames = _pup.fetch("liwc-22-demo-data.zip", processor=pooch.Unzip())
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
@@ -133,6 +220,117 @@ def fetch_liwc_demo_data() -> Path:
             data[v.stem] = v.read_text()
     ser = pd.Series(data, name="text").rename_axis("text_id")
     df = ser.to_frame()
+    return df
+
+
+def fetch_rwritingprompts() -> pd.DataFrame:
+    """
+    Fetch the r/WritingPrompts corpus.
+
+    https://github.com/tdude92/reddit-short-stories
+    https://www.kaggle.com/trevordu/reddit-short-stories
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of the ``reddit-short-stories.txt`` file.
+    """
+    fname = _pup.fetch("reddit-short-stories.txt")
+    fpath = Path(fname)
+    data = []
+    txt = fpath.read_text(encoding="utf-8")
+    # data = [ s.strip() for s in f.read().split("<sos>") ]
+    for line in txt.splitlines():
+        # Remove some custom codes.
+        txt = (
+            line.replace(
+                "<nl> ",
+                "",  # new-line symbols in the stories
+            )
+            .replace(
+                "<sos> ",
+                "",  # start-of-story
+            )
+            .replace(
+                " <eos>",
+                "",  # end-of-story
+            )
+        )
+        data.append(txt)
+    ser = pd.Series(data, name="text").rename_axis("text_id")
+    df = ser.to_frame()
+    return df
+
+
+def fetch_sherlock() -> pd.DataFrame:
+    """
+    Fetch the Sherlock Topic Model Paper corpus.
+
+    See `GitHub repository <https://github.com/ContextLab/sherlock-topic-model-paper>`__.
+
+    Citation:
+    Geometric models reveal behavioural and neural signatures
+    of transforming naturalistic experiences into episodic memories.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of all ``NN* transcript.txt`` files.
+    """
+    member_fnames = [f"NN{i + 1} transcript.txt" for i in range(17)]
+    member_fnames.append("Sherlock_Segments_1000_NN_2017.xlsx")
+    members = [f"sherlock-topic-model-paper-1.0/data/raw/{fn}" for fn in member_fnames]
+    processor = pooch.Unzip(members=members)
+    fnames = _pup.fetch("sherlock-topic-model-paper-1.0.zip", processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    data = {}
+    for k, v in fpaths.items():
+        if k != "Sherlock_Segments_1000_NN_2017.xlsx":
+            author_int = int(k.split()[0][2:])
+            author = f"NN{author_int:02d}"
+            text = v.read_text(encoding="windows-1252").strip()
+            data[author] = text
+    ser = pd.Series(data, name="text").rename_axis("text_id").sort_index()
+    df = ser.to_frame()
+    return df
+
+
+def fetch_tedtalks(language: str = "en") -> pd.DataFrame:
+    """
+    Fetch the Ultimate TED Talks corpus.
+
+    https://www.kaggle.com/datasets/miguelcorraljr/ted-ultimate-dataset
+
+    Parameters
+    ----------
+    language : :class:`~str`
+        The language of the TED talk transcripts to fetch.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        :class:`~pandas.DataFrame` of the TED talk transcripts of the chosen language.
+    """
+    languages = {
+        "en",
+        "es",
+        "fr",
+        "he",
+        "it",
+        "ja",
+        "ko",
+        "pt-br",
+        "ru",
+        "tr",
+        "zh-cn",
+        "zh-tw",
+    }
+    members = [f"2020-05-01/ted_talks_{x}.csv" for x in languages]
+    processor = pooch.Unzip(members=members)
+    fnames = _pup.fetch("ted-ultimate-dataset.zip", processor=processor)
+    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
+    fpath = fpaths[f"ted_talks_{language}.csv"]
+    df = pd.read_csv(fpath)
     return df
 
 

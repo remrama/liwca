@@ -65,11 +65,6 @@ def fetch_liwc22norms() -> pd.DataFrame:
     References
     ----------
     .. [1] TBD
-
-    Examples
-    --------
-    >>> from liwca.datasets import tables
-    >>> path = tables.fetch_liwc22norms()  # doctest: +SKIP
     """
     fname = _pup.fetch("LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx")
     df = (
@@ -101,11 +96,6 @@ def fetch_liwc2015norms() -> pd.DataFrame:
     References
     ----------
     .. [1] TBD
-
-    Examples
-    --------
-    >>> from liwca.datasets import tables
-    >>> path = tables.fetch_liwc2015norms()  # doctest: +SKIP
     """
     fname = _pup.fetch("LIWC2015.Descriptive.Statistics.Full.xlsx")
     df = (

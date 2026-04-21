@@ -85,6 +85,7 @@ results = pd.read_csv(out_path, index_col=0)
 
 ## Similar Projects
 
+- [pyliwc](https://github.com/camille1/pyliwc)
 - [liwc-python](https://github.com/chbrown/liwc-python)
 - [lingmatch](https://github.com/miserman/lingmatch)
 - [sentibank](https://github.com/socius-org/sentibank)

@@ -27,9 +27,11 @@ __all__ = [
     "fetch_bigtwo",
     "fetch_emfd",
     "fetch_honor",
+    "fetch_leeq",
     "fetch_mystical",
     "fetch_sleep",
     "fetch_threat",
+    "fetch_wrad",
 ]
 
 logger = logging.getLogger(__name__)
@@ -141,6 +143,24 @@ def fetch_honor() -> pd.DataFrame:
     >>> dx = dictionaries.fetch_honor()  # doctest: +SKIP
     """
     return read_dx(_pup.fetch("honor.dic"))
+
+
+def fetch_leeq() -> pd.DataFrame:
+    """
+    Fetch the Lexicon for Evaluation of Education Quality (LEEQ).
+
+    https://lit.eecs.umich.edu/downloads.html#Lexicon%20for%20Evaluation%20of%20Education%20Quality%20(LEEQ)
+
+    See `GitHub repository <https://github.com/MichiganNLP/LEEQLexicon>`__ for more info.
+    """
+    fname = _pup.fetch("lexicon.tsv")
+    fpath = Path(fname)
+    ser = pd.read_csv(fpath, sep="\t", index_col="word").squeeze(axis=1)
+    df = pd.get_dummies(ser, dtype="int8")
+    # df = pd.crosstab(df["DicTerm"], df["Category"]).clip(upper=1)
+    df = df.sort_index(axis=0).sort_index(axis=1)
+    df = df.rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
+    return dx_schema.validate(df)
 
 
 def fetch_mystical() -> pd.DataFrame:
@@ -284,6 +304,25 @@ def fetch_empath() -> pd.DataFrame:
     categories = {x[0]: x[1:] for x in data}
     dx = create_dx(categories)
     return dx
+
+
+def fetch_wrad() -> pd.DataFrame:
+    """
+    Fetch the Weighted Referential Activity Dictionary (WRAD).
+
+    See the `WRAD GitHub repository <https://github.com/DAAP/WRAD>`__ for more info.
+
+    Citation:
+    Bucci, W. & Maskit, B. (2006).
+    A weighted dictionary for Referential Activity.
+    In J.G. Shanahan, Y. Qu, & J. Wiebe (Eds.)
+    Computing Attitude and Affect in Text;
+    Dordrecht, The Netherlands: Springer; pp. 49-60.
+    """
+    fname = _pup.fetch("WRAD.Wt", downloader=_authorized_zenodo_downloader())
+    fpath = Path(fname)
+    df = pd.read_csv(fpath, sep=" ", skiprows=11, names=["DicTerm", "ReferentialActivity"])
+    return dx_schema.validate(df)
 
 
 def _fetch_liwc2015() -> pd.DataFrame:
