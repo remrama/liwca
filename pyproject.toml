@@ -40,6 +40,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/remrama/liwca"
+Documentation = "https://remrama.github.io/liwca"
 
 [project.optional-dependencies]
 ddr = ["gensim>=4.0"]
@@ -64,7 +65,7 @@ namespaces = false
 where = ["src"]
 
 [tool.setuptools.package-data]
-liwca = ["datasets/*/registry.txt"]
+liwca = ["datasets/data/registry.txt"]
 
 [tool.mypy]
 files = ["src/"]

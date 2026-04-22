@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 _root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
 _pup = pooch.create(path=_root / "tables", base_url="")
-with open(str(_files("liwca.datasets.tables").joinpath("registry.txt"))) as _f:
+with open(str(_files("liwca.datasets.data").joinpath("registry.txt"))) as _f:
     _pup.load_registry(_f)
 
 

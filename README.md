@@ -15,7 +15,7 @@
     </picture>
 </p>
 
-**_liwca_** (Linguistic Inquiry Word Count Assistant) offers helper functions for working with LIWC dictionaries. Useful when you want end-to-end pipelines or notebook workflows that don't require the LIWC-22 app to be open, or when you just need reusable `.dic[x]` file I/O without writing it from scratch every project.
+**_liwca_** (Linguistic Inquiry Word Count Assistant) offers helper functions for working with LIWC dictionaries. Useful when you want end-to-end pipelines or notebook workflows that don't require the LIWC-22 app to be open, or when you just need reusable `.dic[x]` file I/O without writing it from scratch every project. See the [online docs](https://remrama.github.io/liwca).
 
 Features:
 

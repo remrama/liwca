@@ -21,7 +21,7 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
-from ...io import create_dx, dx_schema, read_dx
+from ..io import create_dx, dx_schema, read_dx
 
 __all__ = [
     "fetch_bigtwo",
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 # single flat directory.
 _root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
 _pup = pooch.create(path=_root / "dictionaries", base_url="")
-with open(str(_files("liwca.datasets.dictionaries").joinpath("registry.txt"))) as _f:
+with open(str(_files("liwca.datasets.data").joinpath("registry.txt"))) as _f:
     _pup.load_registry(_f)
 
 
@@ -289,7 +289,7 @@ def fetch_threat() -> pd.DataFrame:
 
 def fetch_empath() -> pd.DataFrame:
     """
-    Fetch the pre-build Empath dictionary.
+    Fetch the pre-built Empath dictionary.
 
     See the `Empath GitHub repository <https://github.com/Ejhfast/empath-client>`__
     for more details and the direct download file.
@@ -297,7 +297,7 @@ def fetch_empath() -> pd.DataFrame:
     `Direct download link
     <https://raw.githubusercontent.com/Ejhfast/empath-client/refs/heads/master/empath/data/categories.tsv>`__.
     """
-    fname = _pup.fetch("categories.tsv")
+    fname = _pup.fetch("empath.tsv")
     fpath = Path(fname)
     with open(fpath, "r") as f:
         data = [x.strip().split("\t") for x in f.readlines()]
@@ -319,7 +319,7 @@ def fetch_wrad() -> pd.DataFrame:
     Computing Attitude and Affect in Text;
     Dordrecht, The Netherlands: Springer; pp. 49-60.
     """
-    fname = _pup.fetch("WRAD.Wt", downloader=_authorized_zenodo_downloader())
+    fname = _pup.fetch("WRAD.Wt")
     fpath = Path(fname)
     df = pd.read_csv(fpath, sep=" ", skiprows=11, names=["DicTerm", "ReferentialActivity"])
     return dx_schema.validate(df)
