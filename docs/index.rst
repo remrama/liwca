@@ -32,4 +32,3 @@ Features
 
    guide
    api
-   contributing
