@@ -77,7 +77,7 @@ def fetch_autobiomemsim() -> pd.DataFrame:
     ]
     members = [f"AutobioMemorySimilarity-main/{fn}" for fn in member_fnames]
     processor = pooch.Unzip(members=members)
-    fnames = _pup.fetch("AutobioMemorySimilarity-main.zip", processor=processor)
+    fnames = _pup.fetch("autobiomemsem.zip", processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     data = []
     for i in range(2):
@@ -183,7 +183,7 @@ def fetch_hippocorpus() -> pd.DataFrame:
             "V3README.txt",
         ]
     )
-    fnames = _pup.fetch("hippocorpus-u20220112.zip", processor=processor)
+    fnames = _pup.fetch("hippocorpus.zip", processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths["hcV3-stories.csv"]
     df = pd.read_csv(fpath)
@@ -212,7 +212,7 @@ def fetch_liwc_demo_data() -> Path:
     .. [1] `https://www.liwc.app/static/files/liwc-22-demo-data.zip
            <https://www.liwc.app/static/files/liwc-22-demo-data.zip>`__
     """
-    fnames = _pup.fetch("liwc-22-demo-data.zip", processor=pooch.Unzip())
+    fnames = _pup.fetch("liwc22-demo-data.zip", processor=pooch.Unzip())
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     data = {}
     for k, v in fpaths.items():
@@ -281,7 +281,7 @@ def fetch_sherlock() -> pd.DataFrame:
     member_fnames.append("Sherlock_Segments_1000_NN_2017.xlsx")
     members = [f"sherlock-topic-model-paper-1.0/data/raw/{fn}" for fn in member_fnames]
     processor = pooch.Unzip(members=members)
-    fnames = _pup.fetch("sherlock-topic-model-paper-1.0.zip", processor=processor)
+    fnames = _pup.fetch("sherlock.zip", processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     data = {}
     for k, v in fpaths.items():
@@ -327,7 +327,7 @@ def fetch_tedtalks(language: str = "en") -> pd.DataFrame:
     }
     members = [f"2020-05-01/ted_talks_{x}.csv" for x in languages]
     processor = pooch.Unzip(members=members)
-    fnames = _pup.fetch("ted-ultimate-dataset.zip", processor=processor)
+    fnames = _pup.fetch("tedtalks.zip", processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths[f"ted_talks_{language}.csv"]
     df = pd.read_csv(fpath)

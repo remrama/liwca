@@ -153,7 +153,7 @@ def fetch_leeq() -> pd.DataFrame:
 
     See `GitHub repository <https://github.com/MichiganNLP/LEEQLexicon>`__ for more info.
     """
-    fname = _pup.fetch("lexicon.tsv")
+    fname = _pup.fetch("leeq.tsv")
     fpath = Path(fname)
     ser = pd.read_csv(fpath, sep="\t", index_col="word").squeeze(axis=1)
     df = pd.get_dummies(ser, dtype="int8")
@@ -319,7 +319,7 @@ def fetch_wrad() -> pd.DataFrame:
     Computing Attitude and Affect in Text;
     Dordrecht, The Netherlands: Springer; pp. 49-60.
     """
-    fname = _pup.fetch("WRAD.Wt")
+    fname = _pup.fetch("wrad.Wt")
     fpath = Path(fname)
     df = pd.read_csv(fpath, sep=" ", skiprows=11, names=["DicTerm", "ReferentialActivity"])
     return dx_schema.validate(df)

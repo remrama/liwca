@@ -22,8 +22,8 @@ import pandas as pd
 import pooch
 
 __all__ = [
-    "fetch_liwc22norms",
     "fetch_liwc2015norms",
+    "fetch_liwc22norms",
     "fetch_psychnorms",
     "fetch_scope",
 ]
@@ -43,36 +43,6 @@ with open(str(_files("liwca.datasets.data").joinpath("registry.txt"))) as _f:
 # ---------------------------------------------------------------------------
 # Fetch functions
 # ---------------------------------------------------------------------------
-
-
-def fetch_liwc22norms() -> pd.DataFrame:
-    """
-    Fetch the LIWC-22 descriptive statistics ("Test Kitchen" norms) table.
-
-    Reference means and standard deviations for every LIWC-22 category
-    across the corpora in the "Test Kitchen" reference set.
-
-    Returns
-    -------
-    :class:`pandas.DataFrame`
-        Local path to the downloaded
-        ``LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx`` file.
-
-    Notes
-    -----
-    Distributed on the LIWC website\\ [1]_.
-
-    References
-    ----------
-    .. [1] TBD
-    """
-    fname = _pup.fetch("LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx")
-    df = (
-        pd.read_excel(fname, header=[0, 1], index_col=0)
-        .rename_axis("Category", axis="index")
-        .rename_axis(["Source", "Statistic"], axis="columns")
-    )
-    return df
 
 
 def fetch_liwc2015norms() -> pd.DataFrame:
@@ -97,7 +67,37 @@ def fetch_liwc2015norms() -> pd.DataFrame:
     ----------
     .. [1] TBD
     """
-    fname = _pup.fetch("LIWC2015.Descriptive.Statistics.Full.xlsx")
+    fname = _pup.fetch("LIWC2015-norms.xlsx")
+    df = (
+        pd.read_excel(fname, header=[0, 1], index_col=0)
+        .rename_axis("Category", axis="index")
+        .rename_axis(["Source", "Statistic"], axis="columns")
+    )
+    return df
+
+
+def fetch_liwc22norms() -> pd.DataFrame:
+    """
+    Fetch the LIWC-22 descriptive statistics ("Test Kitchen" norms) table.
+
+    Reference means and standard deviations for every LIWC-22 category
+    across the corpora in the "Test Kitchen" reference set.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Local path to the downloaded
+        ``LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx`` file.
+
+    Notes
+    -----
+    Distributed on the LIWC website\\ [1]_.
+
+    References
+    ----------
+    .. [1] TBD
+    """
+    fname = _pup.fetch("LIWC22-norms.xlsx")
     df = (
         pd.read_excel(fname, header=[0, 1], index_col=0)
         .rename_axis("Category", axis="index")
@@ -151,7 +151,7 @@ def fetch_scope() -> pd.DataFrame:
     #     df = pd.read_csv(fpaths["scope.csv"])
     #     return df
     # return fpaths
-    fname = _pup.fetch("data_with_metadata.xlsx")
+    fname = _pup.fetch("scope.xlsx")
     fpath = Path(fname)
     # df = pd.read_excel(fpath,
     #     sheet_name="metadata",
