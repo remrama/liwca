@@ -31,4 +31,5 @@ Features
 
    guide/index
    api/index
+   examples/index
    changelog
