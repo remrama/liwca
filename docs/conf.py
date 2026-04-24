@@ -56,7 +56,7 @@ html_theme_options = {
     # "max_navbar_depth": 3,
     # "collapse_navbar": True,
     # "show_nav_level": 1,
-    # "show_toc_level": 1,
+    "show_toc_level": 2,
     # "navigation_depth": 3,
     "toc_title": "On this page",
     # "navbar_persistent": ["search-button"],
@@ -78,6 +78,10 @@ html_theme_options = {
     },
 }
 
+# Sphinx project configuration
+templates_path = ["_templates"]
+source_suffix = ".rst"
+source_encoding = "utf-8"
 add_function_parentheses = False
 
 # -- Extension configuration -------------------------------------------------

@@ -21,10 +21,10 @@ Features
 --------
 
 - :ref:`api-io` - Read, write, and merge ``.dic`` and ``.dicx`` dictionary files
-- :ref:`api-counting` - Pure-Python LIWC-style word counting, no LIWC-22 required
-- :ref:`api-ddr` - Semantic scoring via word embeddings (DDR)
-- :ref:`api-datasets` - Download and cache public LIWC-format dictionaries on demand
-- :ref:`api-liwc22` - Python wrapper for the LIWC-22 command-line tool
+- :ref:`api-liwc22` - Python wrapper for the ``LIWC-22-cli`` command-line tool
+- :ref:`api-counting` - Pure-Python LIWC-style word counting, no LIWC-22 installation required
+- :ref:`api-ddr` - Semantic scoring via word embeddings (Distributed Dictionary Representation)
+- :ref:`api-datasets` - Download and cache public text corpora, dictionaries, and other relevant resources on demand
 
 .. toctree::
    :hidden:
