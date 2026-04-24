@@ -1,5 +1,7 @@
-Getting Started
-===============
+.. _guide:
+
+Guide
+=====
 
 Installation
 ------------
@@ -7,14 +9,6 @@ Installation
 .. code-block:: bash
 
    pip install --upgrade liwca
-
-For development:
-
-.. code-block:: bash
-
-   git clone https://github.com/remrama/liwca.git
-   cd liwca
-   uv pip install -e ".[dev]"
 
 
 Fetching dictionaries
@@ -47,7 +41,7 @@ Counting words
 --------------
 
 :func:`~liwca.count` takes texts and a dictionary DataFrame, and returns a
-documents × categories table:
+documents x categories table:
 
 .. code-block:: python
 
@@ -58,12 +52,12 @@ Values are percentages of total words per document by default. See
 :func:`~liwca.count` for options including raw counts and custom tokenizers.
 
 
-DDR (semantic scoring)
-----------------------
+Distributed Dictionary Representation
+-------------------------------------
 
-:func:`~liwca.ddr` scores texts against dictionary categories using cosine
-similarity in embedding space, following the Distributed Dictionary
-Representation method (Garten et al., 2018).  This captures semantic proximity
+:func:`~liwca.ddr` performs semantic scoring of texts against dictionary categories
+using cosine similarity in embedding space, following the Distributed Dictionary
+Representation (DDR) method (Garten et al., 2018). This captures semantic proximity
 even when exact dictionary words are absent from the text.
 
 Pass a gensim model name to automatically download embeddings (requires
@@ -107,7 +101,7 @@ its license server) must be running when you call the CLI:
    liwc = liwca.Liwc22(encoding="utf-8", precision=4)
    df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
    out_path = liwc.wc(
-       input=df,                    # DataFrame or path
+       input=df,  # DataFrame or path
        output="results.csv",
        row_id_indices=["doc_id"],
    )
@@ -146,7 +140,7 @@ names (``str``, resolved against the input's header row):
    liwc.lsm(
        input="chat.csv",
        output="lsm.csv",
-       text_column="text",       # by name
+       text_column="text",
        person_column="speaker",
        calculate_lsm=3,
        output_type=1,

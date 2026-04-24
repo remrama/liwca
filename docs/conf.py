@@ -44,17 +44,18 @@ html_css_files = ["css/custom.css"]
 
 html_theme_options = {
     "github_url": "https://github.com/remrama/liwca",
-    "show_nav_level": 2,
-    "show_toc_level": 2,
+    "show_nav_level": 1,
+    "show_toc_level": 1,
+    "navigation_depth": 3,
     "navbar_persistent": ["search-button"],
     "footer_end": [],
     "search_bar_text": "Search",
     "article_header_start": [],
     "primary_sidebar_end": [],
-    "secondary_sidebar_items": {
-        "**": ["page-toc"],
-        "index": [],
-    },
+    # "secondary_sidebar_items": {
+    #     "**": ["page-toc"],
+    #     "index": [],
+    # },
     "pygments_light_style": "github-light-colorblind",
     "pygments_dark_style": "github-dark-colorblind",
     "logo": {
@@ -65,7 +66,7 @@ html_theme_options = {
 }
 
 html_sidebars = {
-    "**": [],
+    "changelog": [],
 }
 
 add_function_parentheses = False

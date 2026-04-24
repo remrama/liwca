@@ -20,15 +20,15 @@ that don't require the LIWC-22 app to be open, or when you just need reusable
 Features
 --------
 
-- :ref:`api-io` - Read, write, and merge ``.dic`` and ``.dicx`` dictionary files
-- :ref:`api-count` - Pure-Python LIWC-style word counting, no LIWC-22 required
-- :ref:`api-ddr` - Semantic scoring via word embeddings (DDR)
-- :ref:`api-datasets` - Download and cache public LIWC-format dictionaries on demand
-- :ref:`api-liwc22` - Python wrapper for the LIWC-22 command-line tool
-
+.. - :ref:`api-io` - Read, write, and merge ``.dic`` and ``.dicx`` dictionary files
+.. - :ref:`api-count` - Pure-Python LIWC-style word counting, no LIWC-22 required
+.. - :ref:`api-ddr` - Semantic scoring via word embeddings (DDR)
+.. - :ref:`api-datasets` - Download and cache public LIWC-format dictionaries on demand
+.. - :ref:`api-liwc22` - Python wrapper for the LIWC-22 command-line tool
 
 .. toctree::
    :hidden:
 
    guide
-   api
+   api/index
+   changelog

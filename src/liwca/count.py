@@ -212,7 +212,7 @@ def count(
         never rounded.
     return_words : :class:`bool`, optional
         If ``True``, return a tuple ``(categories, words)`` where *words* is
-        a *documents × tokens* DataFrame holding per-word counts (or
+        a *documents x tokens* DataFrame holding per-word counts (or
         percentages) for every dictionary token that appeared in the corpus.
         Wildcard entries are expanded to the actual corpus tokens that
         matched (e.g., ``recall*`` → ``recalled``, ``recalling``, …).
@@ -222,7 +222,7 @@ def count(
     Returns
     -------
     :class:`~pandas.DataFrame` or tuple of :class:`~pandas.DataFrame`
-        When ``return_words=False`` (default): a *documents × categories*
+        When ``return_words=False`` (default): a *documents x categories*
         DataFrame.  Index matches the input order (or the
         :class:`~pandas.Series` index if a Series was passed).  Columns are
         the dictionary category names.  An additional ``"WC"`` column
@@ -230,7 +230,7 @@ def count(
 
         When ``return_words=True``: a tuple ``(categories, words)`` where
         *categories* is the DataFrame described above and *words* is a
-        *documents × tokens* DataFrame with one column per matched
+        *documents x tokens* DataFrame with one column per matched
         dictionary token plus a ``"WC"`` column.
 
     Examples
