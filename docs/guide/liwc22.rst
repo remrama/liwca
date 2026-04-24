@@ -1,94 +1,10 @@
-.. _guide:
+.. _guide-liwc22:
 
-Guide
-=====
+LIWC-22-cli wrapper
+===================
 
-Installation
-------------
-
-.. code-block:: bash
-
-   pip install --upgrade liwca
-
-
-Fetching dictionaries
----------------------
-
-Each registered dictionary has a dedicated ``fetch_*`` function that downloads
-the file on first use and returns it as a :class:`~pandas.DataFrame`:
-
-.. code-block:: python
-
-   from liwca.datasets import dictionaries
-
-   dx = dictionaries.fetch_threat()
-
-See :ref:`api-dictionaries` for all available dictionaries and their options.
-
-Downloaded files are cached locally via
-`Pooch <https://www.fatiando.org/pooch/latest/>`_. By default, each dataset
-category caches into its own subfolder under your OS data directory
-(e.g. ``.../liwca/dictionaries/``). You can override the cache root by
-setting the ``LIWCA_DATA_DIR`` environment variable before importing
-liwca - dictionaries are then cached in ``$LIWCA_DATA_DIR/dictionaries/``:
-
-.. code-block:: bash
-
-   export LIWCA_DATA_DIR=/path/to/my/cache
-
-
-Counting words
---------------
-
-:func:`~liwca.count` takes texts and a dictionary DataFrame, and returns a
-documents x categories table:
-
-.. code-block:: python
-
-   texts = ["The threat of danger loomed over the city", "A calm morning"]
-   results = liwca.count(texts, dx)
-
-Values are percentages of total words per document by default. See
-:func:`~liwca.count` for options including raw counts and custom tokenizers.
-
-
-Distributed Dictionary Representation
--------------------------------------
-
-:func:`~liwca.ddr` performs semantic scoring of texts against dictionary categories
-using cosine similarity in embedding space, following the Distributed Dictionary
-Representation (DDR) method (Garten et al., 2018). This captures semantic proximity
-even when exact dictionary words are absent from the text.
-
-Pass a gensim model name to automatically download embeddings (requires
-``pip install liwca[ddr]``):
-
-.. code-block:: python
-
-   results = liwca.ddr(texts, dx, "glove-wiki-gigaword-100")
-
-Or bring your own embeddings as a dict-like mapping:
-
-.. code-block:: python
-
-   results = liwca.ddr(texts, dx, my_embeddings)
-
-Values are cosine similarities in [-1, 1].  See :func:`~liwca.ddr` for full
-parameter details.
-
-
-Reading and writing local files
---------------------------------
-
-.. code-block:: python
-
-   dx = liwca.read_dx("my_dictionary.dicx")   # auto-detects .dic or .dicx
-   liwca.write_dx(dx, "my_dictionary.dic")
-   merged = liwca.merge_dx(dx_a, dx_b)
-
-
-LIWC-22 wrapper
----------------
+Auto-open
+---------
 
 If LIWC-22 is installed, call it from Python through the
 :class:`~liwca.Liwc22` class. The LIWC-22 desktop application (or
@@ -107,6 +23,9 @@ its license server) must be running when you call the CLI:
    )
    results = pd.read_csv(out_path, index_col=0)
 
+Different modes
+---------------
+
 The ``input`` argument accepts either a filepath or a
 :class:`pandas.DataFrame` - DataFrames are written to a temp CSV, fed to
 ``liwc-22-cli``, and cleaned up afterwards. Each mode method returns the
@@ -124,6 +43,9 @@ mode methods - :meth:`~liwca.Liwc22.wc`,
 :meth:`~liwca.Liwc22.context`, :meth:`~liwca.Liwc22.arc`,
 :meth:`~liwca.Liwc22.ct`, :meth:`~liwca.Liwc22.lsm` - then
 takes only mode-specific kwargs.
+
+Arguments
+---------
 
 Arguments are Pythonic: booleans for yes/no flags, iterables of strings for
 comma-list args, and column references as either 0-based ``int`` or column

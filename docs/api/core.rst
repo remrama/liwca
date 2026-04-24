@@ -5,6 +5,8 @@ Core
 
 .. currentmodule:: liwca
 
+.. _api-io:
+
 Input/Output
 ------------
 
@@ -20,6 +22,8 @@ Reading, writing, and merging LIWC dictionaries.
    merge_dx
    drop_category
 
+.. _api-liwc22:
+
 LIWC-22 CLI
 -----------
 
@@ -30,6 +34,8 @@ modes are exposed as methods on :class:`Liwc22`.
    :members: wc, freq, mem, context, arc, ct, lsm, __enter__, __exit__
    :member-order: bysource
    :show-inheritance:
+
+.. _api-counting:
 
 Word Counting
 -------------
@@ -42,6 +48,8 @@ Pure-Python LIWC-style word counting.
 
    count
 
+.. _api-ddr:
+
 DDR Scoring
 -----------
 
@@ -52,6 +60,8 @@ Distributed Dictionary Representation — semantic scoring via word embeddings.
    :nosignatures:
 
    ddr
+
+.. _api-utility:
 
 Utility
 -------
