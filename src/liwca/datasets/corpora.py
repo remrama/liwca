@@ -14,12 +14,12 @@ Power users who want the raw local file path can call
 from __future__ import annotations
 
 import logging
-import os
-from importlib.resources import files as _files
 from pathlib import Path
 
 import pandas as pd
 import pooch
+
+from ._common import authorized_zenodo_downloader, make_pup
 
 __all__ = [
     "fetch_autobiomemsim",
@@ -34,22 +34,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Pooch download registry
-# ---------------------------------------------------------------------------
-
-_root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
-_pup = pooch.create(path=_root / "corpora", base_url="")
-with open(str(_files("liwca.datasets.data").joinpath("registry.txt"))) as _f:
-    _pup.load_registry(_f)
-
-
-def _authorized_zenodo_downloader(**kwargs) -> pooch.HTTPDownloader:
-    if (token := os.environ.get("ZENODO_TOKEN")) is None:
-        raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
-    authorization = f"Bearer {token}"
-    downloader = pooch.HTTPDownloader(headers={"Authorization": authorization}, **kwargs)
-    return downloader
+_pup = make_pup("corpora")
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +329,7 @@ def _fetch_testkitchen() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    downloader = _authorized_zenodo_downloader()
+    downloader = authorized_zenodo_downloader()
     processor = pooch.Unzip()
     fnames = _pup.fetch("testkitchen.zip", downloader=downloader, processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}

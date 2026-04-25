@@ -14,14 +14,13 @@ Power users who want the raw local file path can call
 from __future__ import annotations
 
 import logging
-import os
-from importlib.resources import files as _files
 from pathlib import Path
 
 import pandas as pd
 import pooch
 
 from ..io import create_dx, dx_schema, read_dx
+from ._common import authorized_zenodo_downloader, make_pup
 
 __all__ = [
     "fetch_bigtwo",
@@ -37,26 +36,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Pooch download registry
-# ---------------------------------------------------------------------------
-
-# Resolve LIWCA_DATA_DIR manually (instead of via pooch's env= kwarg) so each
-# dataset category gets its own subfolder even when the user overrides the
-# cache root - otherwise dictionaries, tables, and corpora would collide in a
-# single flat directory.
-_root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
-_pup = pooch.create(path=_root / "dictionaries", base_url="")
-with open(str(_files("liwca.datasets.data").joinpath("registry.txt"))) as _f:
-    _pup.load_registry(_f)
-
-
-def _authorized_zenodo_downloader(**kwargs) -> pooch.HTTPDownloader:
-    if (token := os.environ.get("ZENODO_TOKEN")) is None:
-        raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
-    authorization = f"Bearer {token}"
-    downloader = pooch.HTTPDownloader(headers={"Authorization": authorization}, **kwargs)
-    return downloader
+_pup = make_pup("dictionaries")
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +315,7 @@ def _fetch_liwc2015() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    fname = _pup.fetch("LIWC2015.xlsx", downloader=_authorized_zenodo_downloader())
+    fname = _pup.fetch("LIWC2015.xlsx", downloader=authorized_zenodo_downloader())
     fpath = Path(fname)
     df = pd.read_excel(fpath, skiprows=[0, 1, 2, 4]).rename_axis("Category", axis=1)
     df.columns = df.columns.str.split("\n").str[1]
@@ -353,7 +333,7 @@ def _fetch_liwc22() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    fname = _pup.fetch("LIWC22.xlsx", downloader=_authorized_zenodo_downloader())
+    fname = _pup.fetch("LIWC22.xlsx", downloader=authorized_zenodo_downloader())
     fpath = Path(fname)
     df = pd.read_excel(fpath, skiprows=2).rename_axis("Category", axis=1)
     df.columns = pd.Series(df.columns).replace(r"^Unnamed: \d+$", pd.NA, regex=True).ffill()
@@ -373,7 +353,7 @@ def _fetch_translated(fstem: str) -> pd.DataFrame:
 
     .. note:: These dictionaries require login for access.
     """
-    downloader = _authorized_zenodo_downloader()
+    downloader = authorized_zenodo_downloader()
     processor = pooch.Unzip()
     fname = f"{fstem}.dicx"
     fnames = _pup.fetch("translations.zip", downloader=downloader, processor=processor)
@@ -392,7 +372,7 @@ def _fetch_usermade(fstem: str) -> pd.DataFrame:
 
     .. note:: These dictionaries require login for access.
     """
-    downloader = _authorized_zenodo_downloader()
+    downloader = authorized_zenodo_downloader()
     processor = pooch.Unzip()
     fname = f"{fstem}.dicx"
     fnames = _pup.fetch("user-made.zip", downloader=downloader, processor=processor)

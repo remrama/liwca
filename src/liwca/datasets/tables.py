@@ -14,12 +14,12 @@ Power users who want the raw local file path can call
 from __future__ import annotations
 
 import logging
-import os
-from importlib.resources import files as _files
 from pathlib import Path
 
 import pandas as pd
 import pooch
+
+from ._common import make_pup
 
 __all__ = [
     "fetch_liwc2015norms",
@@ -30,14 +30,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Pooch download registry
-# ---------------------------------------------------------------------------
-
-_root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
-_pup = pooch.create(path=_root / "tables", base_url="")
-with open(str(_files("liwca.datasets.data").joinpath("registry.txt"))) as _f:
-    _pup.load_registry(_f)
+_pup = make_pup("tables")
 
 
 # ---------------------------------------------------------------------------
