@@ -115,6 +115,28 @@ def fetch_emfd() -> pd.DataFrame:
     return read_dx(_pup.fetch("mfd2.0.dic"))
 
 
+def fetch_empath() -> pd.DataFrame:
+    """
+    Fetch the pre-built Empath dictionary.
+
+    See the `Empath GitHub repository <https://github.com/Ejhfast/empath-client>`__
+    for more details and the direct download file.
+
+    `Direct download link
+    <https://raw.githubusercontent.com/Ejhfast/empath-client/refs/heads/master/empath/data/categories.tsv>`__.
+    """
+    fname = _pup.fetch("empath.tsv")
+    fpath = Path(fname)
+    with open(fpath, "r") as f:
+        # It's all tab-separated except one typo: "follows \tstatus"
+        data = [x.strip().split("\t") for x in f.readlines()]
+    categories = {x[0]: x[1:] for x in data}
+    # Remove empty term
+    categories = {cat: [term for term in terms if term] for cat, terms in categories.items()}
+    dx = create_dx(categories)
+    return dx
+
+
 def fetch_honor() -> pd.DataFrame:
     """
     Fetch the honor dictionary.
@@ -157,8 +179,8 @@ def fetch_leeq() -> pd.DataFrame:
     fname = _pup.fetch("leeq.tsv")
     fpath = Path(fname)
     ser = pd.read_csv(fpath, sep="\t", index_col="word").squeeze(axis=1)
-    df = pd.get_dummies(ser, dtype="int8")
-    # df = pd.crosstab(df["DicTerm"], df["Category"]).clip(upper=1)
+    df = pd.crosstab(ser.index, ser)
+    df = df.astype("int8")
     df = df.sort_index(axis=0).sort_index(axis=1)
     df = df.rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
     return dx_schema.validate(df)
@@ -286,25 +308,6 @@ def fetch_threat() -> pd.DataFrame:
     df = pd.Series(1, name="threat", index=words).to_frame()
     logger.debug("Read threat dictionary: %d terms from %s", len(df), path)
     return dx_schema.validate(df)
-
-
-def fetch_empath() -> pd.DataFrame:
-    """
-    Fetch the pre-built Empath dictionary.
-
-    See the `Empath GitHub repository <https://github.com/Ejhfast/empath-client>`__
-    for more details and the direct download file.
-
-    `Direct download link
-    <https://raw.githubusercontent.com/Ejhfast/empath-client/refs/heads/master/empath/data/categories.tsv>`__.
-    """
-    fname = _pup.fetch("empath.tsv")
-    fpath = Path(fname)
-    with open(fpath, "r") as f:
-        data = [x.strip().split("\t") for x in f.readlines()]
-    categories = {x[0]: x[1:] for x in data}
-    dx = create_dx(categories)
-    return dx
 
 
 def fetch_wrad() -> pd.DataFrame:

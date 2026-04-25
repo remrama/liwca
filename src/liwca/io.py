@@ -149,6 +149,7 @@ def create_dx(categories: dict[str, list[str]]) -> pd.DataFrame:
     ... )
     """
     all_terms = sorted({term for terms in categories.values() for term in terms})
+    assert all(len(x) > 0 for x in all_terms)
     df = pd.DataFrame(0, index=pd.Index(all_terms, dtype="string"), columns=list(categories))
     for cat, terms in categories.items():
         df.loc[terms, cat] = 1
