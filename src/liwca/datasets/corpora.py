@@ -60,9 +60,12 @@ def fetch_autobiomemsim() -> pd.DataFrame:
     """
     Fetch Autobiographical Memory Similarity corpus.
 
-    See the `GitHub repository <https://github.com/HLab/AutobioMemorySimilarity>`__ for more info.
+    Data for:
+    Tomita et al., 2021, *bioRxiv*,
+    The similarity structure of real-world memories.
+    doi:`10.1101/2021.01.28.428278 <https://doi.org/10.1101/2021.01.28.428278>`__
 
-    Citation: doi:`10.1101/2021.01.28.428278 <https://doi.org/10.1101/2021.01.28.428278>`__
+    See the `GitHub repository <https://github.com/HLab/AutobioMemorySimilarity>`__ for more info.
 
     Returns
     -------

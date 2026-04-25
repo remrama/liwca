@@ -14,11 +14,29 @@ from liwca.datasets import dictionaries
 
 _FETCH_FUNCTIONS = [
     dictionaries.fetch_bigtwo,
+    dictionaries.fetch_emfd,
     dictionaries.fetch_honor,
+    dictionaries.fetch_leeq,
     dictionaries.fetch_mystical,
     dictionaries.fetch_sleep,
     dictionaries.fetch_threat,
+    dictionaries.fetch_wrad,
 ]
+
+# Filenames each public fetcher pulls from the shared Pooch registry.
+# Used by the registry-subset test below to catch typos like a fetch_*
+# function calling _pup.fetch("foo-bar.dic") when the registry key is
+# "foo_bar.dic".
+_EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
+    "fetch_bigtwo": {"bigtwo_a.dic", "bigtwo_b.dic"},
+    "fetch_emfd": {"mfd2.0.dic"},
+    "fetch_honor": {"honor.dic"},
+    "fetch_leeq": {"leeq.tsv"},
+    "fetch_mystical": {"mystical.xlsx"},
+    "fetch_sleep": {"sleep.tsv"},
+    "fetch_threat": {"threat.txt"},
+    "fetch_wrad": {"wrad.Wt"},
+}
 
 
 class TestFetchFunctions:
@@ -64,19 +82,21 @@ class TestFetchFunctions:
 
 
 class TestRegistryIntegrity:
-    """Tests validating registry.txt structure and _pup consistency."""
+    """Tests validating registry.txt structure and _pup consistency.
 
-    def test_all_filenames_registered(self) -> None:
-        """All expected filenames are in the Pooch registry."""
-        expected = {
-            "bigtwo_a.dic",
-            "bigtwo_b.dic",
-            "honor.dic",
-            "mystical.xlsx",
-            "sleep.tsv",
-            "threat.txt",
-        }
-        assert expected == set(dictionaries._pup.registry.keys())
+    Note: the `_pup` registries for `dictionaries`, `corpora`, and `tables`
+    all load the same shared `data/registry.txt`, so the whole-registry
+    checks (md5 prefix, no duplicates, urls present) cover all three
+    categories at once and don't need to be repeated in the sibling test
+    modules.
+    """
+
+    def test_dictionary_filenames_registered(self) -> None:
+        """Every filename a public dictionary fetcher requests is registered."""
+        expected = set().union(*_EXPECTED_REGISTRY_KEYS.values())
+        registry = set(dictionaries._pup.registry.keys())
+        missing = expected - registry
+        assert not missing, f"Dictionary filenames missing from registry: {sorted(missing)}"
 
     def test_all_hashes_are_md5(self) -> None:
         """All registered hashes use md5."""

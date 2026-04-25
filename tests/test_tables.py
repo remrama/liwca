@@ -1,0 +1,58 @@
+"""Tests for liwca.datasets.tables - fetch functions and registry integrity."""
+
+from __future__ import annotations
+
+from unittest.mock import patch
+
+import pytest
+
+from liwca.datasets import tables
+
+# ---------------------------------------------------------------------------
+# Fetch function API
+# ---------------------------------------------------------------------------
+
+_FETCH_FUNCTIONS = [
+    tables.fetch_liwc2015norms,
+    tables.fetch_liwc22norms,
+    tables.fetch_psychnorms,
+    tables.fetch_scope,
+]
+
+# Filenames each public fetcher pulls from the shared Pooch registry.
+_EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
+    "fetch_liwc2015norms": {"LIWC2015-norms.xlsx"},
+    "fetch_liwc22norms": {"LIWC22-norms.xlsx"},
+    "fetch_psychnorms": {"psychNorms.zip", "psychNorms_metadata.csv"},
+    "fetch_scope": {"scope.xlsx"},
+}
+
+
+class TestFetchFunctions:
+    """Basic API checks for all fetch functions (no network required)."""
+
+    @pytest.mark.parametrize("fetch_fn", _FETCH_FUNCTIONS)
+    def test_callable(self, fetch_fn) -> None:
+        assert callable(fetch_fn)
+
+    def test_download_failure_raises(self) -> None:
+        """Pooch errors propagate up from fetch functions."""
+        with patch.object(tables._pup, "fetch", side_effect=ConnectionError("no internet")):
+            with pytest.raises(ConnectionError):
+                tables.fetch_liwc22norms()
+
+
+# ---------------------------------------------------------------------------
+# Registry integrity
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryIntegrity:
+    """Tests validating that table fetchers reference real registry keys."""
+
+    def test_table_filenames_registered(self) -> None:
+        """Every filename a public table fetcher requests is registered."""
+        expected = set().union(*_EXPECTED_REGISTRY_KEYS.values())
+        registry = set(tables._pup.registry.keys())
+        missing = expected - registry
+        assert not missing, f"Table filenames missing from registry: {sorted(missing)}"
