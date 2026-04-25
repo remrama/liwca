@@ -502,19 +502,6 @@ class TestValidation:
                 exclude_categories=["joy"],
             )
 
-    def test_tsv_input_without_delimiter_warns(self) -> None:
-        """`.tsv` input with default csv_delimiter emits a UserWarning."""
-        with pytest.warns(UserWarning, match="TSV"):
-            Liwc22(dry_run=True).wc(input="x.tsv", output="y.csv")
-
-    def test_tsv_input_with_tab_delimiter_does_not_warn(self) -> None:
-        """Passing csv_delimiter='\\t' silences the TSV warning."""
-        import warnings as _warnings
-
-        with _warnings.catch_warnings():
-            _warnings.simplefilter("error")  # any warning becomes an error
-            Liwc22(csv_delimiter="\t", dry_run=True).wc(input="x.tsv", output="y.csv")
-
     def test_column_name_with_skip_header_false_raises(self, tmp_path: Path) -> None:
         """Column names require a header row - skip_header=False must error."""
         fixture = tmp_path / "chat.csv"
@@ -662,6 +649,7 @@ def stub_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         auto_open: bool,
         use_gui: bool,
         dry_run: bool,
+        app_managed: bool = False,
     ) -> None:
         captured["mode"] = mode
         captured["cli_args"] = dict(cli_args)
@@ -688,7 +676,7 @@ class TestDataFrameInput:
     ) -> None:
         df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["hello world", "foo bar"]})
         out = tmp_path / "out.csv"
-        Liwc22().wc(input=df, output=str(out))
+        Liwc22().wc(input=df, output=str(out), column_indices="text")
 
         # The cli_args that reached _run should have a filesystem path, not a DataFrame.
         input_passed = stub_run["cli_args"]["input"]
@@ -718,6 +706,196 @@ class TestDataFrameInput:
         df = pd.DataFrame({"text": []}).astype(str)
         with pytest.raises(ValueError, match="empty"):
             Liwc22(dry_run=True).wc(input=df, output=str(tmp_path / "o.csv"))
+
+    def test_dataframe_input_without_column_indices_raises(self) -> None:
+        df = pd.DataFrame({"doc_id": ["a"], "text": ["hi"]})
+        with pytest.raises(ValueError, match="column_indices"):
+            Liwc22(dry_run=True).wc(input=df, output="out.csv")
+
+    def test_series_input_autofills_column_indices(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        """Series input auto-wraps; column_indices fills with the Series name."""
+        s = pd.Series(["hello", "world"], name="msg")
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=s, output=str(out))
+        # Series had one column "msg" at position 0 (0-based) -> 1-based index 1.
+        assert stub_run["cli_args"]["column_indices"] == [1]
+
+    def test_series_input_unnamed_defaults_to_text(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        s = pd.Series(["hello", "world"])
+        out = tmp_path / "out.csv"
+        Liwc22().wc(input=s, output=str(out))
+        assert stub_run["cli_args"]["column_indices"] == [1]
+
+
+class TestPositionalAndPath:
+    """input/output accept positional args and Path values."""
+
+    def test_positional_input_output(self) -> None:
+        result = Liwc22(dry_run=True).wc("data.csv", "results.csv")
+        assert result == "results.csv"
+
+    def test_path_input_coerced_to_str(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).wc(Path("data.csv"), Path("out.csv"))
+        cli_args = captured["cli_args"]
+        assert isinstance(cli_args, dict)
+        assert cli_args["input"] == "data.csv"
+        assert cli_args["output"] == "out.csv"
+
+    def test_path_output_returned_as_str(self) -> None:
+        result = Liwc22(dry_run=True).wc("data.csv", Path("out.csv"))
+        assert result == "out.csv"
+        assert isinstance(result, str)
+
+
+class TestSingleStringColumnIndices:
+    """Bare-string column_indices (and other LIST_FLAGS) don't explode to chars."""
+
+    def test_single_string_column_indices(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        fixture = tmp_path / "chat.csv"
+        fixture.write_text("id,text\n1,hi\n", encoding="utf-8")
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).wc(str(fixture), "out.csv", column_indices="text")
+        # "text" is the 2nd column (1-based index 2).
+        assert captured["cli_args"]["column_indices"] == [2]
+
+    def test_single_string_include_categories(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        captured = _capture_cli_args(monkeypatch)
+        Liwc22(dry_run=True).wc("x", "y", include_categories="anger")
+        assert captured["cli_args"]["include_categories"] == ["anger"]
+
+
+class TestCsvQuoteWindowsWorkaround:
+    """On Windows, csv_quote='"' is dropped before emission (Java-launcher quirk)."""
+
+    def test_default_quote_dropped_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Windows")
+        captured: dict[str, Any] = {}
+
+        def fake_build(mode: str, cli_args: dict[str, Any]) -> list[str]:
+            captured["cli_args"] = cli_args
+            return ["LIWC-22-cli", "-m", mode]
+
+        monkeypatch.setattr("liwca.liwc22.build_command", fake_build)
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: True)
+        monkeypatch.setattr("liwca.liwc22._resolve_liwc_cli", lambda: "LIWC-22-cli.exe")
+        monkeypatch.setattr(
+            "liwca.liwc22.subprocess.run",
+            lambda *a, **kw: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
+        )
+
+        from liwca.liwc22 import _run
+
+        _run(
+            "wc",
+            {"input": "x", "output": "y", "csv_quote": '"'},
+            auto_open=False,
+            use_gui=False,
+            dry_run=False,
+            app_managed=True,
+        )
+        assert "csv_quote" not in captured["cli_args"]
+
+    def test_custom_quote_still_emitted_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Windows")
+        captured: dict[str, Any] = {}
+
+        def fake_build(mode: str, cli_args: dict[str, Any]) -> list[str]:
+            captured["cli_args"] = cli_args
+            return ["LIWC-22-cli", "-m", mode]
+
+        monkeypatch.setattr("liwca.liwc22.build_command", fake_build)
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: True)
+        monkeypatch.setattr("liwca.liwc22._resolve_liwc_cli", lambda: "LIWC-22-cli.exe")
+        monkeypatch.setattr(
+            "liwca.liwc22.subprocess.run",
+            lambda *a, **kw: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
+        )
+
+        from liwca.liwc22 import _run
+
+        _run(
+            "wc",
+            {"input": "x", "output": "y", "csv_quote": "'"},
+            auto_open=False,
+            use_gui=False,
+            dry_run=False,
+            app_managed=True,
+        )
+        assert captured["cli_args"]["csv_quote"] == "'"
+
+
+class TestWindowsCmdlineEncoding:
+    """Canonical MSVCRT quoting for a Windows CreateProcess command line."""
+
+    def test_plain_arg_unquoted(self) -> None:
+        from liwca.liwc22 import _win_quote_arg
+
+        assert _win_quote_arg("LIWC-22-cli") == "LIWC-22-cli"
+
+    def test_empty_arg_becomes_empty_quoted(self) -> None:
+        from liwca.liwc22 import _win_quote_arg
+
+        assert _win_quote_arg("") == '""'
+
+    def test_arg_with_space_is_quoted(self) -> None:
+        from liwca.liwc22 import _win_quote_arg
+
+        assert _win_quote_arg("a b") == '"a b"'
+
+    def test_lone_quote_uses_canonical_form(self) -> None:
+        """A lone ``"`` must round-trip as ``"\\""`` - not Python's bare ``\\"``."""
+        from liwca.liwc22 import _win_quote_arg
+
+        assert _win_quote_arg('"') == '"\\""'
+
+    def test_trailing_backslashes_doubled_before_close_quote(self) -> None:
+        """``foo\\`` inside quotes requires doubling to round-trip as ``foo\\``."""
+        from liwca.liwc22 import _win_quote_arg
+
+        assert _win_quote_arg("foo\\") == '"foo\\\\"'
+
+    def test_join_full_cmdline(self) -> None:
+        from liwca.liwc22 import _join_windows_cmdline
+
+        result = _join_windows_cmdline(["LIWC-22-cli", "-quote", '"', "-i", "x.csv"])
+        assert result == 'LIWC-22-cli -quote "\\"" -i x.csv'
+
+
+class TestTypeAssertions:
+    """TypeError / ValueError on bad types at the public surface."""
+
+    def test_bad_input_type_raises(self) -> None:
+        with pytest.raises(TypeError, match="input"):
+            Liwc22(dry_run=True).wc(input=123, output="out.csv")  # type: ignore[arg-type]
+
+    def test_bad_output_type_raises(self) -> None:
+        with pytest.raises(TypeError, match="output"):
+            Liwc22(dry_run=True).wc(input="x", output=123)  # type: ignore[arg-type]
+
+    def test_auto_open_must_be_bool(self) -> None:
+        with pytest.raises(TypeError, match="auto_open"):
+            Liwc22(auto_open=1)  # type: ignore[arg-type]
+
+    def test_precision_out_of_range_raises(self) -> None:
+        with pytest.raises(ValueError, match="precision"):
+            Liwc22(precision=20)
+
+    def test_bad_output_format_raises(self) -> None:
+        with pytest.raises(ValueError, match="output_format"):
+            Liwc22(dry_run=True).wc("x", "y", output_format="pdf")
+
+    def test_bad_calculate_lsm_raises(self) -> None:
+        with pytest.raises(ValueError, match="calculate_lsm"):
+            Liwc22(dry_run=True).lsm(
+                "x.csv", "y.csv", text_column=0, person_column=1, calculate_lsm=5
+            )
 
 
 class TestReturnFilepath:
@@ -767,7 +945,7 @@ class TestWcOutputSchema:
     ) -> None:
         df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["x", "y"]})
         out = tmp_path / "out.csv"
-        Liwc22().wc(input=df, output=str(out), row_id_indices=["doc_id"])
+        Liwc22().wc(input=df, output=str(out), column_indices="text", row_id_indices=["doc_id"])
 
         shaped = pd.read_csv(out, index_col=0)
         assert shaped.index.name == "doc_id"
@@ -778,7 +956,13 @@ class TestWcOutputSchema:
         """Non-constant Segment values are kept as a 2nd index level."""
 
         def fake_run(
-            mode: str, cli_args: dict[str, Any], *, auto_open: bool, use_gui: bool, dry_run: bool
+            mode: str,
+            cli_args: dict[str, Any],
+            *,
+            auto_open: bool,
+            use_gui: bool,
+            dry_run: bool,
+            app_managed: bool = False,
         ) -> None:
             Path(cli_args["output"]).write_text(
                 "Row ID,Segment,WC,Tone\n1,1,10,50.0\n1,2,8,60.0\n2,1,5,75.0\n"

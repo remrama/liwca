@@ -5,26 +5,6 @@ Builds and runs LIWC-22-cli commands as subprocesses. All seven analysis
 modes are exposed as methods on the :class:`Liwc22` class.
 
 Requires LIWC-22 to be installed with the CLI on your PATH.
-The LIWC-22 desktop application (or its license server) must be running
-when you call the CLI - start it before using :class:`Liwc22`, or pass
-``auto_open=True`` to let liwca handle it.
-
-Examples
---------
->>> import liwca
->>> liwc = liwca.Liwc22(dry_run=True)
->>> liwc.wc(input="data.csv", output="results.csv")  # doctest: +SKIP
-
-Amortize app-launch across many calls with the context-manager form:
-
->>> with liwca.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
-...     liwc.wc(input="data.csv", output="wc.csv")
-...     liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
-
-See Also
---------
-- LIWC CLI documentation: https://www.liwc.app/help/cli
-- Python CLI example: https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py
 """
 
 from __future__ import annotations
@@ -45,19 +25,7 @@ from typing import Any
 import pandas as pd
 import pandera.pandas as pa
 
-__all__ = [
-    "Liwc22",
-    "build_command",
-    "FLAG_BY_DEST",
-    "BOOL_FLAGS",
-    "YES_NO_FLAGS",
-    "ONE_ZERO_FLAGS",
-    "LIST_FLAGS",
-    "COLUMN_FLAGS",
-    "COLUMN_LIST_FLAGS",
-    "MODE_GLOBALS",
-    "wc_output_schema",
-]
+__all__ = ["Liwc22"]
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +108,7 @@ def _close_liwc_app(proc: subprocess.Popen[bytes] | None) -> None:
 # ---------------------------------------------------------------------------
 # Flag catalogue
 # ---------------------------------------------------------------------------
-# Single source of truth for (a) dest → CLI flag and (b) which dests are
+# Single source of truth for (a) dest -> CLI flag and (b) which dests are
 # value-less bool flags.  build_command consults these to translate a dict
 # of Python kwargs into an argv list for the LIWC-22 CLI.
 
@@ -235,9 +203,7 @@ YES_NO_FLAGS: frozenset[str] = frozenset(
     }
 )
 
-# Dests whose Python value is a :class:`bool` that maps to the CLI value
-# ``"1"`` or ``"0"``.  Currently only ``clean_escaped_spaces`` uses this
-# encoding but the category exists for symmetry with :data:`YES_NO_FLAGS`.
+# Dests whose Python value is a :class:`bool` that maps to ``"1"`` / ``"0"``.
 ONE_ZERO_FLAGS: frozenset[str] = frozenset({"clean_escaped_spaces"})
 
 # Dests whose Python value is an iterable of strings, emitted as a single
@@ -323,6 +289,19 @@ MODE_GLOBALS: dict[str, frozenset[str]] = {
     },
 }
 
+# Modes for which a ``pd.DataFrame`` input requires an explicit text-column
+# selector.  Keys map to the dest that must be set when ``input`` is a
+# DataFrame and mentions more than one column.  ``ct`` is absent because
+# transcript-conversion operates on files, not tabular data.
+_DF_TEXT_SELECTOR: dict[str, str] = {
+    "wc": "column_indices",
+    "freq": "column_indices",
+    "mem": "column_indices",
+    "context": "column_indices",
+    "arc": "column_indices",
+    "lsm": "text_column",
+}
+
 
 # ---------------------------------------------------------------------------
 # Command builder
@@ -345,20 +324,6 @@ def build_command(mode: str, cli_args: dict[str, Any]) -> list[str]:
     Column args (:data:`COLUMN_FLAGS`, :data:`COLUMN_LIST_FLAGS`) are
     normalised to 1-based ints by :func:`_resolve_columns` *before* being
     passed here, so they are treated as ordinary value/list flags.
-
-    Parameters
-    ----------
-    mode : :class:`str`
-        LIWC-22 analysis mode (``"wc"``, ``"freq"``, ``"mem"``, ``"context"``,
-        ``"arc"``, ``"ct"``, or ``"lsm"``).
-    cli_args : :class:`dict`
-        Mapping from dest (Python kwarg name) to value.  Keys must be in
-        :data:`FLAG_BY_DEST`.
-
-    Returns
-    -------
-    :class:`list` of :class:`str`
-        The complete command, starting with ``"LIWC-22-cli"``.
     """
     cmd: list[str] = [LIWC_CLI, "-m", mode]
     for dest, value in cli_args.items():
@@ -379,28 +344,30 @@ def build_command(mode: str, cli_args: dict[str, Any]) -> list[str]:
     return cmd
 
 
+# ---------------------------------------------------------------------------
+# Column resolution
+# ---------------------------------------------------------------------------
+
+
 def _read_header(
     input_path: str,
     *,
     csv_delimiter: str | None,
     encoding: str | None,
 ) -> list[str]:
-    """Return the list of column names for ``input_path``.
-
-    Picks the pandas reader from the file extension - ``.xlsx`` / ``.xls``
-    use :func:`pandas.read_excel`; everything else is treated as a
-    delimited text file and read with :func:`pandas.read_csv`.  When no
-    explicit ``csv_delimiter`` is passed, the delimiter defaults to a tab
-    for ``.tsv`` inputs and a comma otherwise.
-    """
+    """Return the list of column names for ``input_path``."""
     path = Path(input_path)
     suffix = path.suffix.lower()
 
     if suffix in {".xlsx", ".xls"}:
         frame = pd.read_excel(path, nrows=0)
     else:
-        delim = csv_delimiter if csv_delimiter is not None else ("\t" if suffix == ".tsv" else ",")
-        frame = pd.read_csv(path, sep=delim, encoding=encoding or "utf-8", nrows=0)
+        frame = pd.read_csv(
+            path,
+            sep=csv_delimiter if csv_delimiter is not None else ",",
+            encoding=encoding or "utf-8",
+            nrows=0,
+        )
 
     return [str(c) for c in frame.columns]
 
@@ -424,12 +391,7 @@ def _acquire_header(
     encoding: str | None,
     skip_header: bool | None,
 ) -> list[str]:
-    """Read the input file's header, validating the request first.
-
-    Raises :class:`ValueError` if the input configuration rules out a
-    meaningful header row (e.g. ``skip_header=False``, console/envvar input,
-    directory input, or a missing path).
-    """
+    """Read the input file's header, validating the request first."""
     if skip_header is False:
         raise ValueError(
             "Cannot pass a column name when skip_header=False; "
@@ -487,24 +449,7 @@ def _resolve_columns(
     skip_header: bool | None,
     header_override: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Normalise every column arg in ``cli_args`` to a 1-based ``int``.
-
-    Each value in :data:`COLUMN_FLAGS` or :data:`COLUMN_LIST_FLAGS` is
-    translated as follows:
-
-    * ``int``  - interpreted as a 0-based Python index, emitted as 1-based.
-    * ``str``  - resolved to the 1-based position of the column in the
-      input file's header row.
-    * ``None`` - left as-is; the caller decides whether to emit.
-
-    The special case ``group_column=None`` (the ``lsm`` mode's sentinel for
-    "no groups") is rewritten to the literal ``0`` the CLI expects.
-
-    A single header read is performed lazily - only if at least one column
-    arg is a ``str`` - so int-only calls remain zero-I/O.  When the caller
-    already has the header in memory (e.g. from a DataFrame input) it can be
-    passed via ``header_override`` to skip the file read entirely.
-    """
+    """Normalise every column arg in ``cli_args`` to a 1-based ``int``."""
     resolved: dict[str, Any] = dict(cli_args)
 
     header: list[str] | None = None
@@ -538,15 +483,30 @@ def _resolve_columns(
 
 
 # ---------------------------------------------------------------------------
-# DataFrame input helpers
+# Input normalisation
 # ---------------------------------------------------------------------------
+
+
+def _coerce_to_list(value: Any) -> Any:
+    """Wrap a single ``str``/``int`` into a one-element list; pass through otherwise.
+
+    Applied to LIST_FLAGS before column resolution so that
+    ``column_indices="text"`` doesn't silently explode into four char elements.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return [value]
+    if isinstance(value, (str, int)):
+        return [value]
+    return list(value)
 
 
 def _write_temp_input(df: pd.DataFrame) -> Path:
     """Write *df* to a fresh temp CSV file and return its path.
 
     The file is kept on disk (``delete=False``) so LIWC-CLI can reopen it on
-    Windows; the caller is responsible for deletion in a ``finally`` block.
+    Windows; the caller is responsible for deletion.
     """
     fd = tempfile.NamedTemporaryFile(
         mode="w",
@@ -561,18 +521,53 @@ def _write_temp_input(df: pd.DataFrame) -> Path:
     return path
 
 
-def _validate_df_input(df: pd.DataFrame, *, mode: str, other_args: dict[str, Any]) -> None:
-    """Reject obviously-broken DataFrame-input combinations."""
+def _prepare_frame_input(
+    user_input: pd.DataFrame | pd.Series,
+    *,
+    mode: str,
+    merged: dict[str, Any],
+) -> tuple[Path, list[str]]:
+    """Convert Series/DataFrame input into a temp CSV + header list.
+
+    Mutates *merged* in place: fills in the text-column selector for Series
+    input, and rewrites ``merged["input"]`` to the temp-file path.  Raises
+    :class:`ValueError` on empty / malformed DataFrame input.
+    """
+    if isinstance(user_input, pd.Series):
+        text_name = str(user_input.name) if user_input.name is not None else "text"
+        user_input = user_input.to_frame(name=text_name)
+        selector = _DF_TEXT_SELECTOR.get(mode)
+        if selector == "column_indices" and merged.get("column_indices") is None:
+            merged["column_indices"] = [text_name]
+        elif selector == "text_column" and merged.get("text_column") is None:
+            merged["text_column"] = text_name
+
+    if mode == "ct":
+        raise ValueError(
+            "ct mode operates on transcript files, not DataFrames. "
+            "Pass a path to a transcript file or folder as `input`."
+        )
+    if user_input.empty:
+        raise ValueError("DataFrame `input` is empty.")
     if mode == "wc" and (
-        other_args.get("console_text") is not None
-        or other_args.get("environment_variable") is not None
+        merged.get("console_text") is not None or merged.get("environment_variable") is not None
     ):
         raise ValueError(
-            "Cannot pass a DataFrame as `input` together with console_text or "
-            "environment_variable; choose one input source."
+            "Cannot pass a DataFrame as `input` together with console_text "
+            "or environment_variable; choose one input source."
         )
-    if df.empty:
-        raise ValueError("DataFrame `input` is empty.")
+    selector = _DF_TEXT_SELECTOR.get(mode)
+    if selector and merged.get(selector) is None:
+        raise ValueError(
+            f"When `input` is a DataFrame, {selector!r} must be set to "
+            f"identify the text column. DataFrame has columns: "
+            f"{list(user_input.columns)}."
+        )
+
+    input_columns = [str(c) for c in user_input.columns]
+    temp_input = _write_temp_input(user_input)
+    merged["input"] = str(temp_input)
+    return temp_input, input_columns
 
 
 # ---------------------------------------------------------------------------
@@ -637,12 +632,7 @@ def _derive_row_id_names(
 
 
 def _build_row_id_rename_map(columns: Iterable[Any], row_id_names: list[str]) -> dict[str, str]:
-    """Map LIWC's ``"Row ID"`` / ``"Row ID 1"`` / ... columns to user names.
-
-    LIWC-CLI names a single row-id column ``"Row ID"`` and multi-column
-    row_id_indices as ``"Row ID 1"``, ``"Row ID 2"``, etc.  This builder
-    returns a rename dict from those labels to the caller's original names.
-    """
+    """Map LIWC's ``"Row ID"`` / ``"Row ID 1"`` / ... columns to user names."""
     col_list = [str(c) for c in columns]
     rename: dict[str, str] = {}
     if len(row_id_names) == 1 and "Row ID" in col_list:
@@ -660,13 +650,11 @@ def _shape_wc_output(df: pd.DataFrame, *, row_id_names: list[str] | None) -> pd.
 
     Steps:
 
-    1. Rename leading ``"Row ID"`` (or ``"Row ID 1"``, ``"Row ID 2"``, ...)
-       columns back to *row_id_names*, when provided.
-    2. Drop the ``"Segment"`` column if it has a single unique value
-       (i.e. no segmentation was used); otherwise keep it for promotion to
-       a second index level.
-    3. Set the row-id column(s) (and ``"Segment"``, if kept) as the
-       DataFrame index.
+    1. Rename leading ``"Row ID"`` (or ``"Row ID 1"``, ...) columns back to
+       *row_id_names*, when provided.
+    2. Drop the ``"Segment"`` column if it has a single unique value;
+       otherwise keep it for promotion to a second index level.
+    3. Set the row-id column(s) (and ``"Segment"``, if kept) as the index.
     4. Validate via :data:`wc_output_schema` - this also names the column
        axis ``"Category"``.
     """
@@ -705,8 +693,7 @@ def _shape_wc_output_file(
     """Read the CLI's ``wc`` output CSV, shape it, and write it back in place.
 
     If *output_format* is set to anything other than ``"csv"`` / ``None``,
-    the step is skipped with a :class:`UserWarning` - we only safely
-    round-trip CSV here.
+    the step is skipped with a :class:`UserWarning`.
     """
     if output_format is not None and str(output_format).lower() != "csv":
         warnings.warn(
@@ -731,6 +718,101 @@ def _quote_for_display(cmd: list[str]) -> str:
     return " ".join(f'"{tok}"' if " " in tok else tok for tok in cmd)
 
 
+def _win_quote_arg(arg: str) -> str:
+    """Canonical MSVCRT encoding of one arg for a Windows command line.
+
+    Python's built-in :func:`subprocess.list2cmdline` encodes a lone ``"`` as
+    bare ``\\"`` (unquoted).  Some command-line parsers - notably the Java
+    runtime used by LIWC-22-cli - treat an unquoted ``\\"`` as a literal
+    backslash followed by a quote-start, which then consumes the remainder of
+    the command line as a quoted value.  The canonical encoding ``"\\""``
+    (quoted, with the inner quote backslash-escaped) round-trips through
+    every major Windows argv parser.
+
+    This encoder follows the same rules as Microsoft's CommandLineToArgvW /
+    the MSVCRT:
+
+    * Empty arg -> ``""``.
+    * No whitespace, no ``"``, no ``\\``: pass through unchanged.
+    * Otherwise wrap in quotes, doubling any run of backslashes that precedes
+      a ``"`` (or the closing quote) and escaping each ``"`` with ``\\``.
+    """
+    if not arg:
+        return '""'
+    if not any(c in arg for c in ' \t"\\'):
+        return arg
+
+    result: list[str] = ['"']
+    backslashes = 0
+    for c in arg:
+        if c == "\\":
+            backslashes += 1
+            continue
+        if c == '"':
+            result.append("\\" * (2 * backslashes))
+            result.append('\\"')
+        else:
+            result.append("\\" * backslashes)
+            result.append(c)
+        backslashes = 0
+    # Trailing backslashes precede the closing quote - double them.
+    result.append("\\" * (2 * backslashes))
+    result.append('"')
+    return "".join(result)
+
+
+def _join_windows_cmdline(cmd: list[str]) -> str:
+    return " ".join(_win_quote_arg(a) for a in cmd)
+
+
+def _resolve_liwc_cli() -> str:
+    """Return the path to LIWC-22-cli, preferring ``.exe`` on Windows.
+
+    The ``.bat`` wrapper on Windows is dispatched via ``cmd.exe /c``, which
+    re-parses the command line with CMD rules and mangles quote args even
+    when we pre-encode them canonically.  Calling the ``.exe`` directly
+    delivers our argv through MSVCRT parsing only.
+    """
+    exe_path: str | None = None
+    if platform.system() == "Windows":
+        exe_path = shutil.which(LIWC_CLI + ".exe")
+    if exe_path is None:
+        exe_path = shutil.which(LIWC_CLI)
+    if exe_path is None:
+        raise FileNotFoundError(
+            f"{LIWC_CLI!r} not found on PATH. "
+            "Make sure LIWC-22 is installed and its CLI is on your PATH."
+        )
+    return exe_path
+
+
+def _format_cli_error(cmd: list[str], result: subprocess.CompletedProcess[str]) -> str:
+    """Build a user-facing error string from a failed LIWC-22-cli result.
+
+    LIWC-22-cli writes its error messages to stdout (mixed with a usage/help
+    dump) and usually nothing to stderr.  We prefer lines that look like an
+    actual error message ("ERROR", "Error:", "cannot", "not found", ...) and
+    fall back to the last ~15 non-blank output lines if no such lines exist.
+    Full output is available via the module logger at DEBUG level.
+    """
+    combined = (result.stdout or "") + "\n" + (result.stderr or "")
+    lines = [ln.rstrip() for ln in combined.splitlines() if ln.strip()]
+    error_markers = ("error", "cannot", "invalid", "not found", "failed", "missing")
+    error_lines = [ln for ln in lines if any(m in ln.lower() for m in error_markers)]
+    if error_lines:
+        tail = "\n".join(error_lines[:10])
+    elif lines:
+        tail = "\n".join(lines[-15:])
+    else:
+        tail = "(no output captured)"
+    return (
+        f"LIWC-22-cli exited with status {result.returncode}.\n"
+        f"Command: {_quote_for_display(cmd)}\n"
+        f"Output:\n{tail}\n"
+        "(Enable DEBUG logging on 'liwca.liwc22' for the full CLI output.)"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Shared execution logic
 # ---------------------------------------------------------------------------
@@ -743,40 +825,70 @@ def _run(
     auto_open: bool,
     use_gui: bool,
     dry_run: bool,
+    app_managed: bool = False,
 ) -> None:
     """Run a LIWC-22 CLI command built from a mode + flag dict.
 
-    Executes the subprocess for its side effect (reading *input* and
-    writing *output*).  Raises :class:`subprocess.CalledProcessError` on a
-    non-zero CLI exit, or :class:`FileNotFoundError` if LIWC-22-cli is not
-    on the PATH.  The app teardown in ``finally`` still runs when we
-    launched the app ourselves.
+    When ``app_managed=True`` the caller is responsible for the LIWC-22
+    app lifecycle (e.g. the :class:`Liwc22` context manager already
+    launched it in ``__enter__``) and this function skips the running
+    check / launch entirely.
+
+    On a non-zero exit, raises :class:`RuntimeError` with the command and a
+    tail of the captured stderr - not a bare :class:`CalledProcessError` that
+    lets the CLI's help-text dump spill through.
     """
+    # Windows workaround: LIWC-22-cli.exe is a Java-launcher wrapper that
+    # re-escapes argv before spawning java.exe.  A literal ``"`` as the value
+    # of ``-quote`` survives our canonical MSVCRT encoding into the .exe, then
+    # gets mangled during that second encoding - LIWC never sees ``-i`` /
+    # ``-o``.  Since ``"`` is the CLI's own default for ``-quote``, omitting
+    # the flag is behaviourally identical.  Other values (``'``, ``|``, ...)
+    # round-trip correctly and are emitted as normal.
+    if platform.system() == "Windows" and cli_args.get("csv_quote") == '"':
+        cli_args = {k: v for k, v in cli_args.items() if k != "csv_quote"}
+
     cmd = build_command(mode, cli_args)
 
     if dry_run:
         print(f"Command that would be executed:\n  {_quote_for_display(cmd)}")
         return
 
+    cmd[0] = _resolve_liwc_cli()
+
     # -- ensure LIWC-22 is running -------------------------------------------
     liwc_proc: subprocess.Popen[bytes] | None = None
     we_opened_it = False
 
-    if not _is_liwc_running():
+    if not app_managed and not _is_liwc_running():
         if auto_open:
             logger.info("LIWC-22 is not running - starting it now …")
             liwc_proc = _open_liwc_app(use_license_server=not use_gui)
             we_opened_it = True
         else:
-            sys.exit(
-                "ERROR: LIWC-22 is not running. Start the LIWC-22 application "
+            raise RuntimeError(
+                "LIWC-22 is not running. Start the LIWC-22 application "
                 "(or the license server) first, or re-run with auto_open=True."
             )
 
     # -- run the analysis ----------------------------------------------------
     logger.info("Running: %s", _quote_for_display(cmd))
     try:
-        subprocess.run(cmd, check=True)
+        # On Windows, Python's default list2cmdline mis-encodes a lone ``"``
+        # as unquoted ``\"``, which LIWC-22-cli (Java) then misparses.  Build
+        # the command line ourselves with canonical MSVCRT quoting and pass
+        # it as a string so CreateProcess receives the argv we intended.
+        if platform.system() == "Windows":
+            popen_cmd: str | list[str] = _join_windows_cmdline(cmd)
+        else:
+            popen_cmd = cmd
+        result = subprocess.run(popen_cmd, capture_output=True, text=True)
+        if result.stdout:
+            logger.debug("LIWC-22-cli stdout:\n%s", result.stdout)
+        if result.stderr:
+            logger.debug("LIWC-22-cli stderr:\n%s", result.stderr)
+        if result.returncode != 0:
+            raise RuntimeError(_format_cli_error(cmd, result))
     finally:
         if we_opened_it:
             logger.info("Shutting down LIWC-22 …")
@@ -786,6 +898,28 @@ def _run(
 # ---------------------------------------------------------------------------
 # Public API - Liwc22 class
 # ---------------------------------------------------------------------------
+
+
+def _check_type(name: str, value: Any, allowed: type | tuple[type, ...]) -> None:
+    """Raise :class:`TypeError` if *value* isn't an instance of *allowed*."""
+    if not isinstance(value, allowed):
+        if isinstance(allowed, tuple):
+            names = " | ".join(t.__name__ for t in allowed)
+        else:
+            names = allowed.__name__
+        raise TypeError(f"{name!r} must be {names}, got {type(value).__name__}.")
+
+
+def _check_bool(name: str, value: Any) -> None:
+    """Reject non-bool values (ints, strings) for bool-typed kwargs."""
+    if not isinstance(value, bool):
+        raise TypeError(f"{name!r} must be a bool, got {type(value).__name__}.")
+
+
+def _check_choice(name: str, value: Any, choices: Iterable[Any]) -> None:
+    choices = tuple(choices)
+    if value not in choices:
+        raise ValueError(f"{name!r} must be one of {list(choices)}, got {value!r}.")
 
 
 class Liwc22:
@@ -807,14 +941,17 @@ class Liwc22:
     encoding : :class:`str`, optional
         Input file encoding (default: ``"utf-8"``).
     csv_delimiter : :class:`str`, optional
-        CSV delimiter character (CLI default: ``,``).  Use ``"\\t"`` for tab-
-        separated files.  Left as ``None`` by default so that ``.tsv`` inputs
-        are auto-detected; passing a ``.tsv`` input without setting this emits
-        a :class:`UserWarning`.
+        CSV delimiter (default: ``","``).  Use ``"\\t"`` for TSV inputs.
     csv_escape : :class:`str`, optional
-        CSV escape character (CLI default: none).
+        CSV escape character.  ``None`` (default) means "no escape"; the flag
+        is omitted from the CLI call.
     csv_quote : :class:`str`, optional
-        CSV quote character (default: ``"``).
+        CSV quote character (default: ``"``).  On Windows, the default value
+        is silently omitted from the CLI call: LIWC-22-cli's Java launcher
+        re-escapes argv and mangles ``-quote "`` into swallowing subsequent
+        flags.  Since ``"`` is also the CLI's default, omission matches the
+        documented behaviour; any other value (e.g. ``"'"``) is emitted
+        normally.
     include_subfolders : :class:`bool`, optional
         If ``True`` (default), include subfolders when analysing a directory
         input.
@@ -824,7 +961,7 @@ class Liwc22:
         resolution in the mode methods.
     preprocess_cjk : :class:`str`, optional
         Preprocess CJK text with Jieba (Chinese) or Kuromoji (Japanese)
-        tokeniser - one of ``"chinese"``, ``"japanese"``, ``"none"``.
+        tokeniser - one of ``"chinese"``, ``"japanese"``, ``"none"`` (default).
     url_regexp : :class:`str`, optional
         Regular expression used to capture URLs in text.
     count_urls : :class:`bool`, optional
@@ -835,9 +972,7 @@ class Liwc22:
     auto_open : :class:`bool`, optional
         If LIWC-22 is not running, launch it before each analysis and close
         it afterwards (default ``True``).  Set to ``False`` to require that
-        the app (or its license server) is already running.  When used as a
-        context manager, the app is launched once on ``__enter__`` and closed
-        on ``__exit__``.
+        the app (or its license server) is already running.
     use_gui : :class:`bool`, optional
         When auto-opening, prefer the GUI app over the headless license
         server (default ``False``).
@@ -848,35 +983,48 @@ class Liwc22:
     --------
     >>> import liwca
     >>> liwc = liwca.Liwc22(dry_run=True)
-    >>> liwc.wc(input="data.csv", output="results.csv")  # doctest: +SKIP
+    >>> liwc.wc("data.csv", "results.csv")  # doctest: +SKIP
 
-    >>> with liwca.Liwc22(auto_open=True, encoding="utf-8") as liwc:  # doctest: +SKIP
-    ...     liwc.wc(input="data.csv", output="wc.csv")
-    ...     liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
+    >>> with liwca.Liwc22() as liwc:  # doctest: +SKIP
+    ...     liwc.wc("data.csv", "wc.csv", column_indices="text")
+    ...     liwc.freq("data.csv", "freq.csv", n_gram=2)
     """
 
     def __init__(
         self,
         *,
-        # I/O encoding
         encoding: str = "utf-8",
-        csv_delimiter: str | None = None,
+        csv_delimiter: str = ",",
         csv_escape: str | None = None,
         csv_quote: str = '"',
-        # File / folder handling
         include_subfolders: bool = True,
         skip_header: bool = True,
-        # Text preprocessing
-        preprocess_cjk: str | None = None,
+        preprocess_cjk: str = "none",
         url_regexp: str | None = None,
         count_urls: bool = True,
-        # Output
         precision: int = 2,
-        # Execution control
         auto_open: bool = True,
         use_gui: bool = False,
         dry_run: bool = False,
     ) -> None:
+        _check_type("encoding", encoding, str)
+        _check_type("csv_delimiter", csv_delimiter, str)
+        if csv_escape is not None:
+            _check_type("csv_escape", csv_escape, str)
+        _check_type("csv_quote", csv_quote, str)
+        _check_bool("include_subfolders", include_subfolders)
+        _check_bool("skip_header", skip_header)
+        _check_choice("preprocess_cjk", preprocess_cjk, ("chinese", "japanese", "none"))
+        if url_regexp is not None:
+            _check_type("url_regexp", url_regexp, str)
+        _check_bool("count_urls", count_urls)
+        _check_type("precision", precision, int)
+        if isinstance(precision, bool) or not 0 <= precision <= 16:
+            raise ValueError(f"'precision' must be an int in 0..16, got {precision!r}.")
+        _check_bool("auto_open", auto_open)
+        _check_bool("use_gui", use_gui)
+        _check_bool("dry_run", dry_run)
+
         self._globals: dict[str, Any] = {
             "encoding": encoding,
             "csv_delimiter": csv_delimiter,
@@ -917,61 +1065,53 @@ class Liwc22:
 
         Pipeline:
 
-        1. Merge hoisted globals (filtered by :data:`MODE_GLOBALS`).
-        2. If ``input`` is a :class:`pandas.DataFrame`, validate and write
-           it to a temporary CSV; remember its in-memory columns for
-           column-name resolution.
-        3. Soft-warn on ``.tsv`` file input without an explicit
-           ``csv_delimiter`` (DataFrame input never triggers this).
-        4. Resolve column args (0-based int -> 1-based; name -> 1-based).
-        5. Run the CLI (raises on non-zero exit).  Skipped when
-           ``dry_run=True`` - the command is printed instead.
-        6. For mode ``wc``: reshape the output file in place via
-           :func:`_shape_wc_output_file`.  Skipped on dry runs (nothing was
-           written).
-        7. Delete the temp input (if any) in ``finally``.
+        1. Validate ``input`` / ``output`` types; coerce ``Path`` to ``str``.
+        2. Merge hoisted globals (filtered by :data:`MODE_GLOBALS`).
+        3. If ``input`` is a :class:`pandas.Series`, wrap to a 1-col
+           DataFrame (auto-filling the text-column selector).
+        4. If ``input`` is a :class:`pandas.DataFrame`, validate and write
+           it to a temporary CSV; remember its in-memory columns.
+        5. Coerce LIST_FLAGS (a bare ``str``/``int`` becomes a 1-element list).
+        6. Resolve column args (0-based int -> 1-based; name -> 1-based).
+        7. Run the CLI (raises on non-zero exit).
+        8. For mode ``wc``: reshape the output file in place (skipped on dry runs).
+        9. Delete the temp input (if any) in ``finally``.
 
-        Always returns the caller's ``output`` path - on dry runs this is
-        "the path LIWC-22-cli *would* have written".
+        Returns the caller's ``output`` path.
         """
-        # 1. Merge hoisted globals.
+        user_input = cli_args.get("input")
+        user_output = cli_args.get("output")
+
+        # 1. Type-check and Path-coerce I/O.
+        _check_type("input", user_input, (str, Path, pd.DataFrame, pd.Series))
+        _check_type("output", user_output, (str, Path))
+        if isinstance(user_input, Path):
+            user_input = str(user_input)
+            cli_args["input"] = user_input
+        output_path = str(user_output)
+        cli_args["output"] = output_path
+
+        # 2. Merge hoisted globals.
         applicable = MODE_GLOBALS[mode]
         merged: dict[str, Any] = {k: v for k, v in self._globals.items() if k in applicable}
         merged.update(cli_args)
 
-        user_input = merged.get("input")
-        # `output` is a required kwarg on every mode method, so it's always
-        # present in cli_args.
-        output_path: str = merged["output"]
-
-        # 2. DataFrame input -> temp CSV.  Track for cleanup.
+        # 3/4. Series/DataFrame input -> temp CSV.
         temp_input: Path | None = None
         input_columns: list[str] | None = None
-        if isinstance(user_input, pd.DataFrame):
-            _validate_df_input(user_input, mode=mode, other_args=merged)
-            input_columns = [str(c) for c in user_input.columns]
-            temp_input = _write_temp_input(user_input)
-            merged["input"] = str(temp_input)
+        if isinstance(user_input, (pd.Series, pd.DataFrame)):
+            temp_input, input_columns = _prepare_frame_input(user_input, mode=mode, merged=merged)
 
         try:
-            # 3. Soft-validate: TSV input without an explicit delimiter.
-            input_path = merged.get("input")
-            if (
-                isinstance(input_path, str)
-                and input_path.lower().endswith(".tsv")
-                and self._globals.get("csv_delimiter") is None
-            ):
-                warnings.warn(
-                    "Input looks like a TSV but csv_delimiter is not set; pass "
-                    r"csv_delimiter='\t' to Liwc22(...) to parse it as tab-separated.",
-                    UserWarning,
-                    stacklevel=3,
-                )
+            # 5. Bare str/int -> 1-element list for LIST_FLAGS.
+            for dest in LIST_FLAGS:
+                if dest in merged:
+                    merged[dest] = _coerce_to_list(merged[dest])
 
-            # 4. Normalise column args (0-based int -> 1-based; name -> 1-based).
+            # 6. Normalise column args (0-based int -> 1-based; name -> 1-based).
             merged = _resolve_columns(
                 merged,
-                input_path=input_path,
+                input_path=merged.get("input"),
                 csv_delimiter=self._globals.get("csv_delimiter"),
                 encoding=self._globals.get("encoding"),
                 skip_header=self._globals.get("skip_header"),
@@ -979,26 +1119,25 @@ class Liwc22:
             )
 
             # Preserve the caller's row_id_indices (strings or 0-based ints)
-            # before resolution clobbers them into 1-based ints.  Used by the
-            # wc output shaper to rename LIWC's "Row ID" back to the source
-            # column name(s).
+            # before resolution clobbers them into 1-based ints.
             row_id_names = _derive_row_id_names(
-                cli_args.get("row_id_indices"),
+                _coerce_to_list(cli_args.get("row_id_indices")),
                 input_columns=input_columns,
             )
 
-            # 5. Run.  If we already launched the app in __enter__, don't re-launch.
-            auto_open_for_call = self._auto_open and not self._app_owned
+            # 7. Run.  If we launched the app in __enter__, the context
+            # manager owns its lifecycle - tell `_run` to skip the running
+            # check (which can lag behind a fresh launch).
             _run(
                 mode,
                 merged,
-                auto_open=auto_open_for_call,
+                auto_open=self._auto_open,
                 use_gui=self._use_gui,
                 dry_run=self._dry_run,
+                app_managed=self._app_owned,
             )
 
-            # 6. wc-only: reshape the output file in place.  Nothing was
-            #    written on a dry run, so the shaping step is skipped.
+            # 8. wc-only: reshape the output file in place.
             if not self._dry_run and mode == "wc":
                 _shape_wc_output_file(
                     output_path,
@@ -1015,18 +1154,18 @@ class Liwc22:
 
     def wc(
         self,
+        input: str | Path | pd.DataFrame | pd.Series,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
         console_text: str | None = None,
         environment_variable: str | None = None,
         clean_escaped_spaces: bool = True,
-        column_indices: Iterable[int | str] | None = None,
+        column_indices: int | str | Iterable[int | str] | None = None,
         combine_columns: bool = True,
-        row_id_indices: Iterable[int | str] | None = None,
+        row_id_indices: int | str | Iterable[int | str] | None = None,
         dictionary: str = "LIWC22",
-        include_categories: Iterable[str] | None = None,
-        exclude_categories: Iterable[str] | None = None,
+        include_categories: str | Iterable[str] | None = None,
+        exclude_categories: str | Iterable[str] | None = None,
         segmentation: str | None = None,
         output_format: str = "csv",
         threads: int | None = None,
@@ -1039,14 +1178,16 @@ class Liwc22:
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`
-            whose columns are the text / id / speaker columns you want to
-            analyse.  DataFrame input is written to a temp CSV, fed to
-            LIWC-CLI, and the temp file is removed when the call returns.
-            Use ``"console"`` with *console_text* or ``"envvar"`` with
-            *environment_variable* to analyse literal text.
-        output : :class:`str`
+        input : str, :class:`~pathlib.Path`, DataFrame, or Series
+            Path to an input file/folder, a :class:`pandas.DataFrame`, or a
+            :class:`pandas.Series`.  DataFrame/Series input is written to a
+            temp CSV, fed to LIWC-CLI, and the temp file is removed when the
+            call returns.  A DataFrame requires *column_indices* to identify
+            the text column(s).  A Series auto-wraps into a single-column
+            frame using the Series name (or ``"text"``).  Use ``"console"``
+            with *console_text* or ``"envvar"`` with *environment_variable*
+            to analyse literal text.
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
         console_text : :class:`str`, optional
             Text string to analyse.  Use with ``input="console"``.
@@ -1056,29 +1197,30 @@ class Liwc22:
         clean_escaped_spaces : :class:`bool`, optional
             With ``input="console"``: if ``True``, escaped spaces like
             ``\\n`` are converted to actual spaces (CLI default: ``True``).
-        column_indices : iterable of :class:`int` or :class:`str`, optional
+        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
             Columns containing analysable text.  Each entry is either a
             0-based integer index or a column-name string (requires the
-            input to have a header row).  All columns processed by default.
+            input to have a header row).  A bare ``str`` or ``int`` is
+            accepted for single-column selection.  All columns processed by
+            default (not allowed for DataFrame input).
         combine_columns : :class:`bool`, optional
             If ``True``, combine spreadsheet columns into a single text per
             row (CLI default: ``True``).
-        row_id_indices : iterable of :class:`int` or :class:`str`, optional
-            Columns to use as row identifiers - 0-based integer indices or
-            column-name strings.  Multiple columns are concatenated with
-            ``;``.  Defaults to row number.
+        row_id_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns to use as row identifiers.  Multiple columns are
+            concatenated with ``;``.  Defaults to row number.
         dictionary : :class:`str`, optional
             LIWC dictionary name (e.g. ``LIWC22``, ``LIWC2015``) or path to a
             custom ``.dicx`` file (default: LIWC22).
-        include_categories : iterable of :class:`str`, optional
+        include_categories : :class:`str` or iterable of :class:`str`, optional
             Dictionary categories to include in output.  Mutually exclusive
             with *exclude_categories*.
-        exclude_categories : iterable of :class:`str`, optional
+        exclude_categories : :class:`str` or iterable of :class:`str`, optional
             Dictionary categories to exclude from output.  Mutually exclusive
             with *include_categories*.
         segmentation : :class:`str`, optional
-            Split text into segments.  Syntax varies by mode - see the
-            `LIWC CLI documentation <https://www.liwc.app/help/cli>`_.
+            Split text into segments.  See the `LIWC CLI documentation
+            <https://www.liwc.app/help/cli>`_.
         output_format : :class:`str`, optional
             Output file format - one of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         threads : :class:`int`, optional
@@ -1087,51 +1229,48 @@ class Liwc22:
         Returns
         -------
         :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
+            The *output* path. On dry runs this is the path LIWC-22-cli
             *would* have written to - no file is created.
 
         Raises
         ------
         :class:`ValueError`
             If both *include_categories* and *exclude_categories* are set,
-            or if *input* is a DataFrame combined with *console_text* /
-            *environment_variable*, or if *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
+            or if *input* is a DataFrame without *column_indices*, or if
+            *input* is an empty DataFrame, or if *input* is a DataFrame
+            combined with *console_text* / *environment_variable*.
+        :class:`TypeError`
+            If *input* / *output* are of the wrong type.
+        :class:`RuntimeError`
+            If LIWC-22-cli exits with a non-zero status, or if LIWC-22 is not
+            running and ``auto_open=False``.
 
         Notes
         -----
         After LIWC-CLI writes the output CSV, the file is reshaped in
-        place via :data:`wc_output_schema`: if *row_id_indices* was
-        supplied (names or positions), the output's ``"Row ID"`` column is
-        renamed back to those source names; a constant ``"Segment"``
-        column (no segmentation) is dropped, otherwise it is promoted to
-        a second index level; category columns sit under a column axis
-        named ``"Category"`` when the file is loaded back into pandas.
-
-        See Also
-        --------
-        ~liwca.count : Pure-Python word counting (no LIWC-22 required).
+        place via :data:`wc_output_schema`: row-id columns are renamed back
+        to their source names, a constant ``"Segment"`` column is dropped,
+        and the category columns sit under a column axis named
+        ``"Category"`` when the file is loaded back into pandas.
 
         Examples
         --------
         >>> import pandas as pd
         >>> df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["hi", "bye"]})
         >>> path = Liwc22().wc(  # doctest: +SKIP
-        ...     input=df,
-        ...     output="wc.csv",
-        ...     column_indices=["text"],
-        ...     row_id_indices=["doc_id"],
+        ...     df,
+        ...     "wc.csv",
+        ...     column_indices="text",
+        ...     row_id_indices="doc_id",
         ... )
-        >>> results = pd.read_csv(path, index_col=0)  # doctest: +SKIP
         """
         if include_categories is not None and exclude_categories is not None:
             raise ValueError(
                 "Cannot pass both include_categories and exclude_categories; choose one."
             )
+        _check_bool("clean_escaped_spaces", clean_escaped_spaces)
+        _check_bool("combine_columns", combine_columns)
+        _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "wc",
             {
@@ -1154,13 +1293,13 @@ class Liwc22:
 
     def freq(
         self,
+        input: str | Path | pd.DataFrame | pd.Series,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
-        column_indices: Iterable[int | str] | None = None,
+        column_indices: int | str | Iterable[int | str] | None = None,
         combine_columns: bool = True,
         conversion_list: str | None = None,
-        stop_list: str | None = None,
+        stop_list: str = "internal-EN",
         trim_s: bool = True,
         n_gram: int = 1,
         skip_wc: int = 10,
@@ -1174,16 +1313,15 @@ class Liwc22:
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`.
-            DataFrame input is written to a temp CSV, fed to LIWC-CLI, and
-            the temp file is removed when the call returns.
-        output : :class:`str`
+        input : str, :class:`~pathlib.Path`, DataFrame, or Series
+            Path to input file/folder, a DataFrame (requires
+            *column_indices*), or a Series (auto-wraps).
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : iterable of :class:`int` or :class:`str`, optional
-            Columns containing analysable text - 0-based integer indices or
-            column-name strings (requires the input to have a header row).
-            All columns processed by default.
+        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns containing analysable text.  A bare ``str`` or ``int`` is
+            accepted for single-column selection.  All columns processed by
+            default (not allowed for DataFrame input).
         combine_columns : :class:`bool`, optional
             If ``True``, combine spreadsheet columns into a single text per
             row (CLI default: ``True``).
@@ -1196,13 +1334,13 @@ class Liwc22:
         trim_s : :class:`bool`, optional
             If ``True``, trim trailing ``'s`` from words (CLI default: ``True``).
         n_gram : :class:`int`, optional
-            N-gram size (1-5). Inclusive of all lower n-grams (default: 1).
+            N-gram size (1-5), inclusive of all lower n-grams (default: 1).
         skip_wc : :class:`int`, optional
             Skip texts with word count less than this value (default: 10).
         drop_words : :class:`int`, optional
             Drop n-grams with frequency less than this value (default: 5).
         prune_interval : :class:`int`, optional
-            Prune frequency list every N words to optimise RAM (default: 10000000).
+            Prune frequency list every N words to optimise RAM (default: 10_000_000).
         prune_threshold_value : :class:`int`, optional
             Minimum n-gram frequency retained during pruning (default: 5).
         output_format : :class:`str`, optional
@@ -1211,27 +1349,12 @@ class Liwc22:
         Returns
         -------
         :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
-            *would* have written to - no file is created.
-
-        Raises
-        ------
-        :class:`ValueError`
-            If *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
-
-        Examples
-        --------
-        >>> Liwc22(dry_run=True).freq(  # doctest: +SKIP
-        ...     input="corpus/",
-        ...     output="freqs.csv",
-        ...     n_gram=2,
-        ... )
+            The *output* path.
         """
+        _check_bool("combine_columns", combine_columns)
+        _check_bool("trim_s", trim_s)
+        _check_choice("n_gram", n_gram, (1, 2, 3, 4, 5))
+        _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "freq",
             {
@@ -1253,14 +1376,14 @@ class Liwc22:
 
     def mem(
         self,
+        input: str | Path | pd.DataFrame | pd.Series,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
-        column_indices: Iterable[int | str] | None = None,
+        column_indices: int | str | Iterable[int | str] | None = None,
         combine_columns: bool = True,
         index_of_id_column: int | str | None = None,
         conversion_list: str | None = None,
-        stop_list: str | None = None,
+        stop_list: str = "internal-EN",
         trim_s: bool = True,
         n_gram: int = 1,
         skip_wc: int = 10,
@@ -1278,85 +1401,65 @@ class Liwc22:
         """
         Run Meaning Extraction Method (MEM) analysis.
 
-        Builds a document-term matrix over the input corpus and optionally runs
-        Principal Component Analysis to surface latent themes.
+        Builds a document-term matrix over the input corpus and optionally
+        runs Principal Component Analysis to surface latent themes.
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`.
-            DataFrame input is written to a temp CSV, fed to LIWC-CLI, and
-            the temp file is removed when the call returns.
-        output : :class:`str`
+        input : str, :class:`~pathlib.Path`, DataFrame, or Series
+            Path to input file/folder, a DataFrame (requires
+            *column_indices*), or a Series (auto-wraps).
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : iterable of :class:`int` or :class:`str`, optional
-            Columns containing analysable text - 0-based integer indices or
-            column-name strings.  All columns processed by default.
+        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns containing analysable text.
         combine_columns : :class:`bool`, optional
-            If ``True``, combine spreadsheet columns into a single text per
-            row (CLI default: ``True``).
+            If ``True``, combine spreadsheet columns into a single text per row.
         index_of_id_column : :class:`int` or :class:`str`, optional
-            Column to use as row identifier - 0-based integer index or
-            column-name string.
+            Column to use as row identifier.
         conversion_list : :class:`str`, optional
-            Path to a conversion list or an internal list name (e.g.
-            ``internal-EN``). Use ``"none"`` for no conversion.
+            Path to a conversion list or an internal list name.
         stop_list : :class:`str`, optional
-            Path to a stop list, an internal list name (e.g. ``internal-EN``),
-            or ``"none"`` (default: internal-EN).
+            Path to a stop list, an internal list name, or ``"none"``
+            (default: ``"internal-EN"``).
         trim_s : :class:`bool`, optional
-            If ``True``, trim trailing ``'s`` from words (CLI default: ``True``).
+            If ``True``, trim trailing ``'s`` from words.
         n_gram : :class:`int`, optional
-            N-gram size (1-5). Inclusive of all lower n-grams (default: 1).
+            N-gram size (1-5).
         skip_wc : :class:`int`, optional
             Skip texts with word count less than this value (default: 10).
         segmentation : :class:`str`, optional
-            Split text into segments. Syntax varies by mode.
+            Split text into segments.
         threshold_type : :class:`str`, optional
-            Cutoff type for word inclusion - one of ``min-obspct`` (default),
-            ``min-freq``, ``top-obspct``, ``top-freq``.
+            One of ``min-obspct`` (default), ``min-freq``, ``top-obspct``, ``top-freq``.
         threshold_value : :class:`float`, optional
             Threshold cutoff value (default: 10.0).
         mem_output_type : :class:`str`, optional
             Document-term matrix format - one of ``binary`` (default),
             ``relative-freq``, or ``raw-counts``.
         enable_pca : :class:`bool`, optional
-            Enable Principal Component Analysis for MEM (default ``False``).
+            Enable Principal Component Analysis (default ``False``).
         save_theme_scores : :class:`bool`, optional
-            Create and save theme scores table for PCA analysis (default ``False``).
+            Save the theme-scores table for PCA (default ``False``).
         column_delimiter : :class:`str`, optional
             Delimiter between grams in n-gram column names (default: space).
-        prune_interval : :class:`int`, optional
-            Prune frequency list every N words to optimise RAM (default: 10000000).
-        prune_threshold_value : :class:`int`, optional
-            Minimum n-gram frequency retained during pruning (default: 5).
+        prune_interval, prune_threshold_value : :class:`int`, optional
+            RAM-pruning controls (defaults: 10_000_000 and 5).
         output_format : :class:`str`, optional
-            Output file format - one of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
-
-        Returns
-        -------
-        :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
-            *would* have written to - no file is created.
-
-        Raises
-        ------
-        :class:`ValueError`
-            If *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
-
-        Examples
-        --------
-        >>> Liwc22(dry_run=True).mem(  # doctest: +SKIP
-        ...     input="texts/",
-        ...     output="mem.csv",
-        ...     enable_pca=True,
-        ... )
+            One of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         """
+        _check_bool("combine_columns", combine_columns)
+        _check_bool("trim_s", trim_s)
+        _check_bool("enable_pca", enable_pca)
+        _check_bool("save_theme_scores", save_theme_scores)
+        _check_choice("n_gram", n_gram, (1, 2, 3, 4, 5))
+        _check_choice(
+            "threshold_type",
+            threshold_type,
+            ("min-obspct", "min-freq", "top-obspct", "top-freq"),
+        )
+        _check_choice("mem_output_type", mem_output_type, ("binary", "relative-freq", "raw-counts"))
+        _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "mem",
             {
@@ -1385,16 +1488,16 @@ class Liwc22:
 
     def context(
         self,
+        input: str | Path | pd.DataFrame | pd.Series,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
-        column_indices: Iterable[int | str] | None = None,
+        column_indices: int | str | Iterable[int | str] | None = None,
         combine_columns: bool = True,
         index_of_id_column: int | str | None = None,
         dictionary: str = "LIWC22",
         category_to_contextualize: str | None = None,
         word_list: str | None = None,
-        words_to_contextualize: Iterable[str] | None = None,
+        words_to_contextualize: str | Iterable[str] | None = None,
         word_window_left: int = 3,
         word_window_right: int = 3,
         keep_punctuation: bool = True,
@@ -1408,59 +1511,36 @@ class Liwc22:
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`.
-            DataFrame input is written to a temp CSV, fed to LIWC-CLI, and
-            the temp file is removed when the call returns.
-        output : :class:`str`
+        input : str, :class:`~pathlib.Path`, DataFrame, or Series
+            Path to input file/folder, a DataFrame (requires
+            *column_indices*), or a Series (auto-wraps).
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : iterable of :class:`int` or :class:`str`, optional
-            Columns containing analysable text - 0-based integer indices or
-            column-name strings.  All columns processed by default.
+        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns containing analysable text.
         combine_columns : :class:`bool`, optional
-            If ``True``, combine spreadsheet columns into a single text per
-            row (CLI default: ``True``).
+            If ``True``, combine spreadsheet columns into a single text per row.
         index_of_id_column : :class:`int` or :class:`str`, optional
-            Column to use as row identifier - 0-based integer index or
-            column-name string.
+            Column to use as row identifier.
         dictionary : :class:`str`, optional
-            LIWC dictionary name (e.g. ``LIWC22``, ``LIWC2015``) or path to a
-            custom ``.dicx`` file (default: LIWC22).
+            LIWC dictionary name or path to a custom ``.dicx`` file.
         category_to_contextualize : :class:`str`, optional
             Dictionary category to contextualise (default: first category).
         word_list : :class:`str`, optional
-            Path to a word list file for contextualisation.  Wildcards (``*``)
-            allowed.
-        words_to_contextualize : iterable of :class:`str`, optional
+            Path to a word list file for contextualisation.
+        words_to_contextualize : :class:`str` or iterable of :class:`str`, optional
             Words to contextualise.  Wildcards (``*``) allowed.
-        word_window_left : :class:`int`, optional
-            Context words to the left of the target word (default: 3).
-        word_window_right : :class:`int`, optional
-            Context words to the right of the target word (default: 3).
+        word_window_left, word_window_right : :class:`int`, optional
+            Context words around the target word (defaults: 3, 3).
         keep_punctuation : :class:`bool`, optional
-            If ``True``, include punctuation in context items (CLI default:
-            ``True``).
-
-        Returns
-        -------
-        :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
-            *would* have written to - no file is created.
-
-        Raises
-        ------
-        :class:`ValueError`
-            If *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
-
-        Examples
-        --------
-        >>> Liwc22(dry_run=True).context(input="data.txt", output="ctx.csv")  # doctest: +SKIP
+            If ``True``, include punctuation in context items (CLI default: ``True``).
         """
+        _check_bool("combine_columns", combine_columns)
+        _check_bool("keep_punctuation", keep_punctuation)
+        _check_type("word_window_left", word_window_left, int)
+        _check_type("word_window_right", word_window_right, int)
+        if word_window_left < 0 or word_window_right < 0:
+            raise ValueError("word_window_left/right must be non-negative.")
         return self._run_mode(
             "context",
             {
@@ -1481,10 +1561,10 @@ class Liwc22:
 
     def arc(
         self,
+        input: str | Path | pd.DataFrame | pd.Series,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
-        column_indices: Iterable[int | str] | None = None,
+        column_indices: int | str | Iterable[int | str] | None = None,
         combine_columns: bool = True,
         index_of_id_column: int | str | None = None,
         segments_number: int = 5,
@@ -1501,21 +1581,17 @@ class Liwc22:
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`.
-            DataFrame input is written to a temp CSV, fed to LIWC-CLI, and
-            the temp file is removed when the call returns.
-        output : :class:`str`
+        input : str, :class:`~pathlib.Path`, DataFrame, or Series
+            Path to input file/folder, a DataFrame (requires
+            *column_indices*), or a Series (auto-wraps).
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : iterable of :class:`int` or :class:`str`, optional
-            Columns containing analysable text - 0-based integer indices or
-            column-name strings.  All columns processed by default.
+        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns containing analysable text.
         combine_columns : :class:`bool`, optional
-            If ``True``, combine spreadsheet columns into a single text per
-            row (CLI default: ``True``).
+            If ``True``, combine spreadsheet columns into a single text per row.
         index_of_id_column : :class:`int` or :class:`str`, optional
-            Column to use as row identifier - 0-based integer index or
-            column-name string.
+            Column to use as row identifier.
         segments_number : :class:`int`, optional
             Number of segments to divide text into (default: 5).
         scaling_method : :class:`int`, optional
@@ -1525,28 +1601,12 @@ class Liwc22:
         output_data_points : :class:`bool`, optional
             If ``True``, output individual data points (CLI default: ``True``).
         output_format : :class:`str`, optional
-            Output file format - one of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
-
-        Returns
-        -------
-        :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
-            *would* have written to - no file is created.
-
-        Raises
-        ------
-        :class:`ValueError`
-            If *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
-
-        Examples
-        --------
-        >>> Liwc22(dry_run=True).arc(input="stories/", output="arc.csv")  # doctest: +SKIP
+            One of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         """
+        _check_bool("combine_columns", combine_columns)
+        _check_bool("output_data_points", output_data_points)
+        _check_choice("scaling_method", scaling_method, (1, 2))
+        _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "arc",
             {
@@ -1565,9 +1625,9 @@ class Liwc22:
 
     def ct(
         self,
+        input: str | Path,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
         speaker_list: str,
         regex_removal: str | None = None,
         omit_speakers_num_turns: int = 0,
@@ -1579,11 +1639,10 @@ class Liwc22:
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`.
-            DataFrame input is written to a temp CSV, fed to LIWC-CLI, and
-            the temp file is removed when the call returns.
-        output : :class:`str`
+        input : :class:`str` or :class:`~pathlib.Path`
+            Path to a transcript file or folder.  DataFrame/Series input is
+            not supported - ``ct`` operates on raw transcripts.
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
         speaker_list : :class:`str`
             Path to a text/csv/xlsx file containing a list of speakers.
@@ -1594,33 +1653,9 @@ class Liwc22:
         omit_speakers_word_count : :class:`int`, optional
             Omit speakers with word count less than this value (default: 10).
         single_line : :class:`bool`, optional
-            Don't combine untagged lines with the previous speaker. Lines
-            without speaker tags will be ignored (default ``False``).
-
-        Returns
-        -------
-        :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
-            *would* have written to - no file is created.
-
-        Raises
-        ------
-        :class:`ValueError`
-            If *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
-
-        Examples
-        --------
-        >>> Liwc22(dry_run=True).ct(  # doctest: +SKIP
-        ...     input="transcripts/",
-        ...     output="merged.csv",
-        ...     speaker_list="speakers.txt",
-        ... )
+            Don't combine untagged lines with the previous speaker (default ``False``).
         """
+        _check_bool("single_line", single_line)
         return self._run_mode(
             "ct",
             {
@@ -1636,10 +1671,10 @@ class Liwc22:
 
     def lsm(
         self,
+        input: str | Path | pd.DataFrame | pd.Series,
+        output: str | Path,
         *,
-        input: str | pd.DataFrame,
-        output: str,
-        text_column: int | str,
+        text_column: int | str | None = None,
         person_column: int | str,
         group_column: int | str | None = None,
         calculate_lsm: int = 3,
@@ -1659,66 +1694,37 @@ class Liwc22:
 
         Parameters
         ----------
-        input : :class:`str` or :class:`pandas.DataFrame`
-            Path to input file or folder, OR a :class:`pandas.DataFrame`.
-            DataFrame input is written to a temp CSV, fed to LIWC-CLI, and
-            the temp file is removed when the call returns.
-        output : :class:`str`
+        input : str, :class:`~pathlib.Path`, DataFrame, or Series
+            Path to input file/folder, a DataFrame (requires *text_column*),
+            or a Series (auto-wraps; *text_column* auto-filled).
+        output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        text_column : :class:`int` or :class:`str`
-            Column containing the text - 0-based integer index or
-            column-name string (requires the input to have a header row).
+        text_column : :class:`int` or :class:`str`, optional
+            Column containing the text.  Required for non-Series input.
         person_column : :class:`int` or :class:`str`
-            Person ID column - 0-based integer index or column-name string.
+            Person ID column.
         group_column : :class:`int` or :class:`str`, optional
-            Group ID column - 0-based integer index or column-name string.
-            ``None`` (the default) means "no groups".
+            Group ID column.  ``None`` (the default) means "no groups".
         calculate_lsm : :class:`int`, optional
-            LSM calculation type - ``1`` = person-level, ``2`` = group-level,
-            ``3`` = both (default: 3).
+            ``1`` = person-level, ``2`` = group-level, ``3`` = both (default: 3).
         output_type : :class:`int`, optional
-            Output type - ``1`` = one-to-many (default), ``2`` = pairwise.
+            ``1`` = one-to-many (default), ``2`` = pairwise.
         expanded_output : :class:`bool`, optional
             Include expanded LSM output (default ``False``).
         segmentation : :class:`str`, optional
-            Split text into segments. Syntax varies by mode.
-        omit_speakers_num_turns : :class:`int`, optional
-            Omit speakers with fewer turns than this value (default: 0).
-        omit_speakers_word_count : :class:`int`, optional
-            Omit speakers with word count less than this value (default: 10).
+            Split text into segments.
+        omit_speakers_num_turns, omit_speakers_word_count : :class:`int`, optional
+            Skip thresholds (defaults: 0, 10).
         single_line : :class:`bool`, optional
-            Don't combine untagged lines with the previous speaker. Lines
-            without speaker tags will be ignored (default ``False``).
+            Don't combine untagged lines with the previous speaker (default ``False``).
         output_format : :class:`str`, optional
-            Output file format - one of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
-
-        Returns
-        -------
-        :class:`str`
-            The *output* path.  On dry runs this is the path LIWC-22-cli
-            *would* have written to - no file is created.
-
-        Raises
-        ------
-        :class:`ValueError`
-            If *input* is an empty DataFrame.
-        :class:`subprocess.CalledProcessError`
-            If LIWC-22-cli exits with a non-zero status.
-        :class:`SystemExit`
-            If LIWC-22 is not running and ``auto_open=False`` was passed at
-            construction.
-
-        Examples
-        --------
-        >>> Liwc22(dry_run=True).lsm(  # doctest: +SKIP
-        ...     input="chat.csv",
-        ...     output="lsm.csv",
-        ...     text_column="text",
-        ...     person_column="speaker",
-        ...     calculate_lsm=3,
-        ...     output_type=1,
-        ... )
+            One of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         """
+        _check_bool("expanded_output", expanded_output)
+        _check_bool("single_line", single_line)
+        _check_choice("calculate_lsm", calculate_lsm, (1, 2, 3))
+        _check_choice("output_type", output_type, (1, 2))
+        _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "lsm",
             {
