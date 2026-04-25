@@ -213,7 +213,11 @@ def fetch_liwc_demo_data() -> pd.DataFrame:
     data = {}
     for k, v in fpaths.items():
         if k not in {"LICENSE.txt", "README.txt"}:
-            data[v.stem] = v.read_text()
+            try:
+                text = v.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                text = v.read_text(encoding="windows-1252")
+            data[v.stem] = text
     ser = pd.Series(data, name="text").rename_axis("text_id")
     df = ser.to_frame()
     return df
@@ -346,9 +350,9 @@ def _fetch_testkitchen() -> pd.DataFrame:
         source_shortname = fp.stem.split("_")[0]
         source_map[source_shortname] = source_fullname
     data = {}
-    # for fp in fpaths.values():
-    for fp in list(fpaths.values())[:10]:
-        data[fp.stem] = fp.read_text()
+    for fp in list(fpaths.values())[:1200]:
+        # for fp in fpaths.values():
+        data[fp.stem] = fp.read_text().strip().strip('"').strip()
     ser = pd.Series(data, name="text").rename_axis("text_id")
     df = ser.to_frame()
     df.index = df.index.str.split("_").str[0].map(source_map)
