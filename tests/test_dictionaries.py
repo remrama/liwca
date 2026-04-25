@@ -15,6 +15,7 @@ from liwca.datasets import dictionaries
 _FETCH_FUNCTIONS = [
     dictionaries.fetch_bigtwo,
     dictionaries.fetch_emfd,
+    dictionaries.fetch_empath,
     dictionaries.fetch_honor,
     dictionaries.fetch_leeq,
     dictionaries.fetch_mystical,
@@ -30,6 +31,7 @@ _FETCH_FUNCTIONS = [
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
     "fetch_bigtwo": {"bigtwo_a.dic", "bigtwo_b.dic"},
     "fetch_emfd": {"mfd2.0.dic"},
+    "fetch_empath": {"empath.tsv"},
     "fetch_honor": {"honor.dic"},
     "fetch_leeq": {"leeq.tsv"},
     "fetch_mystical": {"mystical.xlsx"},

@@ -18,6 +18,7 @@ from liwca.datasets import corpora, dictionaries, tables
 _DICTIONARY_FETCHERS = [
     ("bigtwo", dictionaries.fetch_bigtwo),
     ("emfd", dictionaries.fetch_emfd),
+    ("empath", dictionaries.fetch_empath),
     ("honor", dictionaries.fetch_honor),
     ("leeq", dictionaries.fetch_leeq),
     ("mystical", dictionaries.fetch_mystical),
@@ -63,8 +64,9 @@ _CORPUS_FETCHERS = [
     ("cmu_movies", corpora.fetch_cmu_movies),
     ("hippocorpus", corpora.fetch_hippocorpus),
     ("liwc_demo_data", corpora.fetch_liwc_demo_data),
-    ("sherlock", corpora.fetch_sherlock),
     ("rwritingprompts", corpora.fetch_rwritingprompts),
+    ("sherlock", corpora.fetch_sherlock),
+    ("tedtalks", corpora.fetch_tedtalks),
 ]
 
 

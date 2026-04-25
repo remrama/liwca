@@ -18,8 +18,9 @@ _FETCH_FUNCTIONS = [
     corpora.fetch_cmu_movies,
     corpora.fetch_hippocorpus,
     corpora.fetch_liwc_demo_data,
-    corpora.fetch_sherlock,
     corpora.fetch_rwritingprompts,
+    corpora.fetch_sherlock,
+    corpora.fetch_tedtalks,
 ]
 
 # Filenames each public fetcher pulls from the shared Pooch registry.
@@ -32,8 +33,9 @@ _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
     "fetch_cmu_movies": {"MovieSummaries.tar.gz"},
     "fetch_hippocorpus": {"hippocorpus.zip"},
     "fetch_liwc_demo_data": {"liwc22-demo-data.zip"},
-    "fetch_sherlock": {"sherlock.zip"},
     "fetch_rwritingprompts": {"reddit_short_stories.txt"},
+    "fetch_sherlock": {"sherlock.zip"},
+    "fetch_tedtalks": {"tedtalks.zip"},
 }
 
 

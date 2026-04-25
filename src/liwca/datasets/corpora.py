@@ -27,8 +27,9 @@ __all__ = [
     "fetch_cmu_movies",
     "fetch_hippocorpus",
     "fetch_liwc_demo_data",
-    "fetch_sherlock",
     "fetch_rwritingprompts",
+    "fetch_sherlock",
+    "fetch_tedtalks",
 ]
 
 logger = logging.getLogger(__name__)
@@ -193,7 +194,7 @@ def fetch_hippocorpus() -> pd.DataFrame:
     return df
 
 
-def fetch_liwc_demo_data() -> Path:
+def fetch_liwc_demo_data() -> pd.DataFrame:
     """
     Fetch the LIWC-22 demo data archive.
 
@@ -236,9 +237,9 @@ def fetch_rwritingprompts() -> pd.DataFrame:
     Returns
     -------
     :class:`pandas.DataFrame`
-        :class:`~pandas.DataFrame` of the ``reddit-short-stories.txt`` file.
+        :class:`~pandas.DataFrame` of the ``reddit_short_stories.txt`` file.
     """
-    fname = _pup.fetch("reddit-short-stories.txt")
+    fname = _pup.fetch("reddit_short_stories.txt")
     fpath = Path(fname)
     data = []
     txt = fpath.read_text(encoding="utf-8")

@@ -26,6 +26,7 @@ from ..io import create_dx, dx_schema, read_dx
 __all__ = [
     "fetch_bigtwo",
     "fetch_emfd",
+    "fetch_empath",
     "fetch_honor",
     "fetch_leeq",
     "fetch_mystical",
