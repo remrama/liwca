@@ -20,6 +20,7 @@ import pandas as pd
 import pooch
 
 from ._common import authorized_zenodo_downloader, make_pup
+from ._common import get_location as _get_location
 
 __all__ = [
     "fetch_autobiomemsim",
@@ -30,11 +31,17 @@ __all__ = [
     "fetch_rwritingprompts",
     "fetch_sherlock",
     "fetch_tedtalks",
+    "get_location",
 ]
 
 logger = logging.getLogger(__name__)
 
 _pup = make_pup("corpora")
+
+
+def get_location() -> Path:
+    """Return the local cache directory used by the corpus fetchers."""
+    return _get_location(_pup)
 
 
 # ---------------------------------------------------------------------------

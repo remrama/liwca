@@ -13,7 +13,15 @@ from pathlib import Path
 
 import pooch
 
-__all__ = ["authorized_zenodo_downloader", "make_pup"]
+__all__ = ["authorized_zenodo_downloader", "get_location", "make_pup"]
+
+
+def get_location(pup: pooch.Pooch) -> Path:
+    """Return the local cache directory used by ``pup``.
+
+    The directory may not exist yet if no files have been fetched.
+    """
+    return Path(pup.path)
 
 
 def make_pup(category: str) -> pooch.Pooch:

@@ -19,6 +19,7 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
+from ._common import get_location as _get_location
 from ._common import make_pup
 
 __all__ = [
@@ -26,11 +27,17 @@ __all__ = [
     "fetch_liwc22norms",
     "fetch_psychnorms",
     "fetch_scope",
+    "get_location",
 ]
 
 logger = logging.getLogger(__name__)
 
 _pup = make_pup("tables")
+
+
+def get_location() -> Path:
+    """Return the local cache directory used by the table fetchers."""
+    return _get_location(_pup)
 
 
 # ---------------------------------------------------------------------------

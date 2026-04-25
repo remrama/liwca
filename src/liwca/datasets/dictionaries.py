@@ -21,6 +21,7 @@ import pooch
 
 from ..io import create_dx, dx_schema, read_dx
 from ._common import authorized_zenodo_downloader, make_pup
+from ._common import get_location as _get_location
 
 __all__ = [
     "fetch_bigtwo",
@@ -32,11 +33,17 @@ __all__ = [
     "fetch_sleep",
     "fetch_threat",
     "fetch_wrad",
+    "get_location",
 ]
 
 logger = logging.getLogger(__name__)
 
 _pup = make_pup("dictionaries")
+
+
+def get_location() -> Path:
+    """Return the local cache directory used by the dictionary fetchers."""
+    return _get_location(_pup)
 
 
 # ---------------------------------------------------------------------------
