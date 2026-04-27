@@ -20,7 +20,7 @@ import pandas as pd
 import pooch
 
 from ..io import create_dx, dx_schema, read_dx
-from ._common import authorized_zenodo_downloader, make_pup
+from ._common import AuthorizedZenodoDownloader, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -322,7 +322,7 @@ def _fetch_liwc2015() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    fname = _pup.fetch("LIWC2015.xlsx", downloader=authorized_zenodo_downloader())
+    fname = _pup.fetch("LIWC2015.xlsx", downloader=AuthorizedZenodoDownloader())
     fpath = Path(fname)
     df = pd.read_excel(fpath, skiprows=[0, 1, 2, 4]).rename_axis("Category", axis=1)
     df.columns = df.columns.str.split("\n").str[1]
@@ -340,7 +340,7 @@ def _fetch_liwc22() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    fname = _pup.fetch("LIWC22.xlsx", downloader=authorized_zenodo_downloader())
+    fname = _pup.fetch("LIWC22.xlsx", downloader=AuthorizedZenodoDownloader())
     fpath = Path(fname)
     df = pd.read_excel(fpath, skiprows=2).rename_axis("Category", axis=1)
     df.columns = pd.Series(df.columns).replace(r"^Unnamed: \d+$", pd.NA, regex=True).ffill()
@@ -360,7 +360,7 @@ def _fetch_translated(fstem: str) -> pd.DataFrame:
 
     .. note:: These dictionaries require login for access.
     """
-    downloader = authorized_zenodo_downloader()
+    downloader = AuthorizedZenodoDownloader()
     processor = pooch.Unzip()
     fname = f"{fstem}.dicx"
     fnames = _pup.fetch("translations.zip", downloader=downloader, processor=processor)
@@ -379,7 +379,7 @@ def _fetch_usermade(fstem: str) -> pd.DataFrame:
 
     .. note:: These dictionaries require login for access.
     """
-    downloader = authorized_zenodo_downloader()
+    downloader = AuthorizedZenodoDownloader()
     processor = pooch.Unzip()
     fname = f"{fstem}.dicx"
     fnames = _pup.fetch("user-made.zip", downloader=downloader, processor=processor)

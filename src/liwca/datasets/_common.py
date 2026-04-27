@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
-__all__ = ["UnzipToCsv", "authorized_zenodo_downloader", "get_location", "make_pup"]
+__all__ = ["AuthorizedZenodoDownloader", "UnzipToCsv", "get_location", "make_pup"]
 
 
 def get_location(pup: pooch.Pooch) -> Path:
@@ -90,19 +90,24 @@ class UnzipToCsv:
         return str(cache_path)
 
 
-def authorized_zenodo_downloader(**kwargs) -> pooch.HTTPDownloader:
-    """Build a Pooch HTTP downloader carrying a Zenodo bearer token.
+class AuthorizedZenodoDownloader(pooch.HTTPDownloader):
+    """Pooch HTTP downloader that lazily injects a ``ZENODO_TOKEN`` bearer header.
 
-    Reads ``ZENODO_TOKEN`` from the environment and attaches it as an
-    ``Authorization: Bearer <token>`` header on every request, so restricted
-    Zenodo records can be fetched.
+    Subclass of :class:`pooch.HTTPDownloader` that reads ``ZENODO_TOKEN`` from
+    the environment only when invoked - so calls that hit a cached file (and
+    never trigger the downloader) succeed without a token.
 
     Raises
     ------
     OSError
-        If ``ZENODO_TOKEN`` is unset.
+        Only when invoked and ``ZENODO_TOKEN`` is unset.
     """
-    if (token := os.environ.get("ZENODO_TOKEN")) is None:
-        raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
-    authorization = f"Bearer {token}"
-    return pooch.HTTPDownloader(headers={"Authorization": authorization}, **kwargs)
+
+    def __call__(self, url, output_file, pup, check_only=False):
+        if (token := os.environ.get("ZENODO_TOKEN")) is None:
+            raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
+        self.kwargs["headers"] = {
+            **(self.kwargs.get("headers") or {}),
+            "Authorization": f"Bearer {token}",
+        }
+        return super().__call__(url, output_file, pup, check_only=check_only)

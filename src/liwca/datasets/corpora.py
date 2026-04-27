@@ -20,7 +20,7 @@ import pandas as pd
 import pooch
 from tqdm.auto import tqdm
 
-from ._common import UnzipToCsv, authorized_zenodo_downloader, make_pup
+from ._common import AuthorizedZenodoDownloader, UnzipToCsv, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -372,7 +372,7 @@ def _fetch_testkitchen() -> pd.DataFrame:
 
     csv_path = _pup.fetch(
         "testkitchen.zip",
-        downloader=authorized_zenodo_downloader(),
+        downloader=AuthorizedZenodoDownloader(),
         processor=UnzipToCsv(_build, "testkitchen.csv"),
     )
     return pd.read_csv(csv_path, index_col="text_id")
