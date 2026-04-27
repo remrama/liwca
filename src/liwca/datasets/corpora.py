@@ -18,8 +18,9 @@ from pathlib import Path
 
 import pandas as pd
 import pooch
+from tqdm.auto import tqdm
 
-from ._common import authorized_zenodo_downloader, make_pup
+from ._common import UnzipToCsv, authorized_zenodo_downloader, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -208,19 +209,24 @@ def fetch_liwc_demo_data() -> pd.DataFrame:
     .. [1] `https://www.liwc.app/static/files/liwc-22-demo-data.zip
            <https://www.liwc.app/static/files/liwc-22-demo-data.zip>`__
     """
-    fnames = _pup.fetch("liwc22-demo-data.zip", processor=pooch.Unzip())
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    data = {}
-    for k, v in fpaths.items():
-        if k not in {"LICENSE.txt", "README.txt"}:
+
+    def _build(member_paths: list[Path]) -> pd.DataFrame:
+        data = {}
+        for p in tqdm(member_paths, desc="Parsing LIWC-22 demo data"):
+            if p.name in {"LICENSE.txt", "README.txt"}:
+                continue
             try:
-                text = v.read_text(encoding="utf-8")
+                text = p.read_text(encoding="utf-8")
             except UnicodeDecodeError:
-                text = v.read_text(encoding="windows-1252")
-            data[v.stem] = text
-    ser = pd.Series(data, name="text").rename_axis("text_id")
-    df = ser.to_frame()
-    return df
+                text = p.read_text(encoding="windows-1252")
+            data[p.stem] = text
+        return pd.Series(data, name="text").rename_axis("text_id").to_frame()
+
+    csv_path = _pup.fetch(
+        "liwc22-demo-data.zip",
+        processor=UnzipToCsv(_build, "liwc22-demo-data.csv"),
+    )
+    return pd.read_csv(csv_path, index_col="text_id")
 
 
 def fetch_rwritingprompts() -> pd.DataFrame:
@@ -280,19 +286,22 @@ def fetch_sherlock() -> pd.DataFrame:
     member_fnames = [f"NN{i + 1} transcript.txt" for i in range(17)]
     member_fnames.append("Sherlock_Segments_1000_NN_2017.xlsx")
     members = [f"sherlock-topic-model-paper-1.0/data/raw/{fn}" for fn in member_fnames]
-    processor = pooch.Unzip(members=members)
-    fnames = _pup.fetch("sherlock.zip", processor=processor)
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    data = {}
-    for k, v in fpaths.items():
-        if k != "Sherlock_Segments_1000_NN_2017.xlsx":
-            author_int = int(k.split()[0][2:])
+
+    def _build(member_paths: list[Path]) -> pd.DataFrame:
+        data = {}
+        for p in tqdm(member_paths, desc="Parsing Sherlock transcripts"):
+            if p.suffix != ".txt":
+                continue
+            author_int = int(p.name.split()[0][2:])
             author = f"NN{author_int:02d}"
-            text = v.read_text(encoding="windows-1252").strip()
-            data[author] = text
-    ser = pd.Series(data, name="text").rename_axis("text_id").sort_index()
-    df = ser.to_frame()
-    return df
+            data[author] = p.read_text(encoding="windows-1252").strip()
+        return pd.Series(data, name="text").rename_axis("text_id").sort_index().to_frame()
+
+    csv_path = _pup.fetch(
+        "sherlock.zip",
+        processor=UnzipToCsv(_build, "sherlock.csv", members=members),
+    )
+    return pd.read_csv(csv_path, index_col="text_id")
 
 
 def fetch_tedtalks(language: str = "en") -> pd.DataFrame:
@@ -340,20 +349,30 @@ def _fetch_testkitchen() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    downloader = authorized_zenodo_downloader()
-    processor = pooch.Unzip()
-    fnames = _pup.fetch("testkitchen.zip", downloader=downloader, processor=processor)
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    source_map = {}
-    for fp in fpaths["AP_0001.txt"].parent.parent.glob("TK_*/*_0001.txt"):
-        source_fullname = fp.parent.name.split("_", 1)[1]
-        source_shortname = fp.stem.split("_")[0]
-        source_map[source_shortname] = source_fullname
-    data = {}
-    for fp in list(fpaths.values())[:1200]:
-        # for fp in fpaths.values():
-        data[fp.stem] = fp.read_text().strip().strip('"').strip()
-    ser = pd.Series(data, name="text").rename_axis("text_id")
-    df = ser.to_frame()
-    df.index = df.index.str.split("_").str[0].map(source_map)
-    return df
+
+    def _build(member_paths: list[Path]) -> pd.DataFrame:
+        # Single pass over TK_<fullname>/<shortname>_*.txt: read each file
+        # and populate source_map the first time a given <shortname> is seen.
+        data = {}
+        source_map: dict[str, str] = {}
+        for p in tqdm(member_paths, desc="Parsing LIWC Test Kitchen"):
+            if not p.parent.name.startswith("TK_"):
+                continue
+            source_shortname = p.stem.split("_")[0]
+            source_map.setdefault(source_shortname, p.parent.name.split("_", 1)[1])
+            try:
+                text = p.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                text = p.read_text(encoding="windows-1252")
+            data[p.stem] = text.strip().strip('"').strip()
+        ser = pd.Series(data, name="text").rename_axis("text_id")
+        df = ser.to_frame()
+        df.index = df.index.str.split("_").str[0].map(source_map)
+        return df
+
+    csv_path = _pup.fetch(
+        "testkitchen.zip",
+        downloader=authorized_zenodo_downloader(),
+        processor=UnzipToCsv(_build, "testkitchen.csv"),
+    )
+    return pd.read_csv(csv_path, index_col="text_id")
