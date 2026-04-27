@@ -922,6 +922,27 @@ def _check_choice(name: str, value: Any, choices: Iterable[Any]) -> None:
         raise ValueError(f"{name!r} must be one of {list(choices)}, got {value!r}.")
 
 
+def _resolve_dictionary_arg(value: Any) -> Any:
+    """Translate a ``liwca.datasets.dictionaries`` friendly name to a local path.
+
+    If ``value`` matches one of the registered fetcher names (e.g.
+    ``"sleep"``, ``"emfd"``, ``"bigtwo"``), call its fetcher to populate the
+    cache and return the resolved local ``.dicx`` path as a ``str``.
+    Otherwise (``None``, a custom path, a built-in CLI name like
+    ``"LIWC22"``), return ``value`` unchanged so the LIWC-22 CLI can handle
+    it.
+    """
+    if not isinstance(value, str):
+        return value
+    # Lazy import: keeps liwc22 usable without pulling in pooch/registry.
+    from liwca.datasets import dictionaries as _dx_datasets
+
+    try:
+        return str(_dx_datasets.path(value))
+    except ValueError, NotImplementedError:
+        return value
+
+
 class Liwc22:
     """
     Wrapper around ``LIWC-22-cli``.
@@ -1096,6 +1117,11 @@ class Liwc22:
         merged: dict[str, Any] = {k: v for k, v in self._globals.items() if k in applicable}
         merged.update(cli_args)
 
+        # 2b. If `dictionary` names a liwca.datasets.dictionaries fetcher,
+        # populate its cache and substitute the local .dicx path.
+        if "dictionary" in merged:
+            merged["dictionary"] = _resolve_dictionary_arg(merged["dictionary"])
+
         # 3/4. Series/DataFrame input -> temp CSV.
         temp_input: Path | None = None
         input_columns: list[str] | None = None
@@ -1210,8 +1236,12 @@ class Liwc22:
             Columns to use as row identifiers.  Multiple columns are
             concatenated with ``;``.  Defaults to row number.
         dictionary : :class:`str`, optional
-            LIWC dictionary name (e.g. ``LIWC22``, ``LIWC2015``) or path to a
-            custom ``.dicx`` file (default: LIWC22).
+            LIWC dictionary name (e.g. ``LIWC22``, ``LIWC2015``), path to a
+            custom ``.dicx`` file, or one of the
+            :mod:`liwca.datasets.dictionaries` friendly names (e.g.
+            ``"sleep"``, ``"emfd"``, ``"bigtwo"``) - friendly names are
+            auto-resolved to the cached local ``.dicx`` path
+            (default: LIWC22).
         include_categories : :class:`str` or iterable of :class:`str`, optional
             Dictionary categories to include in output.  Mutually exclusive
             with *exclude_categories*.
@@ -1523,7 +1553,10 @@ class Liwc22:
         index_of_id_column : :class:`int` or :class:`str`, optional
             Column to use as row identifier.
         dictionary : :class:`str`, optional
-            LIWC dictionary name or path to a custom ``.dicx`` file.
+            LIWC dictionary name, path to a custom ``.dicx`` file, or a
+            :mod:`liwca.datasets.dictionaries` friendly name (e.g.
+            ``"sleep"``, ``"emfd"``, ``"bigtwo"``) - friendly names are
+            auto-resolved to the cached local ``.dicx`` path.
         category_to_contextualize : :class:`str`, optional
             Dictionary category to contextualise (default: first category).
         word_list : :class:`str`, optional

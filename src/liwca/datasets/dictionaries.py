@@ -14,12 +14,13 @@ Power users who want the raw local file path can call
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import pandas as pd
 import pooch
 
-from ..io import create_dx, dx_schema, read_dx
+from ..io import create_dx, dx_schema, read_dx, write_dx
 from ._common import AuthorizedZenodoDownloader, make_pup
 from ._common import get_location as _get_location
 
@@ -34,6 +35,7 @@ __all__ = [
     "fetch_threat",
     "fetch_wrad",
     "get_location",
+    "path",
 ]
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,101 @@ _pup = make_pup("dictionaries")
 def get_location() -> Path:
     """Return the local cache directory used by the dictionary fetchers."""
     return _get_location(_pup)
+
+
+def path(name: str, **kwargs) -> Path:
+    """Return the local path to the cached ``.dicx`` for a named dictionary.
+
+    Calls the corresponding ``fetch_<name>(**kwargs)`` to ensure the .dicx
+    cache is populated, then returns the local path. Useful for handing off
+    to tools that consume a .dicx file directly (e.g., the LIWC-22 CLI).
+
+    Parameters
+    ----------
+    name : str
+        Friendly dictionary name, matching one of the public ``fetch_<name>``
+        functions (e.g., ``"sleep"``, ``"emfd"``, ``"bigtwo"``).
+    **kwargs
+        Forwarded to the underlying fetcher (e.g., ``version="b"`` for
+        ``"bigtwo"``).
+
+    Returns
+    -------
+    :class:`~pathlib.Path`
+        Path to the cached ``.dicx`` file.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` does not correspond to a known fetcher.
+    NotImplementedError
+        If ``name`` refers to a dictionary that is not yet cached as ``.dicx``
+        (currently only ``"wrad"`` - continuous-valued dictionaries are not
+        yet supported by the schema).
+
+    Examples
+    --------
+    >>> from liwca.datasets import dictionaries
+    >>> dictionaries.path("sleep")  # doctest: +SKIP
+    PosixPath('.../dictionaries/sleep.dicx')
+    >>> dictionaries.path("bigtwo", version="b")  # doctest: +SKIP
+    PosixPath('.../dictionaries/bigtwo_b.dicx')
+    """
+    fetcher = globals().get(f"fetch_{name}")
+    if fetcher is None:
+        available = sorted(n.removeprefix("fetch_") for n in __all__ if n.startswith("fetch_"))
+        raise ValueError(f"Unknown dictionary {name!r}; available: {available}")
+    if name == "wrad":
+        raise NotImplementedError("fetch_wrad has continuous values and is not yet cached as .dicx")
+    fetcher(**kwargs)  # populate the cache
+    if name == "bigtwo":
+        cache_name = f"bigtwo_{kwargs.get('version', 'a')}.dicx"
+    else:
+        cache_name = f"{name}.dicx"
+    return Path(_pup.path) / cache_name
+
+
+# ---------------------------------------------------------------------------
+# Pooch processor: parse a source file once, cache as .dicx
+# ---------------------------------------------------------------------------
+
+
+class BuildDicx:
+    """Pooch processor that parses a source dictionary file and caches as .dicx.
+
+    Sibling of :class:`liwca.datasets._common.CacheCsv` for the dictionaries
+    module. On first run (``action`` is ``"download"`` or ``"update"``),
+    ``build_fn`` is called on the downloaded source file and the resulting
+    DataFrame is written via :func:`liwca.io.write_dx` as ``cache_name``
+    (a ``.dicx`` file) next to the source. On subsequent runs
+    (``action == "fetch"`` and the .dicx exists), the cached path is
+    returned directly with no parsing or rewriting.
+
+    Parameters
+    ----------
+    build_fn : callable
+        Receives the downloaded source file as a :class:`~pathlib.Path` and
+        returns a dictionary :class:`~pandas.DataFrame` (lowercase string
+        index named ``"DicTerm"``, binary int8 columns named ``"Category"``).
+    cache_name : str
+        Filename for the cached .dicx; written alongside the source file.
+    """
+
+    def __init__(
+        self,
+        build_fn: Callable[[Path], pd.DataFrame],
+        cache_name: str,
+    ) -> None:
+        self.build_fn = build_fn
+        self.cache_name = cache_name
+
+    def __call__(self, fname: str, action: str, pup: pooch.Pooch) -> str:
+        cache_path = Path(fname).parent / self.cache_name
+        if action == "fetch" and cache_path.exists():
+            return str(cache_path)
+        df = self.build_fn(Path(fname))
+        write_dx(df, cache_path)
+        return str(cache_path)
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +187,11 @@ def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
     """
     if version not in _BIGTWO_VERSIONS:
         raise ValueError(f"version must be one of {list(_BIGTWO_VERSIONS)}; got {version!r}")
-    return read_dx(_pup.fetch(_BIGTWO_VERSIONS[version]))
+    dicx_path = _pup.fetch(
+        _BIGTWO_VERSIONS[version],
+        processor=BuildDicx(read_dx, f"bigtwo_{version}.dicx"),
+    )
+    return read_dx(dicx_path)
 
 
 def fetch_emfd() -> pd.DataFrame:
@@ -99,7 +200,8 @@ def fetch_emfd() -> pd.DataFrame:
 
     See the `Moral Foundations Dictionary 2.0 OSF page <https://osf.io/ezn37>`__.
     """
-    return read_dx(_pup.fetch("mfd2.0.dic"))
+    dicx_path = _pup.fetch("mfd2.0.dic", processor=BuildDicx(read_dx, "emfd.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_empath() -> pd.DataFrame:
@@ -112,16 +214,18 @@ def fetch_empath() -> pd.DataFrame:
     `Direct download link
     <https://raw.githubusercontent.com/Ejhfast/empath-client/refs/heads/master/empath/data/categories.tsv>`__.
     """
-    fname = _pup.fetch("empath.tsv")
-    fpath = Path(fname)
-    with open(fpath, "r") as f:
-        # It's all tab-separated except one typo: "follows \tstatus"
-        data = [x.strip().split("\t") for x in f.readlines()]
-    categories = {x[0]: x[1:] for x in data}
-    # Remove empty term
-    categories = {cat: [term for term in terms if term] for cat, terms in categories.items()}
-    dx = create_dx(categories)
-    return dx
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        with open(source_path, "r") as f:
+            # It's all tab-separated except one typo: "follows \tstatus"
+            data = [x.strip().split("\t") for x in f.readlines()]
+        categories = {x[0]: x[1:] for x in data}
+        # Remove empty term
+        categories = {cat: [term for term in terms if term] for cat, terms in categories.items()}
+        return create_dx(categories)
+
+    dicx_path = _pup.fetch("empath.tsv", processor=BuildDicx(_build, "empath.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_honor() -> pd.DataFrame:
@@ -152,7 +256,8 @@ def fetch_honor() -> pd.DataFrame:
     >>> from liwca.datasets import dictionaries
     >>> dx = dictionaries.fetch_honor()  # doctest: +SKIP
     """
-    return read_dx(_pup.fetch("honor.dic"))
+    dicx_path = _pup.fetch("honor.dic", processor=BuildDicx(read_dx, "honor.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_leeq() -> pd.DataFrame:
@@ -163,14 +268,15 @@ def fetch_leeq() -> pd.DataFrame:
 
     See `GitHub repository <https://github.com/MichiganNLP/LEEQLexicon>`__ for more info.
     """
-    fname = _pup.fetch("leeq.tsv")
-    fpath = Path(fname)
-    ser = pd.read_csv(fpath, sep="\t", index_col="word").squeeze(axis=1)
-    df = pd.crosstab(ser.index, ser)
-    df = df.astype("int8")
-    df = df.sort_index(axis=0).sort_index(axis=1)
-    df = df.rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
-    return dx_schema.validate(df)
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        ser = pd.read_csv(source_path, sep="\t", index_col="word").squeeze(axis=1)
+        df = pd.crosstab(ser.index, ser).astype("int8")
+        df = df.sort_index(axis=0).sort_index(axis=1)
+        return df.rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
+
+    dicx_path = _pup.fetch("leeq.tsv", processor=BuildDicx(_build, "leeq.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_mystical() -> pd.DataFrame:
@@ -201,18 +307,22 @@ def fetch_mystical() -> pd.DataFrame:
     >>> from liwca.datasets import dictionaries
     >>> dx = dictionaries.fetch_mystical()  # doctest: +SKIP
     """
-    path = _pup.fetch("mystical.xlsx")
-    df = pd.read_excel(
-        path,
-        sheet_name="List1",
-        header=None,
-        usecols=[0, 1],
-        names=["DicTerm", "Mystical"],
-        skiprows=79,
-        index_col="DicTerm",
-    )
-    logger.debug("Read mystical dictionary: %d terms from %s", len(df), path)
-    return dx_schema.validate(df)
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        df = pd.read_excel(
+            source_path,
+            sheet_name="List1",
+            header=None,
+            usecols=[0, 1],
+            names=["DicTerm", "Mystical"],
+            skiprows=79,
+            index_col="DicTerm",
+        )
+        logger.debug("Read mystical dictionary: %d terms from %s", len(df), source_path)
+        return df
+
+    dicx_path = _pup.fetch("mystical.xlsx", processor=BuildDicx(_build, "mystical.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_sleep() -> pd.DataFrame:
@@ -248,15 +358,19 @@ def fetch_sleep() -> pd.DataFrame:
     >>> "cant sleep" in dx.index  # doctest: +SKIP
     True
     """
-    path = _pup.fetch("sleep.tsv")
-    words = pd.read_table(path, skiprows=1, header=None).stack().dropna().tolist()
-    # Some duplicates; autocorrected based on Table S1 of the original paper.
-    words[words.index("Can't sleep")] = "Cant sleep"
-    words[words.index("Couldn't sleep")] = "Couldnt sleep"
-    words[words.index("Didn't sleep")] = "Didnt sleep"
-    df = pd.Series(1, name="sleep", index=words).to_frame()
-    logger.debug("Read sleep dictionary: %d terms from %s", len(df), path)
-    return dx_schema.validate(df)
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        words = pd.read_table(source_path, skiprows=1, header=None).stack().dropna().tolist()
+        # Some duplicates; autocorrected based on Table S1 of the original paper.
+        words[words.index("Can't sleep")] = "Cant sleep"
+        words[words.index("Couldn't sleep")] = "Couldnt sleep"
+        words[words.index("Didn't sleep")] = "Didnt sleep"
+        df = pd.Series(1, name="sleep", index=words).to_frame()
+        logger.debug("Read sleep dictionary: %d terms from %s", len(df), source_path)
+        return df
+
+    dicx_path = _pup.fetch("sleep.tsv", processor=BuildDicx(_build, "sleep.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_threat() -> pd.DataFrame:
@@ -289,12 +403,16 @@ def fetch_threat() -> pd.DataFrame:
     >>> "accidents" in dx.index  # doctest: +SKIP
     True
     """
-    path = _pup.fetch("threat.txt")
-    with open(path, encoding="utf-8") as f:
-        words = f.read().splitlines()
-    df = pd.Series(1, name="threat", index=words).to_frame()
-    logger.debug("Read threat dictionary: %d terms from %s", len(df), path)
-    return dx_schema.validate(df)
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        with open(source_path, encoding="utf-8") as f:
+            words = f.read().splitlines()
+        df = pd.Series(1, name="threat", index=words).to_frame()
+        logger.debug("Read threat dictionary: %d terms from %s", len(df), source_path)
+        return df
+
+    dicx_path = _pup.fetch("threat.txt", processor=BuildDicx(_build, "threat.dicx"))
+    return read_dx(dicx_path)
 
 
 def fetch_wrad() -> pd.DataFrame:
@@ -322,16 +440,22 @@ def _fetch_liwc2015() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    fname = _pup.fetch("LIWC2015.xlsx", downloader=AuthorizedZenodoDownloader())
-    fpath = Path(fname)
-    df = pd.read_excel(fpath, skiprows=[0, 1, 2, 4]).rename_axis("Category", axis=1)
-    df.columns = df.columns.str.split("\n").str[1]
-    df.columns = pd.Series(df.columns).ffill()
-    df = df.melt(value_name="DicTerm").dropna()
-    df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
-    as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
-    dx = create_dx(as_dict)
-    return dx
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        df = pd.read_excel(source_path, skiprows=[0, 1, 2, 4]).rename_axis("Category", axis=1)
+        df.columns = df.columns.str.split("\n").str[1]
+        df.columns = pd.Series(df.columns).ffill()
+        df = df.melt(value_name="DicTerm").dropna()
+        df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
+        as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
+        return create_dx(as_dict)
+
+    dicx_path = _pup.fetch(
+        "LIWC2015.xlsx",
+        downloader=AuthorizedZenodoDownloader(),
+        processor=BuildDicx(_build, "liwc2015.dicx"),
+    )
+    return read_dx(dicx_path)
 
 
 def _fetch_liwc22() -> pd.DataFrame:
@@ -340,15 +464,21 @@ def _fetch_liwc22() -> pd.DataFrame:
 
     .. note:: This is a restricted file that requires approved access.
     """
-    fname = _pup.fetch("LIWC22.xlsx", downloader=AuthorizedZenodoDownloader())
-    fpath = Path(fname)
-    df = pd.read_excel(fpath, skiprows=2).rename_axis("Category", axis=1)
-    df.columns = pd.Series(df.columns).replace(r"^Unnamed: \d+$", pd.NA, regex=True).ffill()
-    df = df.melt(value_name="DicTerm").dropna()
-    df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
-    as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
-    dx = create_dx(as_dict)
-    return dx
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        df = pd.read_excel(source_path, skiprows=2).rename_axis("Category", axis=1)
+        df.columns = pd.Series(df.columns).replace(r"^Unnamed: \d+$", pd.NA, regex=True).ffill()
+        df = df.melt(value_name="DicTerm").dropna()
+        df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
+        as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
+        return create_dx(as_dict)
+
+    dicx_path = _pup.fetch(
+        "LIWC22.xlsx",
+        downloader=AuthorizedZenodoDownloader(),
+        processor=BuildDicx(_build, "liwc22.dicx"),
+    )
+    return read_dx(dicx_path)
 
 
 def _fetch_translated(fstem: str) -> pd.DataFrame:

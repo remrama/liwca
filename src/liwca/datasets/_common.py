@@ -16,7 +16,13 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
-__all__ = ["AuthorizedZenodoDownloader", "UnzipToCsv", "get_location", "make_pup"]
+__all__ = [
+    "AuthorizedZenodoDownloader",
+    "CacheCsv",
+    "UnzipToCsv",
+    "get_location",
+    "make_pup",
+]
 
 
 def get_location(pup: pooch.Pooch) -> Path:
@@ -86,6 +92,42 @@ class UnzipToCsv:
         unzipper = pooch.Unzip(members=self.members)
         member_paths = unzipper(fname, action, pup)
         df = self.build_fn([Path(m) for m in member_paths])
+        df.to_csv(cache_path)
+        return str(cache_path)
+
+
+class CacheCsv:
+    """Pooch processor that parses a single source file and caches as CSV.
+
+    Sibling of :class:`UnzipToCsv` for downloads that don't need unzipping.
+    On first run (``action`` is ``"download"`` or ``"update"``), ``build_fn``
+    is called on the downloaded file and the resulting DataFrame is written
+    as ``cache_name`` next to the source. On subsequent runs
+    (``action == "fetch"`` and the CSV exists), the cached path is returned
+    directly with no parsing.
+
+    Parameters
+    ----------
+    build_fn : callable
+        Receives the downloaded source file as a :class:`~pathlib.Path` and
+        returns a :class:`~pandas.DataFrame`.
+    cache_name : str
+        Filename for the cached CSV; written alongside the source file.
+    """
+
+    def __init__(
+        self,
+        build_fn: Callable[[Path], pd.DataFrame],
+        cache_name: str,
+    ) -> None:
+        self.build_fn = build_fn
+        self.cache_name = cache_name
+
+    def __call__(self, fname: str, action: str, pup: pooch.Pooch) -> str:
+        cache_path = Path(fname).parent / self.cache_name
+        if action == "fetch" and cache_path.exists():
+            return str(cache_path)
+        df = self.build_fn(Path(fname))
         df.to_csv(cache_path)
         return str(cache_path)
 

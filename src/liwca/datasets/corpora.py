@@ -20,7 +20,7 @@ import pandas as pd
 import pooch
 from tqdm.auto import tqdm
 
-from ._common import AuthorizedZenodoDownloader, UnzipToCsv, make_pup
+from ._common import AuthorizedZenodoDownloader, CacheCsv, UnzipToCsv, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -73,27 +73,31 @@ def fetch_autobiomemsim() -> pd.DataFrame:
         "memories_dataset2.txt",
     ]
     members = [f"AutobioMemorySimilarity-main/{fn}" for fn in member_fnames]
-    processor = pooch.Unzip(members=members)
-    fnames = _pup.fetch("autobiomemsem.zip", processor=processor)
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    data = []
-    for i in range(2):
-        fpath = fpaths[f"memories_dataset{i + 1}.txt"]
-        txt = fpath.read_text(encoding="utf-8").strip()
-        entry_list = txt.split("=" * 49 + "\n" + "=" * 49)
-        for entry in entry_list:
-            if entry:
-                components = entry.strip().split("\n\n\n")
-                author, condition, memory_a, memory_b, similarity = components
-                author = int(author.split()[1])
-                memory_a = memory_a.split("Memory A:", 1)[1].strip()
-                memory_b = memory_b.split("Memory B:", 1)[1].strip()
-                # similarity = similarity.split("How A and B are similar/dissimilar:", 1)[1].strip()
-                # save both memory A and memory B (2 rows w/ same author ID)
-                data.append({"author": author, "text": memory_a})
-                data.append({"author": author, "text": memory_b})
-    df = pd.DataFrame.from_records(data, index="author")
-    return df
+
+    def _build(member_paths: list[Path]) -> pd.DataFrame:
+        txt_paths = sorted(p for p in member_paths if p.name.startswith("memories_dataset"))
+        data = []
+        for fpath in tqdm(txt_paths, desc="Parsing AutobioMemorySimilarity"):
+            txt = fpath.read_text(encoding="utf-8").strip()
+            entry_list = txt.split("=" * 49 + "\n" + "=" * 49)
+            for entry in entry_list:
+                if entry:
+                    components = entry.strip().split("\n\n\n")
+                    author, condition, memory_a, memory_b, similarity = components
+                    author = int(author.split()[1])
+                    memory_a = memory_a.split("Memory A:", 1)[1].strip()
+                    memory_b = memory_b.split("Memory B:", 1)[1].strip()
+                    # similarity = similarity.split("How A and B are similar/dissimilar:", 1)
+                    # save both memory A and memory B (2 rows w/ same author ID)
+                    data.append({"author": author, "text": memory_a})
+                    data.append({"author": author, "text": memory_b})
+        return pd.DataFrame.from_records(data, index="author")
+
+    csv_path = _pup.fetch(
+        "autobiomemsem.zip",
+        processor=UnzipToCsv(_build, "autobiomemsem.csv", members=members),
+    )
+    return pd.read_csv(csv_path, index_col="author")
 
 
 def fetch_cmu_books() -> pd.DataFrame:
@@ -241,31 +245,25 @@ def fetch_rwritingprompts() -> pd.DataFrame:
     :class:`pandas.DataFrame`
         :class:`~pandas.DataFrame` of the ``reddit_short_stories.txt`` file.
     """
-    fname = _pup.fetch("reddit_short_stories.txt")
-    fpath = Path(fname)
-    data = []
-    txt = fpath.read_text(encoding="utf-8")
-    # data = [ s.strip() for s in f.read().split("<sos>") ]
-    for line in txt.splitlines():
-        # Remove some custom codes.
-        txt = (
-            line.replace(
-                "<nl> ",
-                "",  # new-line symbols in the stories
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        data = []
+        txt = source_path.read_text(encoding="utf-8")
+        for line in txt.splitlines():
+            # Remove the corpus-specific control tokens before storing.
+            cleaned = (
+                line.replace("<nl> ", "")  # new-line symbols in the stories
+                .replace("<sos> ", "")  # start-of-story
+                .replace(" <eos>", "")  # end-of-story
             )
-            .replace(
-                "<sos> ",
-                "",  # start-of-story
-            )
-            .replace(
-                " <eos>",
-                "",  # end-of-story
-            )
-        )
-        data.append(txt)
-    ser = pd.Series(data, name="text").rename_axis("text_id")
-    df = ser.to_frame()
-    return df
+            data.append(cleaned)
+        return pd.Series(data, name="text").rename_axis("text_id").to_frame()
+
+    csv_path = _pup.fetch(
+        "reddit_short_stories.txt",
+        processor=CacheCsv(_build, "reddit_short_stories.csv"),
+    )
+    return pd.read_csv(csv_path, index_col="text_id")
 
 
 def fetch_sherlock() -> pd.DataFrame:

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
 from liwca.datasets import dictionaries
+from liwca.datasets.dictionaries import BuildDicx
 
 # ---------------------------------------------------------------------------
 # Fetch function API
@@ -54,22 +57,23 @@ class TestFetchFunctions:
 
     def test_fetch_bigtwo_default_version_is_a(self) -> None:
         """Calling fetch_bigtwo() without version uses 'a' (bigtwo_a.dic)."""
-        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo_a.dic") as mock:
+        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo_a.dicx") as mock:
             with patch("liwca.datasets.dictionaries.read_dx"):
                 try:
                     dictionaries.fetch_bigtwo()
                 except Exception:
                     pass
-        mock.assert_called_with("bigtwo_a.dic")
+        # First positional arg is the registry filename; kwargs include the processor.
+        assert mock.call_args.args[0] == "bigtwo_a.dic"
 
     def test_fetch_bigtwo_version_b(self) -> None:
-        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo_b.dic") as mock:
+        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo_b.dicx") as mock:
             with patch("liwca.datasets.dictionaries.read_dx"):
                 try:
                     dictionaries.fetch_bigtwo(version="b")
                 except Exception:
                     pass
-        mock.assert_called_with("bigtwo_b.dic")
+        assert mock.call_args.args[0] == "bigtwo_b.dic"
 
     def test_download_failure_raises(self) -> None:
         """Pooch errors propagate up from fetch functions."""
@@ -114,3 +118,107 @@ class TestRegistryIntegrity:
     def test_all_filenames_have_urls(self) -> None:
         for fname in dictionaries._pup.registry:
             assert fname in dictionaries._pup.urls, f"'{fname}' missing URL in _pup"
+
+
+# ---------------------------------------------------------------------------
+# BuildDicx processor
+# ---------------------------------------------------------------------------
+
+
+class TestBuildDicx:
+    """Tests for the BuildDicx pooch processor."""
+
+    def _df(self) -> pd.DataFrame:
+        # Minimal dx-shaped DataFrame - lowercase string index named DicTerm,
+        # binary int8 column named under axis "Category".
+        df = pd.DataFrame(
+            {"foo": [1, 0]},
+            index=pd.Index(["alpha", "beta"], name="DicTerm", dtype="string"),
+        ).rename_axis("Category", axis=1)
+        return df.astype("int8")
+
+    def test_cold_call_writes_dicx_and_returns_path(self, tmp_path: Path) -> None:
+        """First-time invocation runs build_fn, writes .dicx, returns its path."""
+        source = tmp_path / "src.tsv"
+        source.write_text("ignored")
+        build_called = []
+
+        def build(p: Path) -> pd.DataFrame:
+            build_called.append(p)
+            return self._df()
+
+        proc = BuildDicx(build, "test.dicx")
+        result = proc(str(source), "download", None)
+        assert build_called == [Path(source)]
+        assert (tmp_path / "test.dicx").exists()
+        assert result == str(tmp_path / "test.dicx")
+
+    def test_warm_call_returns_cached_without_calling_build(self, tmp_path: Path) -> None:
+        """When .dicx already exists and action=='fetch', skip build_fn."""
+        source = tmp_path / "src.tsv"
+        source.write_text("ignored")
+        cached = tmp_path / "test.dicx"
+        cached.write_text("DicTerm,foo\nalpha,X\nbeta,\n")
+
+        def build(p: Path) -> pd.DataFrame:
+            raise AssertionError("build_fn should not be called on warm path")
+
+        proc = BuildDicx(build, "test.dicx")
+        result = proc(str(source), "fetch", None)
+        assert result == str(cached)
+
+    def test_action_download_rebuilds_even_if_cached(self, tmp_path: Path) -> None:
+        """A redownload (action!='fetch') always rebuilds, replacing stale cache."""
+        source = tmp_path / "src.tsv"
+        source.write_text("ignored")
+        cached = tmp_path / "test.dicx"
+        cached.write_text("STALE")
+        build_called = []
+
+        def build(p: Path) -> pd.DataFrame:
+            build_called.append(p)
+            return self._df()
+
+        proc = BuildDicx(build, "test.dicx")
+        proc(str(source), "download", None)
+        assert build_called == [Path(source)]
+        # Cache file was overwritten
+        assert "STALE" not in cached.read_text()
+
+
+# ---------------------------------------------------------------------------
+# path() resolver
+# ---------------------------------------------------------------------------
+
+
+class TestPathResolver:
+    """Tests for dictionaries.path() name → cached .dicx Path resolver."""
+
+    def test_unknown_name_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown dictionary 'nonexistent'"):
+            dictionaries.path("nonexistent")
+
+    def test_wrad_raises_not_implemented(self) -> None:
+        with pytest.raises(NotImplementedError, match="continuous values"):
+            dictionaries.path("wrad")
+
+    def test_returns_friendly_stem_path(self) -> None:
+        """For most fetchers, path returns <cache>/<name>.dicx after fetcher runs."""
+        with patch.object(dictionaries, "fetch_sleep") as mock_fetch:
+            result = dictionaries.path("sleep")
+        mock_fetch.assert_called_once_with()
+        assert isinstance(result, Path)
+        assert result.name == "sleep.dicx"
+        assert result.parent == Path(dictionaries._pup.path)
+
+    def test_bigtwo_default_version_is_a(self) -> None:
+        with patch.object(dictionaries, "fetch_bigtwo") as mock_fetch:
+            result = dictionaries.path("bigtwo")
+        mock_fetch.assert_called_once_with()
+        assert result.name == "bigtwo_a.dicx"
+
+    def test_bigtwo_version_b(self) -> None:
+        with patch.object(dictionaries, "fetch_bigtwo") as mock_fetch:
+            result = dictionaries.path("bigtwo", version="b")
+        mock_fetch.assert_called_once_with(version="b")
+        assert result.name == "bigtwo_b.dicx"

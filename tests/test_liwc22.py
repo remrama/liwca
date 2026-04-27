@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -20,6 +21,7 @@ from liwca.liwc22 import (
     ONE_ZERO_FLAGS,
     YES_NO_FLAGS,
     Liwc22,
+    _resolve_dictionary_arg,
     _shape_wc_output,
     build_command,
     wc_output_schema,
@@ -1018,3 +1020,76 @@ class TestWcOutputSchema:
         # Shaping should not raise; validation passes on shaped.
         shaped = _shape_wc_output(raw, row_id_names=None)
         wc_output_schema.validate(shaped)
+
+
+# ---------------------------------------------------------------------------
+# Friendly dictionary-name resolution
+# ---------------------------------------------------------------------------
+
+
+class TestResolveDictionaryArg:
+    """Tests for `_resolve_dictionary_arg` and its `_run_mode` integration."""
+
+    def test_non_string_passes_through(self) -> None:
+        assert _resolve_dictionary_arg(None) is None
+        assert _resolve_dictionary_arg(42) == 42
+
+    def test_unknown_name_passes_through(self) -> None:
+        """Built-in CLI names like LIWC22 don't match a fetcher; passthrough."""
+        assert _resolve_dictionary_arg("LIWC22") == "LIWC22"
+        assert _resolve_dictionary_arg("LIWC2015") == "LIWC2015"
+
+    def test_path_like_passes_through(self) -> None:
+        """Strings that don't match a fetcher (paths, custom names) passthrough."""
+        assert _resolve_dictionary_arg("/some/custom.dicx") == "/some/custom.dicx"
+        assert _resolve_dictionary_arg("totally_made_up_name") == "totally_made_up_name"
+
+    def test_friendly_name_resolves_to_path(self, tmp_path: Path) -> None:
+        """A registered friendly name resolves via dictionaries.path()."""
+        from liwca.datasets import dictionaries
+
+        fake_dicx = tmp_path / "sleep.dicx"
+        fake_dicx.write_text("DicTerm,sleep\n")
+        with patch.object(dictionaries, "path", return_value=fake_dicx) as mock_path:
+            result = _resolve_dictionary_arg("sleep")
+        mock_path.assert_called_once_with("sleep")
+        assert result == str(fake_dicx)
+
+    def test_continuous_value_dict_passes_through(self) -> None:
+        """`wrad` raises NotImplementedError from path(); we passthrough."""
+        # wrad's not-yet-implemented signal must not surface as a hard error
+        # to the CLI wrapper; it's just left as-is for the CLI to (probably)
+        # reject.
+        assert _resolve_dictionary_arg("wrad") == "wrad"
+
+    def test_run_mode_substitutes_dictionary(self, tmp_path: Path) -> None:
+        """End-to-end: Liwc22.wc(dictionary='sleep', dry_run=True) builds a
+        command with the resolved local .dicx path, not 'sleep'."""
+        from liwca.datasets import dictionaries
+
+        fake_dicx = tmp_path / "sleep.dicx"
+        fake_dicx.write_text("DicTerm,sleep\n")
+        input_csv = tmp_path / "in.csv"
+        input_csv.write_text("id,text\n1,hello\n")
+        output_csv = tmp_path / "out.csv"
+
+        with patch.object(dictionaries, "path", return_value=fake_dicx):
+            captured: dict[str, list[str]] = {}
+            real_build = liwca.liwc22.build_command
+
+            def spy(mode: str, cli_args: dict) -> list[str]:
+                cmd = real_build(mode, cli_args)
+                captured["cmd"] = cmd
+                captured["dictionary"] = cli_args.get("dictionary")
+                return cmd
+
+            with patch("liwca.liwc22.build_command", side_effect=spy):
+                Liwc22(dry_run=True).wc(
+                    str(input_csv),
+                    str(output_csv),
+                    dictionary="sleep",
+                )
+
+        # The dictionary kwarg was substituted to the resolved local path
+        # before reaching build_command.
+        assert captured["dictionary"] == str(fake_dicx)
