@@ -67,7 +67,7 @@ def fetch_liwc2015norms() -> pd.DataFrame:
     ----------
     .. [1] TBD
     """
-    fname = _pup.fetch("LIWC2015-norms.xlsx")
+    fname = _pup.fetch("liwc2015-norms.xlsx")
     df = (
         pd.read_excel(fname, header=[0, 1], index_col=0)
         .rename_axis("Category", axis="index")
@@ -97,7 +97,7 @@ def fetch_liwc22norms() -> pd.DataFrame:
     ----------
     .. [1] TBD
     """
-    fname = _pup.fetch("LIWC22-norms.xlsx")
+    fname = _pup.fetch("liwc22-norms.xlsx")
     df = (
         pd.read_excel(fname, header=[0, 1], index_col=0)
         .rename_axis("Category", axis="index")
@@ -114,8 +114,8 @@ def fetch_psychnorms() -> pd.DataFrame:
 
     https://arxiv.org/abs/2412.04936
     """
-    fnames = _pup.fetch("psychNorms.zip", processor=pooch.Unzip())
-    fname = _pup.fetch("psychNorms_metadata.csv")
+    fnames = _pup.fetch("psychnorms.zip", processor=pooch.Unzip())
+    fname = _pup.fetch("psychnorms_metadata.csv")
     fnames.append(fname)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths["psychNorms.csv"]

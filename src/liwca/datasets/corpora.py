@@ -25,11 +25,11 @@ from ._common import get_location as _get_location
 
 __all__ = [
     "fetch_autobiomemsim",
-    "fetch_cmu_books",
-    "fetch_cmu_movies",
+    "fetch_cmu_book_summaries",
+    "fetch_cmu_movie_summaries",
     "fetch_hippocorpus",
     "fetch_liwc_demo_data",
-    "fetch_rwritingprompts",
+    "fetch_reddit_short_stories",
     "fetch_sherlock",
     "fetch_tedtalks",
     "get_location",
@@ -100,7 +100,7 @@ def fetch_autobiomemsim() -> pd.DataFrame:
     return pd.read_csv(csv_path, index_col="author")
 
 
-def fetch_cmu_books() -> pd.DataFrame:
+def fetch_cmu_book_summaries() -> pd.DataFrame:
     """
     Fetch the CMU Book Summary Dataset.
 
@@ -113,7 +113,7 @@ def fetch_cmu_books() -> pd.DataFrame:
         :class:`~pandas.DataFrame` of the ``booksummaries.txt`` file.
     """
     processor = pooch.Untar(members=["booksummaries/booksummaries.txt"])
-    fnames = _pup.fetch("booksummaries.tar.gz", processor=processor)
+    fnames = _pup.fetch("cmu-book-summaries.tar.gz", processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths["booksummaries.txt"]
     column_names = [
@@ -129,7 +129,7 @@ def fetch_cmu_books() -> pd.DataFrame:
     return df
 
 
-def fetch_cmu_movies() -> pd.DataFrame:
+def fetch_cmu_movie_summaries() -> pd.DataFrame:
     """
     Fetch the CMU Movie Summaries Dataset.
 
@@ -141,7 +141,7 @@ def fetch_cmu_movies() -> pd.DataFrame:
     :class:`pandas.DataFrame`
         :class:`~pandas.DataFrame` of the ``plot_summaries.txt`` file.
     """
-    fnames = _pup.fetch("MovieSummaries.tar.gz", processor=pooch.Untar())
+    fnames = _pup.fetch("cmu-movie-summaries.tar.gz", processor=pooch.Untar())
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths["plot_summaries.txt"]
     column_names = ["WikipediaID", "Summary"]
@@ -233,9 +233,11 @@ def fetch_liwc_demo_data() -> pd.DataFrame:
     return pd.read_csv(csv_path, index_col="text_id")
 
 
-def fetch_rwritingprompts() -> pd.DataFrame:
+def fetch_reddit_short_stories() -> pd.DataFrame:
     """
-    Fetch the r/WritingPrompts corpus.
+    Fetch the Reddit Short Stories corpus.
+
+    A collection of posts from r/WritingPrompts.
 
     https://github.com/tdude92/reddit-short-stories
     https://www.kaggle.com/trevordu/reddit-short-stories
@@ -260,8 +262,8 @@ def fetch_rwritingprompts() -> pd.DataFrame:
         return pd.Series(data, name="text").rename_axis("text_id").to_frame()
 
     csv_path = _pup.fetch(
-        "reddit_short_stories.txt",
-        processor=CacheCsv(_build, "reddit_short_stories.csv"),
+        "reddit-short-stories.txt",
+        processor=CacheCsv(_build, "reddit-short-stories.csv"),
     )
     return pd.read_csv(csv_path, index_col="text_id")
 

@@ -147,8 +147,6 @@ class BuildDicx:
 # Fetch functions
 # ---------------------------------------------------------------------------
 
-_BIGTWO_VERSIONS = {"a": "bigtwo_a.dic", "b": "bigtwo_b.dic"}
-
 
 def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
     """
@@ -185,11 +183,12 @@ def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
     >>> dx = dictionaries.fetch_bigtwo()  # doctest: +SKIP
     >>> dx = dictionaries.fetch_bigtwo(version="b")  # doctest: +SKIP
     """
+    _BIGTWO_VERSIONS = {"a", "b"}
     if version not in _BIGTWO_VERSIONS:
-        raise ValueError(f"version must be one of {list(_BIGTWO_VERSIONS)}; got {version!r}")
+        raise ValueError(f"version must be one of {_BIGTWO_VERSIONS}; got {version!r}")
     dicx_path = _pup.fetch(
-        _BIGTWO_VERSIONS[version],
-        processor=BuildDicx(read_dx, f"bigtwo_{version}.dicx"),
+        f"bigtwo-{version}.dic",
+        processor=BuildDicx(read_dx, f"bigtwo-{version}.dicx"),
     )
     return read_dx(dicx_path)
 
@@ -200,7 +199,7 @@ def fetch_emfd() -> pd.DataFrame:
 
     See the `Moral Foundations Dictionary 2.0 OSF page <https://osf.io/ezn37>`__.
     """
-    dicx_path = _pup.fetch("mfd2.0.dic", processor=BuildDicx(read_dx, "emfd.dicx"))
+    dicx_path = _pup.fetch("emfd.dic", processor=BuildDicx(read_dx, "emfd.dicx"))
     return read_dx(dicx_path)
 
 
@@ -451,7 +450,7 @@ def _fetch_liwc2015() -> pd.DataFrame:
         return create_dx(as_dict)
 
     dicx_path = _pup.fetch(
-        "LIWC2015.xlsx",
+        "liwc2015.xlsx",
         downloader=AuthorizedZenodoDownloader(),
         processor=BuildDicx(_build, "liwc2015.dicx"),
     )
@@ -474,7 +473,7 @@ def _fetch_liwc22() -> pd.DataFrame:
         return create_dx(as_dict)
 
     dicx_path = _pup.fetch(
-        "LIWC22.xlsx",
+        "liwc22.xlsx",
         downloader=AuthorizedZenodoDownloader(),
         processor=BuildDicx(_build, "liwc22.dicx"),
     )
@@ -493,7 +492,7 @@ def _fetch_translated(fstem: str) -> pd.DataFrame:
     downloader = AuthorizedZenodoDownloader()
     processor = pooch.Unzip()
     fname = f"{fstem}.dicx"
-    fnames = _pup.fetch("translations.zip", downloader=downloader, processor=processor)
+    fnames = _pup.fetch("translated.zip", downloader=downloader, processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths[fname]
     dx = read_dx(fpath)
@@ -512,7 +511,7 @@ def _fetch_usermade(fstem: str) -> pd.DataFrame:
     downloader = AuthorizedZenodoDownloader()
     processor = pooch.Unzip()
     fname = f"{fstem}.dicx"
-    fnames = _pup.fetch("user-made.zip", downloader=downloader, processor=processor)
+    fnames = _pup.fetch("usermade.zip", downloader=downloader, processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths[fname]
     dx = read_dx(fpath)
