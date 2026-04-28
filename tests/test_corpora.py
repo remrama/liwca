@@ -14,11 +14,11 @@ from liwca.datasets import corpora
 
 _FETCH_FUNCTIONS = [
     corpora.fetch_autobiomemsim,
-    corpora.fetch_cmu_books,
-    corpora.fetch_cmu_movies,
+    corpora.fetch_cmu_book_summaries,
+    corpora.fetch_cmu_movie_summaries,
     corpora.fetch_hippocorpus,
     corpora.fetch_liwc_demo_data,
-    corpora.fetch_rwritingprompts,
+    corpora.fetch_reddit_short_stories,
     corpora.fetch_sherlock,
     corpora.fetch_tedtalks,
 ]
@@ -29,11 +29,11 @@ _FETCH_FUNCTIONS = [
 # "foo_bar.txt".
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
     "fetch_autobiomemsim": {"autobiomemsem.zip"},
-    "fetch_cmu_books": {"booksummaries.tar.gz"},
-    "fetch_cmu_movies": {"MovieSummaries.tar.gz"},
+    "fetch_cmu_book_summaries": {"cmu-book-summaries.tar.gz"},
+    "fetch_cmu_movie_summaries": {"cmu-movie-summaries.tar.gz"},
     "fetch_hippocorpus": {"hippocorpus.zip"},
     "fetch_liwc_demo_data": {"liwc22-demo-data.zip"},
-    "fetch_rwritingprompts": {"reddit_short_stories.txt"},
+    "fetch_reddit_short_stories": {"reddit-short-stories.txt"},
     "fetch_sherlock": {"sherlock.zip"},
     "fetch_tedtalks": {"tedtalks.zip"},
 }
@@ -50,7 +50,7 @@ class TestFetchFunctions:
         """Pooch errors propagate up from fetch functions."""
         with patch.object(corpora._pup, "fetch", side_effect=ConnectionError("no internet")):
             with pytest.raises(ConnectionError):
-                corpora.fetch_cmu_books()
+                corpora.fetch_cmu_book_summaries()
 
 
 # ---------------------------------------------------------------------------

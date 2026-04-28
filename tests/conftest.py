@@ -44,6 +44,12 @@ def toybad_dicx_path() -> Path:
     return DATA_DIR / "toybad.dicx"
 
 
+@pytest.fixture
+def toy_weighted_dicx_path() -> Path:
+    """Path to the toy weighted .dicx fixture (5 terms x 3 categories, signed floats)."""
+    return DATA_DIR / "toy_weighted.dicx"
+
+
 # ---------------------------------------------------------------------------
 # In-memory dictionary DataFrames
 # ---------------------------------------------------------------------------
@@ -72,7 +78,27 @@ def toy_dx_wildcards(toy_dicx_path: Path) -> pd.DataFrame:
     """Full 16-term dictionary loaded from the .dicx fixture."""
     import liwca
 
-    return liwca.read_dx(toy_dicx_path)
+    return liwca.read_dicx(toy_dicx_path)
+
+
+@pytest.fixture
+def toy_weighted_dx() -> pd.DataFrame:
+    """Small in-memory weighted dictionary (signed floats).
+
+    5 terms x 3 categories - models a multi-category sentiment lexicon.
+    """
+    dx = pd.DataFrame(
+        {
+            "Negative": [-0.7, 0.0, 0.0, -0.5, 0.0],
+            "Neutral": [0.0, 0.0, 1.0, 0.0, 0.0],
+            "Positive": [0.0, 0.9, 0.0, 0.0, 1.2],
+        },
+        index=pd.Index(
+            ["awful", "great", "ok", "bad", "excellent"], dtype="string", name="DicTerm"
+        ),
+    ).astype("float64")
+    dx.columns.name = "Category"
+    return dx
 
 
 # ---------------------------------------------------------------------------

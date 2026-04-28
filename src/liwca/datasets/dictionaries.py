@@ -20,7 +20,13 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
-from ..io import create_dx, dx_schema, read_dx, write_dx
+from ..io import (
+    create_dx,
+    dx_weighted_schema,
+    read_dic,
+    read_dicx,
+    write_dicx,
+)
 from ._common import AuthorizedZenodoDownloader, make_pup
 from ._common import get_location as _get_location
 
@@ -84,7 +90,7 @@ def path(name: str, **kwargs) -> Path:
     >>> dictionaries.path("sleep")  # doctest: +SKIP
     PosixPath('.../dictionaries/sleep.dicx')
     >>> dictionaries.path("bigtwo", version="b")  # doctest: +SKIP
-    PosixPath('.../dictionaries/bigtwo_b.dicx')
+    PosixPath('.../dictionaries/bigtwo-b.dicx')
     """
     fetcher = globals().get(f"fetch_{name}")
     if fetcher is None:
@@ -94,7 +100,7 @@ def path(name: str, **kwargs) -> Path:
         raise NotImplementedError("fetch_wrad has continuous values and is not yet cached as .dicx")
     fetcher(**kwargs)  # populate the cache
     if name == "bigtwo":
-        cache_name = f"bigtwo_{kwargs.get('version', 'a')}.dicx"
+        cache_name = f"bigtwo-{kwargs.get('version', 'a')}.dicx"
     else:
         cache_name = f"{name}.dicx"
     return Path(_pup.path) / cache_name
@@ -106,13 +112,13 @@ def path(name: str, **kwargs) -> Path:
 
 
 class BuildDicx:
-    """Pooch processor that parses a source dictionary file and caches as .dicx.
+    """Pooch processor that parses a source dictionary file and caches as binary .dicx.
 
     Sibling of :class:`liwca.datasets._common.CacheCsv` for the dictionaries
     module. On first run (``action`` is ``"download"`` or ``"update"``),
     ``build_fn`` is called on the downloaded source file and the resulting
-    DataFrame is written via :func:`liwca.io.write_dx` as ``cache_name``
-    (a ``.dicx`` file) next to the source. On subsequent runs
+    DataFrame is written via :func:`liwca.io.write_dicx` as ``cache_name``
+    (a binary ``.dicx`` file) next to the source. On subsequent runs
     (``action == "fetch"`` and the .dicx exists), the cached path is
     returned directly with no parsing or rewriting.
 
@@ -139,7 +145,7 @@ class BuildDicx:
         if action == "fetch" and cache_path.exists():
             return str(cache_path)
         df = self.build_fn(Path(fname))
-        write_dx(df, cache_path)
+        write_dicx(df, cache_path)
         return str(cache_path)
 
 
@@ -188,9 +194,9 @@ def fetch_bigtwo(*, version: str = "a") -> pd.DataFrame:
         raise ValueError(f"version must be one of {_BIGTWO_VERSIONS}; got {version!r}")
     dicx_path = _pup.fetch(
         f"bigtwo-{version}.dic",
-        processor=BuildDicx(read_dx, f"bigtwo-{version}.dicx"),
+        processor=BuildDicx(read_dic, f"bigtwo-{version}.dicx"),
     )
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def fetch_emfd() -> pd.DataFrame:
@@ -199,8 +205,8 @@ def fetch_emfd() -> pd.DataFrame:
 
     See the `Moral Foundations Dictionary 2.0 OSF page <https://osf.io/ezn37>`__.
     """
-    dicx_path = _pup.fetch("emfd.dic", processor=BuildDicx(read_dx, "emfd.dicx"))
-    return read_dx(dicx_path)
+    dicx_path = _pup.fetch("emfd.dic", processor=BuildDicx(read_dic, "emfd.dicx"))
+    return read_dicx(dicx_path)
 
 
 def fetch_empath() -> pd.DataFrame:
@@ -224,7 +230,7 @@ def fetch_empath() -> pd.DataFrame:
         return create_dx(categories)
 
     dicx_path = _pup.fetch("empath.tsv", processor=BuildDicx(_build, "empath.dicx"))
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def fetch_honor() -> pd.DataFrame:
@@ -255,8 +261,8 @@ def fetch_honor() -> pd.DataFrame:
     >>> from liwca.datasets import dictionaries
     >>> dx = dictionaries.fetch_honor()  # doctest: +SKIP
     """
-    dicx_path = _pup.fetch("honor.dic", processor=BuildDicx(read_dx, "honor.dicx"))
-    return read_dx(dicx_path)
+    dicx_path = _pup.fetch("honor.dic", processor=BuildDicx(read_dic, "honor.dicx"))
+    return read_dicx(dicx_path)
 
 
 def fetch_leeq() -> pd.DataFrame:
@@ -275,7 +281,7 @@ def fetch_leeq() -> pd.DataFrame:
         return df.rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
 
     dicx_path = _pup.fetch("leeq.tsv", processor=BuildDicx(_build, "leeq.dicx"))
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def fetch_mystical() -> pd.DataFrame:
@@ -321,7 +327,7 @@ def fetch_mystical() -> pd.DataFrame:
         return df
 
     dicx_path = _pup.fetch("mystical.xlsx", processor=BuildDicx(_build, "mystical.dicx"))
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def fetch_sleep() -> pd.DataFrame:
@@ -369,7 +375,7 @@ def fetch_sleep() -> pd.DataFrame:
         return df
 
     dicx_path = _pup.fetch("sleep.tsv", processor=BuildDicx(_build, "sleep.dicx"))
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def fetch_threat() -> pd.DataFrame:
@@ -411,7 +417,7 @@ def fetch_threat() -> pd.DataFrame:
         return df
 
     dicx_path = _pup.fetch("threat.txt", processor=BuildDicx(_build, "threat.dicx"))
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def fetch_wrad() -> pd.DataFrame:
@@ -429,8 +435,14 @@ def fetch_wrad() -> pd.DataFrame:
     """
     fname = _pup.fetch("wrad.Wt")
     fpath = Path(fname)
-    df = pd.read_csv(fpath, sep=" ", skiprows=11, names=["DicTerm", "ReferentialActivity"])
-    return dx_schema.validate(df)
+    df = pd.read_csv(
+        fpath,
+        sep=" ",
+        skiprows=11,
+        names=["DicTerm", "ReferentialActivity"],
+        index_col="DicTerm",
+    )
+    return dx_weighted_schema.validate(df)
 
 
 def _fetch_liwc2015() -> pd.DataFrame:
@@ -454,7 +466,7 @@ def _fetch_liwc2015() -> pd.DataFrame:
         downloader=AuthorizedZenodoDownloader(),
         processor=BuildDicx(_build, "liwc2015.dicx"),
     )
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def _fetch_liwc22() -> pd.DataFrame:
@@ -477,7 +489,7 @@ def _fetch_liwc22() -> pd.DataFrame:
         downloader=AuthorizedZenodoDownloader(),
         processor=BuildDicx(_build, "liwc22.dicx"),
     )
-    return read_dx(dicx_path)
+    return read_dicx(dicx_path)
 
 
 def _fetch_translated(fstem: str) -> pd.DataFrame:
@@ -495,7 +507,7 @@ def _fetch_translated(fstem: str) -> pd.DataFrame:
     fnames = _pup.fetch("translated.zip", downloader=downloader, processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths[fname]
-    dx = read_dx(fpath)
+    dx = read_dicx(fpath)
     return dx
 
 
@@ -514,5 +526,5 @@ def _fetch_usermade(fstem: str) -> pd.DataFrame:
     fnames = _pup.fetch("usermade.zip", downloader=downloader, processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths[fname]
-    dx = read_dx(fpath)
+    dx = read_dicx(fpath)
     return dx

@@ -262,7 +262,7 @@ class TestDDRIntegration:
     """Read a dictionary file, then run DDR."""
 
     def test_read_then_ddr(self, toy_dicx_path, toy_embeddings):
-        dx = liwca.read_dx(toy_dicx_path)
+        dx = liwca.read_dicx(toy_dicx_path)
         result = liwca.ddr(["the player dunked near the hoop"], dx, toy_embeddings)
         assert result.shape == (1, dx.shape[1])
         assert result.loc[0, "Basketball"] == result.loc[0].max()

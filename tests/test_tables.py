@@ -21,9 +21,9 @@ _FETCH_FUNCTIONS = [
 
 # Filenames each public fetcher pulls from the shared Pooch registry.
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
-    "fetch_liwc2015norms": {"LIWC2015-norms.xlsx"},
-    "fetch_liwc22norms": {"LIWC22-norms.xlsx"},
-    "fetch_psychnorms": {"psychNorms.zip", "psychNorms_metadata.csv"},
+    "fetch_liwc2015norms": {"liwc2015-norms.xlsx"},
+    "fetch_liwc22norms": {"liwc22-norms.xlsx"},
+    "fetch_psychnorms": {"psychnorms.zip", "psychnorms-metadata.csv"},
     "fetch_scope": {"scope.xlsx"},
 }
 

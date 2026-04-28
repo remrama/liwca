@@ -32,8 +32,8 @@ _FETCH_FUNCTIONS = [
 # function calling _pup.fetch("foo-bar.dic") when the registry key is
 # "foo_bar.dic".
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
-    "fetch_bigtwo": {"bigtwo_a.dic", "bigtwo_b.dic"},
-    "fetch_emfd": {"mfd2.0.dic"},
+    "fetch_bigtwo": {"bigtwo-a.dic", "bigtwo-b.dic"},
+    "fetch_emfd": {"emfd.dic"},
     "fetch_empath": {"empath.tsv"},
     "fetch_honor": {"honor.dic"},
     "fetch_leeq": {"leeq.tsv"},
@@ -56,24 +56,24 @@ class TestFetchFunctions:
             dictionaries.fetch_bigtwo(version="nonexistent")
 
     def test_fetch_bigtwo_default_version_is_a(self) -> None:
-        """Calling fetch_bigtwo() without version uses 'a' (bigtwo_a.dic)."""
-        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo_a.dicx") as mock:
-            with patch("liwca.datasets.dictionaries.read_dx"):
+        """Calling fetch_bigtwo() without version uses 'a' (bigtwo-a.dic)."""
+        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo-a.dicx") as mock:
+            with patch("liwca.datasets.dictionaries.read_dicx"):
                 try:
                     dictionaries.fetch_bigtwo()
                 except Exception:
                     pass
         # First positional arg is the registry filename; kwargs include the processor.
-        assert mock.call_args.args[0] == "bigtwo_a.dic"
+        assert mock.call_args.args[0] == "bigtwo-a.dic"
 
     def test_fetch_bigtwo_version_b(self) -> None:
-        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo_b.dicx") as mock:
-            with patch("liwca.datasets.dictionaries.read_dx"):
+        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo-b.dicx") as mock:
+            with patch("liwca.datasets.dictionaries.read_dicx"):
                 try:
                     dictionaries.fetch_bigtwo(version="b")
                 except Exception:
                     pass
-        assert mock.call_args.args[0] == "bigtwo_b.dic"
+        assert mock.call_args.args[0] == "bigtwo-b.dic"
 
     def test_download_failure_raises(self) -> None:
         """Pooch errors propagate up from fetch functions."""
@@ -215,10 +215,10 @@ class TestPathResolver:
         with patch.object(dictionaries, "fetch_bigtwo") as mock_fetch:
             result = dictionaries.path("bigtwo")
         mock_fetch.assert_called_once_with()
-        assert result.name == "bigtwo_a.dicx"
+        assert result.name == "bigtwo-a.dicx"
 
     def test_bigtwo_version_b(self) -> None:
         with patch.object(dictionaries, "fetch_bigtwo") as mock_fetch:
             result = dictionaries.path("bigtwo", version="b")
         mock_fetch.assert_called_once_with(version="b")
-        assert result.name == "bigtwo_b.dicx"
+        assert result.name == "bigtwo-b.dicx"

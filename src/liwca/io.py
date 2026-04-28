@@ -22,16 +22,26 @@ belong to multiple categories.
   the **body** (term-category assignments).
 - Header rows map an integer ID to a category name, separated by a tab.
 - Body rows start with the term, followed by one or more category IDs (tab-separated).
+- ``.dic`` is binary-only: a term either belongs to a category or doesn't.
 
-**.dicx format** - CSV, used by LIWC-22 Dictionary Workbench::
+**.dicx format** - CSV, used by LIWC-22 Dictionary Workbench. Two flavours::
 
-    DicTerm,CategoryA,CategoryB
-    term1,X,
-    term2,,X
-    term3,X,X
+    DicTerm,CategoryA,CategoryB        DicTerm,sentiment
+    term1,X,                           great,0.9
+    term2,,X                           awful,-0.7
+    term3,X,X                          excellent,1.2
 
-- First column is ``DicTerm`` (the term).
-- Remaining columns are category names; ``X`` indicates membership, empty means absent.
+- *Binary* ``.dicx`` (left): cells are ``X`` (member) or empty (non-member).
+- *Weighted* ``.dicx`` (right): cells are numeric weights (signed allowed,
+  e.g. for sentiment lexicons like VADER).
+
+API: six flat top-level reader/writer functions, no extension dispatch.
+Pick the function whose name matches your file format AND value-type:
+``read_dic`` / ``write_dic`` (binary, ``.dic``);
+``read_dicx`` / ``write_dicx`` (binary, ``.dicx``);
+``read_dicx_weighted`` / ``write_dicx_weighted`` (weighted, ``.dicx``).
+Calling the wrong function for your data fails loudly with an error pointing
+at the right one.
 """
 
 import csv
@@ -47,9 +57,15 @@ import pandera.pandas as pa
 __all__ = [
     "create_dx",
     "drop_category",
+    "dx_schema",
+    "dx_weighted_schema",
     "merge_dx",
-    "read_dx",
-    "write_dx",
+    "read_dic",
+    "read_dicx",
+    "read_dicx_weighted",
+    "write_dic",
+    "write_dicx",
+    "write_dicx_weighted",
 ]
 
 
@@ -57,13 +73,39 @@ logger = logging.getLogger(__name__)
 
 
 #######################################################################################
-# Pandera shemas for pandas parsing (processing) and validation (checking)
+# Pandera schemas: binary dx_schema and weighted dx_weighted_schema
 #######################################################################################
 
-# Schema to validate LIWC dictionary pandas DataFrames
+_dx_index = pa.Index(
+    dtype="string",
+    name="DicTerm",
+    nullable=False,
+    unique=True,
+    ## Would like to use these, but bug in pandera prevents returning parsed index (Issue #1684)
+    ## It applies the parsers, but does not return the parsed index.
+    ## https://github.com/unionai-oss/pandera/issues/1684
+    # parsers=[
+    #     pa.Parser(lambda i: i.str.lower()),
+    #     pa.Parser(lambda i: i.str.strip()),
+    # ],
+    checks=[
+        pa.Check(lambda s: s.str.len() >= 1, name="Term length > 0"),
+        pa.Check(lambda s: s.str.isupper().eq(False), name="No uppercase terms"),
+    ],
+)
+
+_dx_shared_parsers = [
+    pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0), name="Name index 'DicTerm'"),
+    pa.Parser(lambda df: df.rename_axis("Category", axis=1), name="Name columns 'Category'"),
+    pa.Parser(lambda df: df.rename(index=str.lower), name="Lowercase index"),
+    pa.Parser(lambda df: df.sort_index(axis=0), name="Sort index"),
+    pa.Parser(lambda df: df.sort_index(axis=1), name="Sort columns"),
+]
+
+# Binary schema: int8 cells, must be 0 or 1, every term in at least one category.
 dx_schema = pa.DataFrameSchema(
-    name="LIWC dictionary DataFrame schema",
-    description="Schema for LIWC dictionary DataFrames",
+    name="LIWC dictionary DataFrame schema (binary)",
+    description="Schema for binary (X/empty) LIWC dictionary DataFrames",
     columns={
         r"\S+": pa.Column(
             dtype="int8",
@@ -73,33 +115,14 @@ dx_schema = pa.DataFrameSchema(
             ],
             required=True,
             nullable=False,
-            description="The column name of the dictionary.",
+            description="Binary category membership (0 or 1).",
         ),
     },
-    index=pa.Index(
-        dtype="string",
-        name="DicTerm",
-        nullable=False,
-        unique=True,
-        ## Would like to use these, but bug in pandera prevents returning parsed index (Issue #1684)
-        ## It applies the parsers, but does not return the parsed index.
-        ## https://github.com/unionai-oss/pandera/issues/1684
-        # parsers=[
-        #     pa.Parser(lambda i: i.str.lower()),
-        #     pa.Parser(lambda i: i.str.strip()),
-        # ],
-        checks=[
-            pa.Check(lambda s: s.str.len() >= 1, name="Term length > 0"),
-            pa.Check(lambda s: s.str.isupper().eq(False), name="No uppercase terms"),
-            # pa.Check(lambda s: s.str.contains(r"[A-Z]", regex=True), name="No uppercase terms"),
-        ],
-    ),
+    index=_dx_index,
     parsers=[
-        pa.Parser(lambda df: df.rename_axis("DicTerm", axis=0), name="Name index 'DicTerm'"),
-        pa.Parser(lambda df: df.rename_axis("Category", axis=1), name="Name columns 'Category'"),
-        pa.Parser(lambda df: df.rename(index=str.lower), name="Lowercase index"),
-        pa.Parser(lambda df: df.sort_index(axis=0), name="Sort index"),
-        pa.Parser(lambda df: df.sort_index(axis=1), name="Sort columns"),
+        *_dx_shared_parsers,
+        # Binary-only: a row of all zeros is meaningless (term has no
+        # categories) and gets dropped silently.
         pa.Parser(lambda df: df.loc[df.any(axis=1)], name="Drop terms with no categories"),
     ],
     strict=True,
@@ -115,6 +138,33 @@ dx_schema = pa.DataFrameSchema(
     ],
 )
 
+# Weighted schema: float64 cells, signed values allowed (VADER, valence norms).
+# Note: no "drop terms with no categories" parser - a row of all zeros is
+# meaningful for a weighted dict (term scored zero everywhere).
+dx_weighted_schema = pa.DataFrameSchema(
+    name="LIWC dictionary DataFrame schema (weighted)",
+    description="Schema for weighted (numeric) LIWC dictionary DataFrames; signed values allowed",
+    columns={
+        r"\S+": pa.Column(
+            dtype="float64",
+            regex=True,
+            checks=[],  # no value-range check; signed weights are valid
+            required=True,
+            nullable=False,
+            description="Per-category weight (any real number).",
+        ),
+    },
+    index=_dx_index,
+    parsers=_dx_shared_parsers,
+    strict=True,
+    coerce=True,
+    unique_column_names=True,
+    checks=[
+        pa.Check(lambda df: len(df) > 0, name="At least one term (row)"),
+        pa.Check(lambda df: len(df.columns) > 0, name="At least one category (column)"),
+    ],
+)
+
 
 #######################################################################################
 # LIWC dictionary DataFrame creation
@@ -124,7 +174,7 @@ dx_schema = pa.DataFrameSchema(
 @pa.check_output(schema=dx_schema)
 def create_dx(categories: dict[str, list[str]]) -> pd.DataFrame:
     """
-    Create a dictionary DataFrame from category-to-terms mapping.
+    Create a binary dictionary DataFrame from a category-to-terms mapping.
 
     Parameters
     ----------
@@ -157,36 +207,31 @@ def create_dx(categories: dict[str, list[str]]) -> pd.DataFrame:
 
 
 #######################################################################################
-# LIWC dictionary DIC[X] file reading
+# LIWC dictionary file reading - six flat functions, one per (format, value-type)
 #######################################################################################
 
 
-def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+@pa.check_output(schema=dx_schema)
+def read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
-    Reads a dictionary file and returns a pandas :py:class:`~pandas.DataFrame`.
-    The file is expected to have a specific format where the header and body are
-    separated by '%' characters. The header contains category IDs and names,
-    while the body contains entries and their associated category IDs.
+    Read a binary LIWC dictionary from a ``.dic`` file.
+
+    The ``.dic`` format is binary-only by spec: there is no weighted variant.
+    For weighted dictionaries see :func:`read_dicx_weighted`.
 
     Parameters
     ----------
-    fp : Union[:class:`str`, :class:`~pathlib.Path`]
-        The file path to the dictionary file.
+    fp : :class:`str` or :class:`~pathlib.Path`
+        Path to a ``.dic`` file.
     **kwargs : Any
-        Additional keyword arguments to pass to the `open` function.
+        Forwarded to :func:`open` (e.g. ``encoding="latin-1"`` for legacy files).
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        A DataFrame with the dictionary terms as the index and categories as columns.
-        The values are binary (1 or 0) indicating the presence of a term in a category.
-
-    Notes
-    -----
-    - The file is read with UTF-8 encoding by default.
-    - The header and body are extracted using regular expressions.
-    - The DataFrame's index is of type string.
+        Validated binary dictionary DataFrame (int8 cells, 0/1).
     """
+    logger.info("Reading binary .dic from %s", fp)
     kwargs.setdefault("encoding", "utf-8")
     with open(fp, "rt", **kwargs) as f:
         data = f.read()
@@ -200,116 +245,128 @@ def _read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     header = m.group("header").strip()
     body = m.group("body").strip()
     cat_ids, cat_names = zip(*[row.split("\t") for row in header.split("\n")])
-    columns = pd.Index(cat_names, name="Category")
-    data = {}
-    for row in body.split("\n"):
-        entry, *ids = row.split("\t")
-        row_data = [1 if x in ids else 0 for x in cat_ids]
-        data[entry] = row_data
-    df = pd.DataFrame.from_dict(data, columns=columns, dtype="int8", orient="index").rename_axis(
-        "DicTerm"
+    id_to_name = dict(zip(cat_ids, cat_names))
+
+    # Long→wide pivot via pd.crosstab. Each (term, cat_id) pair becomes a row;
+    # crosstab counts them per (DicTerm, Category), giving a binary indicator
+    # matrix. Reindex to preserve the column order from the header.
+    records = [
+        (term, id_to_name[cid])
+        for row in body.split("\n")
+        for term, *ids in [row.split("\t")]
+        for cid in ids
+    ]
+    long_df = pd.DataFrame(records, columns=["DicTerm", "Category"])
+    df = (
+        pd.crosstab(long_df["DicTerm"], long_df["Category"])
+        .astype("int8")
+        .reindex(columns=list(cat_names), fill_value=0)
     )
     df.index = df.index.astype("string")
     return df
 
 
-def _read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+@pa.check_output(schema=dx_schema)
+def read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
-    Read a dictionary from a DICX file.
+    Read a binary ``.dicx`` file.
+
+    Cells must be either ``X`` (case-insensitive) or empty. Any other content
+    -- including stray numerics like ``0.5`` or typos like ``Y`` -- raises a
+    :class:`ValueError` with a hint pointing at :func:`read_dicx_weighted`.
 
     Parameters
     ----------
-    fp : Union[:class:`~str`, :class:`~pathlib.Path`]
-        The filepath to read the dictionary from.
-    kwargs : Any
-        Additional keyword arguments to pass to `pd.read_csv`.
+    fp : :class:`str` or :class:`~pathlib.Path`
+        Path to a binary ``.dicx`` file.
+    **kwargs : Any
+        Forwarded to :func:`pandas.read_csv`.
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        The dictionary read from the file.
+        Validated binary dictionary DataFrame (int8 cells, 0/1).
     """
+    logger.info("Reading binary .dicx from %s", fp)
     kwargs.setdefault("index_col", "DicTerm")
-    kwargs.setdefault("dtype", {"DicTerm": "string"})
-    dic = (
+    kwargs.setdefault("dtype", "string")
+    df_str = (
         pd.read_csv(fp, **kwargs)
         .rename_axis("Category", axis=1)
-        .fillna(False)
-        .astype(bool)
-        .astype("int8")
+        .fillna("")
+        .apply(lambda c: c.str.strip())
     )
-    return dic
+    cells = df_str.stack()
+    invalid = ~cells.str.upper().isin({"X", ""})
+    if invalid.any():
+        bad_examples = sorted(set(cells[invalid].astype(str)))[:5]
+        raise ValueError(
+            f"Binary .dicx must contain only `X` or empty cells; "
+            f"found non-binary values: {bad_examples}. "
+            f"If this is a weighted dictionary, use `read_dicx_weighted` instead."
+        )
+    return (df_str.apply(lambda c: c.str.upper()) == "X").astype("int8")
 
 
-@pa.check_output(schema=dx_schema)
-def read_dx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+@pa.check_output(schema=dx_weighted_schema)
+def read_dicx_weighted(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
-    Read a dictionary from a LIWC DIC or DICX file.
+    Read a weighted ``.dicx`` file.
+
+    Cells must be numeric or empty (treated as ``0.0``). Any non-numeric
+    content -- including the binary marker ``X`` -- raises a
+    :class:`ValueError` with a hint pointing at :func:`read_dicx`.
 
     Parameters
     ----------
-    fp : Union[:class:`str`, :class:`~pathlib.Path`]
-        The filepath to read the dictionary from.
-    kwargs : Any
-        Additional keyword arguments to pass to `pd.read_csv`.
+    fp : :class:`str` or :class:`~pathlib.Path`
+        Path to a weighted ``.dicx`` file.
+    **kwargs : Any
+        Forwarded to :func:`pandas.read_csv`.
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        The dictionary read from the file.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported file extension is provided (must be ``.dic`` or ``.dicx``).
+        Validated weighted dictionary DataFrame (float64 cells; signed allowed).
     """
-    logger.info("Reading dictionary from %s", fp)
-    if (suffix := Path(fp).suffix) == ".dic":
-        return _read_dic(fp, **kwargs)
-    elif suffix == ".dicx":
-        return _read_dicx(fp, **kwargs)
-    else:
-        raise ValueError(f"Unsupported file extension: {suffix}")
+    logger.info("Reading weighted .dicx from %s", fp)
+    kwargs.setdefault("index_col", "DicTerm")
+    kwargs.setdefault("dtype", "string")
+    df_str = (
+        pd.read_csv(fp, **kwargs)
+        .rename_axis("Category", axis=1)
+        .fillna("")
+        .apply(lambda c: c.str.strip())
+        .replace("", "0")
+    )
+    try:
+        df = df_str.apply(pd.to_numeric).astype("float64")
+    except ValueError as e:
+        raise ValueError(
+            f"Weighted .dicx must contain only numeric or empty cells; got: {e}. "
+            f"If this is a binary dictionary, use `read_dicx` instead."
+        ) from e
+    return df
 
 
 #######################################################################################
-# LIWC dictionary DIC[X] file writing
+# LIWC dictionary file writing - six flat functions, one per (format, value-type)
 #######################################################################################
 
 
-def _write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
+@pa.check_input(schema=dx_schema)
+def write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
     """
-    Write a dictionary to a DICX file.
+    Write a binary dictionary to a ``.dic`` file.
 
     Parameters
     ----------
     dx : :class:`pandas.DataFrame`
-        The dictionary to write.
-    fp : Union[:class:`str`, :class:`~pathlib.Path`]
-        The filepath to write the dictionary to.
-    kwargs : any
-        Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
+        Binary dictionary DataFrame (int8 cells, 0/1).
+    fp : :class:`str` or :class:`~pathlib.Path`
+        Output ``.dic`` filepath.
     """
-    kwargs.setdefault("sep", ",")
-    kwargs.setdefault("index", True)
-    kwargs.setdefault("encoding", "utf-8")
-    kwargs.setdefault("index_label", "DicTerm")
-    kwargs.setdefault("lineterminator", "\n")
-    dx.rename_axis(None, axis=1).replace({1: "X", 0: ""}).to_csv(fp, **kwargs)
-    return None
-
-
-def _write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
-    """
-    Write a dictionary to a LIWC DIC file.
-
-    Parameters
-    ----------
-    dx : :class:`pandas.DataFrame`
-        The dictionary to write.
-    fp : Union[:class:`str`, :class:`~pathlib.Path`]
-        The filepath to write the dictionary to.
-    """
+    logger.info("Writing binary .dic (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
     with open(fp, "wt", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow("%")
@@ -322,62 +379,91 @@ def _write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
 
 
 @pa.check_input(schema=dx_schema)
-def write_dx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
+def write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
     """
-    Write a dictionary to a LIWC DIC or DICX file.
+    Write a binary dictionary to a ``.dicx`` file.
+
+    Cells are written as ``X`` (member) or empty (non-member).
 
     Parameters
     ----------
     dx : :class:`pandas.DataFrame`
-        The dictionary to write.
-    fp : Union[:class:`str`, :class:`~pathlib.Path`]
-        The filepath to write the dictionary to.
-    kwargs : Any
-        Additional keyword arguments to pass to :meth:`~pandas.DataFrame.to_csv`.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported file extension is provided (must be ``.dic`` or ``.dicx``).
+        Binary dictionary DataFrame (int8 cells, 0/1).
+    fp : :class:`str` or :class:`~pathlib.Path`
+        Output ``.dicx`` filepath.
+    **kwargs : Any
+        Forwarded to :meth:`pandas.DataFrame.to_csv`.
     """
-    logger.info("Writing dictionary (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
-    if (suffix := Path(fp).suffix) == ".dic":
-        return _write_dic(dx, fp)
-    elif suffix == ".dicx":
-        return _write_dicx(dx, fp, **kwargs)
-    else:
-        raise ValueError(f"Unsupported file extension: {suffix}")
+    logger.info("Writing binary .dicx (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
+    kwargs.setdefault("sep", ",")
+    kwargs.setdefault("index", True)
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("index_label", "DicTerm")
+    kwargs.setdefault("lineterminator", "\n")
+    dx.rename_axis(None, axis=1).replace({1: "X", 0: ""}).to_csv(fp, **kwargs)
+    return None
+
+
+@pa.check_input(schema=dx_weighted_schema)
+def write_dicx_weighted(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
+    """
+    Write a weighted dictionary to a ``.dicx`` file.
+
+    Cells are written as their numeric values directly.
+
+    Parameters
+    ----------
+    dx : :class:`pandas.DataFrame`
+        Weighted dictionary DataFrame (float64 cells).
+    fp : :class:`str` or :class:`~pathlib.Path`
+        Output ``.dicx`` filepath.
+    **kwargs : Any
+        Forwarded to :meth:`pandas.DataFrame.to_csv`.
+    """
+    logger.info("Writing weighted .dicx (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
+    kwargs.setdefault("sep", ",")
+    kwargs.setdefault("index", True)
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("index_label", "DicTerm")
+    kwargs.setdefault("lineterminator", "\n")
+    dx.rename_axis(None, axis=1).to_csv(fp, **kwargs)
+    return None
 
 
 #######################################################################################
-# DX DataFrame processing
+# DX DataFrame processing - dtype-dispatched validation (no fallback)
 #######################################################################################
 
 
-@pa.check_output(schema=dx_schema)
 def drop_category(dx: pd.DataFrame, categories: Union[str, list[str]]) -> pd.DataFrame:
     """
     Remove one or more categories from a dictionary.
 
-    Terms that no longer belong to any remaining category are dropped
-    automatically.
+    For binary dicts, terms that no longer belong to any remaining category
+    are dropped automatically (per ``dx_schema``'s "drop terms with no
+    categories" parser). For weighted dicts, all terms are preserved (a row
+    of zeros is meaningful in a weighted dict).
 
     Parameters
     ----------
     dx : :class:`pandas.DataFrame`
-        A dictionary DataFrame as returned by :func:`read_dx`.
+        A dictionary DataFrame. Either binary (all int8) or weighted
+        (all float64). Mixed dtypes raise :class:`TypeError`.
     categories : :class:`str` or list of :class:`str`
         Category name(s) to remove.
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        A new dictionary DataFrame without the specified categories.
+        A new dictionary DataFrame without the specified categories,
+        validated against the schema matching the input dtype.
 
     Raises
     ------
     KeyError
         If any of the given category names are not present in *dx*.
+    TypeError
+        If *dx* has mixed dtypes (some int8, some float64).
 
     Examples
     --------
@@ -395,13 +481,26 @@ def drop_category(dx: pd.DataFrame, categories: Union[str, list[str]]) -> pd.Dat
     if missing:
         raise KeyError(f"Categories not found in dictionary: {missing}")
     logger.info("Dropping %d categories from %d-category dictionary", len(categories), dx.shape[1])
-    return dx.drop(columns=categories)
+    result = dx.drop(columns=categories)
+    if (dx.dtypes == "int8").all():
+        return dx_schema.validate(result)
+    elif (dx.dtypes == "float64").all():
+        return dx_weighted_schema.validate(result)
+    else:
+        raise TypeError(
+            f"Dictionary must have all-int8 (binary) or all-float64 (weighted) "
+            f"columns; got dtypes {set(dx.dtypes.astype(str))}."
+        )
 
 
-@pa.check_output(schema=dx_schema)
 def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     """
     Merge multiple dictionaries into a single dictionary.
+
+    If any input is weighted (float64 columns), all inputs are promoted to
+    float64 and the result is validated against ``dx_weighted_schema``.
+    Otherwise the result is binary (int8) and validated against
+    ``dx_schema``.
 
     Parameters
     ----------
@@ -411,7 +510,8 @@ def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     :class:`pandas.DataFrame`
-        The merged dictionary.
+        The merged dictionary, validated against the appropriate schema
+        (binary if all inputs are binary, weighted if any is weighted).
 
     Raises
     ------
@@ -449,7 +549,13 @@ def merge_dx(*dxs: pd.DataFrame) -> pd.DataFrame:
     _warn_wildcard_overlaps(dxs)
 
     logger.info("Merging %d dictionaries", len(dxs))
-    return pd.concat(dxs, axis=1, join="outer").fillna(0)
+    has_weighted = any(d.dtypes.eq("float64").any() for d in dxs)
+    if has_weighted:
+        promoted = [d.astype("float64") for d in dxs]
+        merged = pd.concat(promoted, axis=1, join="outer").fillna(0.0)
+        return dx_weighted_schema.validate(merged)
+    merged = pd.concat(dxs, axis=1, join="outer").fillna(0).astype("int8")
+    return dx_schema.validate(merged)
 
 
 def _warn_wildcard_overlaps(dxs: tuple[pd.DataFrame, ...]) -> None:

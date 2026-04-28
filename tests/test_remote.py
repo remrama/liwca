@@ -15,7 +15,7 @@ from liwca.datasets import corpora, dictionaries, tables
 # Dictionaries
 # ---------------------------------------------------------------------------
 
-_DICTIONARY_FETCHERS = [
+_BINARY_DICTIONARY_FETCHERS = [
     ("bigtwo", dictionaries.fetch_bigtwo),
     ("emfd", dictionaries.fetch_emfd),
     ("empath", dictionaries.fetch_empath),
@@ -24,6 +24,9 @@ _DICTIONARY_FETCHERS = [
     ("mystical", dictionaries.fetch_mystical),
     ("sleep", dictionaries.fetch_sleep),
     ("threat", dictionaries.fetch_threat),
+]
+
+_WEIGHTED_DICTIONARY_FETCHERS = [
     ("wrad", dictionaries.fetch_wrad),
 ]
 
@@ -33,9 +36,9 @@ _DICTIONARY_EXAMPLES: dict[str, list[str]] = {
 }
 
 
-@pytest.mark.parametrize("name,fetch_fn", _DICTIONARY_FETCHERS)
-def test_fetch_dictionary(name: str, fetch_fn) -> None:
-    """Fetch a remote dictionary, verify it loads as a valid dictionary DataFrame."""
+@pytest.mark.parametrize("name,fetch_fn", _BINARY_DICTIONARY_FETCHERS)
+def test_fetch_binary_dictionary(name: str, fetch_fn) -> None:
+    """Fetch a remote binary dictionary; verify int8 0/1 dtype and shape."""
     dx = fetch_fn()
     assert isinstance(dx, pd.DataFrame)
     assert dx.index.name == "DicTerm"
@@ -43,6 +46,19 @@ def test_fetch_dictionary(name: str, fetch_fn) -> None:
     assert len(dx) > 0
     assert dx.shape[1] > 0
     assert set(dx.values.flat) <= {0, 1}
+    assert dx.dtypes.eq("int8").all()
+
+
+@pytest.mark.parametrize("name,fetch_fn", _WEIGHTED_DICTIONARY_FETCHERS)
+def test_fetch_weighted_dictionary(name: str, fetch_fn) -> None:
+    """Fetch a remote weighted dictionary; verify float64 dtype and shape."""
+    dx = fetch_fn()
+    assert isinstance(dx, pd.DataFrame)
+    assert dx.index.name == "DicTerm"
+    assert dx.columns.name == "Category"
+    assert len(dx) > 0
+    assert dx.shape[1] > 0
+    assert dx.dtypes.eq("float64").all()
 
 
 @pytest.mark.parametrize("name,examples", _DICTIONARY_EXAMPLES.items())
@@ -60,11 +76,11 @@ def test_example_terms_in_dictionary(name: str, examples: list[str]) -> None:
 
 _CORPUS_FETCHERS = [
     ("autobiomemsim", corpora.fetch_autobiomemsim),
-    ("cmu_books", corpora.fetch_cmu_books),
-    ("cmu_movies", corpora.fetch_cmu_movies),
+    ("cmu_book_summaries", corpora.fetch_cmu_book_summaries),
+    ("cmu_movie_summaries", corpora.fetch_cmu_movie_summaries),
     ("hippocorpus", corpora.fetch_hippocorpus),
     ("liwc_demo_data", corpora.fetch_liwc_demo_data),
-    ("rwritingprompts", corpora.fetch_rwritingprompts),
+    ("reddit_short_stories", corpora.fetch_reddit_short_stories),
     ("sherlock", corpora.fetch_sherlock),
     ("tedtalks", corpora.fetch_tedtalks),
 ]

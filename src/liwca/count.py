@@ -17,6 +17,20 @@ wildcards are **expanded against the actual corpus vocabulary** before vectorisa
 This means results are deterministic for a given corpus + dictionary pair, but
 the expanded vocabulary will differ across corpora (a token can only be counted
 if it actually appears).
+
+For weighted dictionaries (float values), wildcard rows are merged via
+:func:`numpy.maximum` -- if both ``abandon*`` and an exact ``abandon`` match
+the same corpus token, the larger weight wins. For binary dictionaries
+this is logical OR. Lexicons-as-shipped (VADER, labMT) don't use wildcards,
+so this rule rarely matters in practice.
+
+Output
+------
+``count()`` always returns **proportions**: per-document, the sum of matched
+token counts (or weights, for weighted dicts) divided by the total word count.
+For binary dicts this is the fraction of doc tokens in each category, in
+``[0, 1]``. For weighted dicts it is the per-token mean weight (e.g. mean
+sentiment per word for a VADER-style lexicon, in arbitrary range).
 """
 
 from __future__ import annotations
@@ -130,18 +144,16 @@ def _build_word_result(
     doc_index: pd.Index,
     vocab_tokens: list[str],
     word_counts: np.ndarray,
-    as_percentage: bool,
     precision: int | None,
 ) -> pd.DataFrame:
-    """Assemble a documents x tokens DataFrame from the raw DTM."""
+    """Assemble a documents x tokens DataFrame from the raw DTM (proportions)."""
     if dtm is None:
         word_result = pd.DataFrame(index=doc_index)
     else:
         word_result = pd.DataFrame.sparse.from_spmatrix(dtm, index=doc_index, columns=vocab_tokens)
-        if as_percentage:
-            safe_wc = np.where(word_counts > 0, word_counts, 1)
-            word_result = word_result.div(safe_wc, axis=0) * 100
-        if as_percentage and precision is not None:
+        safe_wc = np.where(word_counts > 0, word_counts, 1)
+        word_result = word_result.div(safe_wc, axis=0)
+        if precision is not None:
             # Sparse arrays don't support .round(); densify first.
             word_result = word_result.sparse.to_dense().round(precision)
 
@@ -160,7 +172,6 @@ def count(
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = ...,
-    as_percentage: bool = ...,
     precision: int | None = ...,
     return_words: Literal[False] = ...,
 ) -> pd.DataFrame: ...
@@ -172,7 +183,6 @@ def count(
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = ...,
-    as_percentage: bool = ...,
     precision: int | None = ...,
     return_words: Literal[True],
 ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
@@ -183,41 +193,42 @@ def count(
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = None,
-    as_percentage: bool = True,
     precision: int | None = None,
     return_words: bool = False,
 ) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
     """
     Count LIWC dictionary categories across documents (pure-Python).
 
+    Returns proportions: per-document, the sum of matched contributions
+    divided by total word count. For binary dictionaries this is the
+    fraction of doc tokens in each category (in ``[0, 1]``). For weighted
+    dictionaries it is the per-token mean weight (e.g. mean sentiment per
+    word for VADER-style lexicons; arbitrary range, signed allowed).
+
     Parameters
     ----------
     texts : :class:`~collections.abc.Iterable` of :class:`str` or :class:`~pandas.Series`
         The documents to analyse.  Each element is a single document string.
     dx : :class:`~pandas.DataFrame`
-        A LIWC dictionary DataFrame as returned by :func:`liwca.read_dx`.
-        Index contains dictionary terms (may include ``*`` wildcards),
-        columns are category names, values are binary (0/1).
+        A LIWC dictionary DataFrame as returned by :func:`liwca.read_dic`,
+        :func:`liwca.read_dicx`, :func:`liwca.read_dicx_weighted`, or
+        :func:`liwca.create_dx`. Index contains dictionary terms (may
+        include ``*`` wildcards); columns are category names. Values are
+        either binary (int8 0/1) or signed weights (float64).
     tokenizer : :class:`~collections.abc.Callable`, optional
         A function ``str -> list[str]`` used to split each document into
         lowercase tokens.  Defaults to a regex tokenizer that preserves
         contractions (``don't`` → ``["don't"]``).
-    as_percentage : :class:`bool`, optional
-        If ``True`` (default), return category values as a percentage of total
-        word count per document (matching LIWC's default output).  If
-        ``False``, return raw category counts.
     precision : :class:`int`, optional
-        If set, round category value columns to this many decimal places.
-        Only applies when ``as_percentage=True``. The ``"WC"`` column is
-        never rounded.
+        If set, round proportion columns to this many decimal places. The
+        ``"WC"`` column is never rounded.
     return_words : :class:`bool`, optional
         If ``True``, return a tuple ``(categories, words)`` where *words* is
-        a *documents x tokens* DataFrame holding per-word counts (or
-        percentages) for every dictionary token that appeared in the corpus.
-        Wildcard entries are expanded to the actual corpus tokens that
-        matched (e.g., ``recall*`` → ``recalled``, ``recalling``, …).
-        The same ``as_percentage`` and ``precision`` settings apply to both
-        DataFrames.  Default ``False``.
+        a *documents x tokens* DataFrame holding per-word proportions for
+        every dictionary token that appeared in the corpus.  Wildcard
+        entries are expanded to the actual corpus tokens that matched
+        (e.g., ``recall*`` → ``recalled``, ``recalling``, …).  Default
+        ``False``.
 
     Returns
     -------
@@ -243,8 +254,8 @@ def count(
     ... ]  # doctest: +SKIP
     >>> liwca.count(texts, dx)  # doctest: +SKIP
     Category  WC  threat
-    0          8    12.5
-    1          4     0.0
+    0          8   0.125
+    1          4   0.000
 
     Get per-word contributions:
 
@@ -326,12 +337,12 @@ def count(
         columns=dx_expanded.columns,
     )
 
-    if as_percentage:
-        # Avoid division by zero for empty documents.
-        safe_wc = np.where(word_counts > 0, word_counts, 1)
-        result = result.div(safe_wc, axis=0) * 100
+    # Convert to proportions (sum of contributions / WC). Avoid division by
+    # zero for empty documents.
+    safe_wc = np.where(word_counts > 0, word_counts, 1)
+    result = result.div(safe_wc, axis=0)
 
-    if as_percentage and precision is not None:
+    if precision is not None:
         result = result.round(precision)
 
     result.insert(0, "WC", word_counts)
@@ -347,7 +358,5 @@ def count(
         return result
 
     # -- Build word-level DataFrame -----------------------------------------
-    word_result = _build_word_result(
-        dtm, doc_index, vocab_tokens, word_counts, as_percentage, precision
-    )
+    word_result = _build_word_result(dtm, doc_index, vocab_tokens, word_counts, precision)
     return result, word_result
