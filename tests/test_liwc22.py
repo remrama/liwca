@@ -1055,12 +1055,17 @@ class TestResolveDictionaryArg:
         mock_path.assert_called_once_with("sleep")
         assert result == str(fake_dicx)
 
-    def test_continuous_value_dict_passes_through(self) -> None:
-        """`wrad` raises NotImplementedError from path(); we passthrough."""
-        # wrad's not-yet-implemented signal must not surface as a hard error
-        # to the CLI wrapper; it's just left as-is for the CLI to (probably)
-        # reject.
-        assert _resolve_dictionary_arg("wrad") == "wrad"
+    def test_weighted_dict_resolves_like_binary(self, tmp_path: Path) -> None:
+        """Weighted-dict names (like 'wrad') resolve to their cached .dicx path
+        the same way binary-dict names do."""
+        from liwca.datasets import dictionaries
+
+        fake_dicx = tmp_path / "wrad.dicx"
+        fake_dicx.write_text("DicTerm,labMT\n")
+        with patch.object(dictionaries, "path", return_value=fake_dicx) as mock_path:
+            result = _resolve_dictionary_arg("wrad")
+        mock_path.assert_called_once_with("wrad")
+        assert result == str(fake_dicx)
 
     def test_run_mode_substitutes_dictionary(self, tmp_path: Path) -> None:
         """End-to-end: Liwc22.wc(dictionary='sleep', dry_run=True) builds a

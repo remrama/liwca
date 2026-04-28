@@ -32,7 +32,7 @@ _FETCH_FUNCTIONS = [
 # function calling _pup.fetch("foo-bar.dic") when the registry key is
 # "foo_bar.dic".
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
-    "fetch_bigtwo": {"bigtwo-a.dic", "bigtwo-b.dic"},
+    "fetch_bigtwo": {"bigtwo-va.dic", "bigtwo-vb.dic"},
     "fetch_emfd": {"emfd.dic"},
     "fetch_empath": {"empath.tsv"},
     "fetch_honor": {"honor.dic"},
@@ -56,24 +56,24 @@ class TestFetchFunctions:
             dictionaries.fetch_bigtwo(version="nonexistent")
 
     def test_fetch_bigtwo_default_version_is_a(self) -> None:
-        """Calling fetch_bigtwo() without version uses 'a' (bigtwo-a.dic)."""
-        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo-a.dicx") as mock:
+        """Calling fetch_bigtwo() without version uses 'a' (bigtwo-va.dic)."""
+        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo-va.dicx") as mock:
             with patch("liwca.datasets.dictionaries.read_dicx"):
                 try:
                     dictionaries.fetch_bigtwo()
                 except Exception:
                     pass
         # First positional arg is the registry filename; kwargs include the processor.
-        assert mock.call_args.args[0] == "bigtwo-a.dic"
+        assert mock.call_args.args[0] == "bigtwo-va.dic"
 
     def test_fetch_bigtwo_version_b(self) -> None:
-        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo-b.dicx") as mock:
+        with patch.object(dictionaries._pup, "fetch", return_value="/fake/bigtwo-vb.dicx") as mock:
             with patch("liwca.datasets.dictionaries.read_dicx"):
                 try:
                     dictionaries.fetch_bigtwo(version="b")
                 except Exception:
                     pass
-        assert mock.call_args.args[0] == "bigtwo-b.dic"
+        assert mock.call_args.args[0] == "bigtwo-vb.dic"
 
     def test_download_failure_raises(self) -> None:
         """Pooch errors propagate up from fetch functions."""
@@ -198,9 +198,12 @@ class TestPathResolver:
         with pytest.raises(ValueError, match="Unknown dictionary 'nonexistent'"):
             dictionaries.path("nonexistent")
 
-    def test_wrad_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="continuous values"):
-            dictionaries.path("wrad")
+    def test_wrad_returns_weighted_dicx_path(self) -> None:
+        """fetch_wrad now caches as a weighted .dicx; path() should resolve it."""
+        with patch.object(dictionaries, "fetch_wrad") as mock_fetch:
+            result = dictionaries.path("wrad")
+        mock_fetch.assert_called_once_with()
+        assert result.name == "wrad.dicx"
 
     def test_returns_friendly_stem_path(self) -> None:
         """For most fetchers, path returns <cache>/<name>.dicx after fetcher runs."""
@@ -215,10 +218,10 @@ class TestPathResolver:
         with patch.object(dictionaries, "fetch_bigtwo") as mock_fetch:
             result = dictionaries.path("bigtwo")
         mock_fetch.assert_called_once_with()
-        assert result.name == "bigtwo-a.dicx"
+        assert result.name == "bigtwo-va.dicx"
 
     def test_bigtwo_version_b(self) -> None:
         with patch.object(dictionaries, "fetch_bigtwo") as mock_fetch:
             result = dictionaries.path("bigtwo", version="b")
         mock_fetch.assert_called_once_with(version="b")
-        assert result.name == "bigtwo-b.dicx"
+        assert result.name == "bigtwo-vb.dicx"

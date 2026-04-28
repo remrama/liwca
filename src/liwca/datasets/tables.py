@@ -129,7 +129,7 @@ def fetch_psychnorms() -> pd.DataFrame:
     doi:`10.48550/arXiv.2412.04936 <https://doi.org/10.48550/arXiv.2412.04936>`__
     """
     fnames = _pup.fetch("psychnorms.zip", processor=pooch.Unzip())
-    fname = _pup.fetch("psychnorms_metadata.csv")
+    fname = _pup.fetch("psychnorms-metadata.csv")
     fnames.append(fname)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
     fpath = fpaths["psychNorms.csv"]

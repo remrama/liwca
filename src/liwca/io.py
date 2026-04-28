@@ -290,12 +290,18 @@ def read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     logger.info("Reading binary .dicx from %s", fp)
     kwargs.setdefault("index_col", "DicTerm")
     kwargs.setdefault("dtype", "string")
+    # keep_default_na=False prevents pandas from coercing legitimate dictionary
+    # terms like "na", "null", "n/a" into NaN (real-world hazard for some
+    # non-English Hedonometer files).
+    kwargs.setdefault("keep_default_na", False)
     df_str = (
-        pd.read_csv(fp, **kwargs)
-        .rename_axis("Category", axis=1)
-        .fillna("")
-        .apply(lambda c: c.str.strip())
+        pd.read_csv(fp, **kwargs).rename_axis("Category", axis=1).apply(lambda c: c.str.strip())
     )
+    if df_str.shape[1] == 0:
+        raise ValueError(
+            f"Dictionary file {fp} has no Category columns; "
+            f"the file appears to contain only a `DicTerm` header (no terms or categories)."
+        )
     cells = df_str.stack()
     invalid = ~cells.str.upper().isin({"X", ""})
     if invalid.any():
@@ -332,13 +338,21 @@ def read_dicx_weighted(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     logger.info("Reading weighted .dicx from %s", fp)
     kwargs.setdefault("index_col", "DicTerm")
     kwargs.setdefault("dtype", "string")
+    # keep_default_na=False prevents pandas from coercing legitimate dictionary
+    # terms like "na", "null", "n/a" into NaN. Empty cells stay as the empty
+    # string, then we replace them with "0" before numeric coercion.
+    kwargs.setdefault("keep_default_na", False)
     df_str = (
         pd.read_csv(fp, **kwargs)
         .rename_axis("Category", axis=1)
-        .fillna("")
         .apply(lambda c: c.str.strip())
         .replace("", "0")
     )
+    if df_str.shape[1] == 0:
+        raise ValueError(
+            f"Dictionary file {fp} has no Category columns; "
+            f"the file appears to contain only a `DicTerm` header (no terms or categories)."
+        )
     try:
         df = df_str.apply(pd.to_numeric).astype("float64")
     except ValueError as e:
