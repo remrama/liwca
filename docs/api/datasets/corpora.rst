@@ -10,9 +10,10 @@ Corpora
    :nosignatures:
 
    fetch_autobiomemsim
-   fetch_cmu_books
-   fetch_cmu_movies
+   fetch_cmu_book_summaries
+   fetch_cmu_movie_summaries
    fetch_hippocorpus
    fetch_liwc_demo_data
+   fetch_reddit_short_stories
    fetch_sherlock
-   fetch_rwritingprompts
+   fetch_tedtalks

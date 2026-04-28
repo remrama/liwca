@@ -10,7 +10,12 @@ Dictionaries
    :nosignatures:
 
    fetch_bigtwo
+   fetch_emfd
+   fetch_empath
    fetch_honor
+   fetch_leeq
    fetch_mystical
    fetch_sleep
    fetch_threat
+   fetch_wrad
+   path

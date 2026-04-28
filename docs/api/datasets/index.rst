@@ -16,25 +16,32 @@ Text corpora for LIWC analysis.
 .. autosummary::
 
    corpora.fetch_autobiomemsim
-   corpora.fetch_cmu_books
-   corpora.fetch_cmu_movies
+   corpora.fetch_cmu_book_summaries
+   corpora.fetch_cmu_movie_summaries
    corpora.fetch_hippocorpus
    corpora.fetch_liwc_demo_data
+   corpora.fetch_reddit_short_stories
    corpora.fetch_sherlock
-   corpora.fetch_rwritingprompts
+   corpora.fetch_tedtalks
 
 Dictionaries
 ------------
 
-LIWC-format dictionaries from published research.
+LIWC-format dictionaries from published research. Most are binary (each
+term either belongs to a category or doesn't); :func:`~liwca.datasets.dictionaries.fetch_wrad`
+returns a weighted dictionary (referential-activity scores).
 
 .. autosummary::
 
    dictionaries.fetch_bigtwo
+   dictionaries.fetch_emfd
+   dictionaries.fetch_empath
    dictionaries.fetch_honor
+   dictionaries.fetch_leeq
    dictionaries.fetch_mystical
    dictionaries.fetch_sleep
    dictionaries.fetch_threat
+   dictionaries.fetch_wrad
 
 Tables
 ------
