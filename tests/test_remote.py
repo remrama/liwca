@@ -79,7 +79,7 @@ _CORPUS_FETCHERS = [
     ("cmu_book_summaries", corpora.fetch_cmu_book_summaries),
     ("cmu_movie_summaries", corpora.fetch_cmu_movie_summaries),
     ("hippocorpus", corpora.fetch_hippocorpus),
-    ("liwc_demo_data", corpora.fetch_liwc_demo_data),
+    ("liwc22_demo_data", corpora.fetch_liwc22_demo_data),
     ("reddit_short_stories", corpora.fetch_reddit_short_stories),
     ("sherlock", corpora.fetch_sherlock),
     ("tedtalks", corpora.fetch_tedtalks),

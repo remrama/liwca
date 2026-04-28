@@ -13,7 +13,7 @@ Corpora
    fetch_cmu_book_summaries
    fetch_cmu_movie_summaries
    fetch_hippocorpus
-   fetch_liwc_demo_data
+   fetch_liwc22_demo_data
    fetch_reddit_short_stories
    fetch_sherlock
    fetch_tedtalks

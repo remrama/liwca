@@ -47,25 +47,31 @@ def get_location() -> Path:
 
 def fetch_liwc2015norms() -> pd.DataFrame:
     """
-    Fetch the LIWC-2015 descriptive statistics norms table.
+    Fetch the LIWC2015 Descriptive Statistics and Norms table.
 
-    Reference means and standard deviations for every LIWC-2015 category
-    across the reference corpora reported in the LIWC-2015 technical
+    LIWC2015 Descriptive Statistics and Norms
+    Reference means and standard deviations for every LIWC2015 category
+    across the reference corpora reported in the LIWC2015 technical
     manual.
+
+    .. seealso::
+        :func:`fetch_liwc22norms` for the LIWC-22 norms table.
+
+    Distributed on the
+    `LIWC website psychometrics manuals page <https://www.liwc.app/help/psychometrics-manuals>`__.
+
+    Direct link to downloaded file:
+    `https://www.liwc.app/static/documents/LIWC2015.Descriptive.Statistics.Full.xlsx
+    <https://www.liwc.app/static/documents/LIWC2015.Descriptive.Statistics.Full.xlsx>`__
+
+    If used, cite the LIWC2015 Psychometrics Manual:
+    Pennebaker et al., 2015. The development and psychometric properties of LIWC2015.
+    doi:`10.15781/T29G6Z <https://doi.org/10.15781/T29G6Z>`__
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        Local path to the downloaded
-        ``LIWC2015.Descriptive.Statistics.Full.xlsx`` file.
-
-    Notes
-    -----
-    Distributed on the LIWC website\\ [1]_.
-
-    References
-    ----------
-    .. [1] TBD
+        :class:`~pandas.DataFrame` of the ``LIWC2015.Descriptive.Statistics.Full.xlsx`` file.
     """
     fname = _pup.fetch("liwc2015-norms.xlsx")
     df = (
@@ -78,24 +84,28 @@ def fetch_liwc2015norms() -> pd.DataFrame:
 
 def fetch_liwc22norms() -> pd.DataFrame:
     """
-    Fetch the LIWC-22 descriptive statistics ("Test Kitchen" norms) table.
+    Fetch the LIWC-22 Descriptive Statistics and Norms table.
 
     Reference means and standard deviations for every LIWC-22 category
     across the corpora in the "Test Kitchen" reference set.
 
+    .. seealso::
+        :func:`fetch_liwc2015norms` for the LIWC2015 norms table.
+
+    Distributed on the
+    `LIWC website psychometrics manuals page <https://www.liwc.app/help/psychometrics-manuals>`__.
+
+    Direct link to downloaded file:
+    `https://www.liwc.app/static/documents/LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx
+    <https://www.liwc.app/static/documents/LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx>`__
+
+    If used, cite the LIWC2015 Psychometrics Manual:
+    Boyd et al., 2022. The development and psychometric properties of LIWC-22.
+
     Returns
     -------
     :class:`pandas.DataFrame`
-        Local path to the downloaded
-        ``LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx`` file.
-
-    Notes
-    -----
-    Distributed on the LIWC website\\ [1]_.
-
-    References
-    ----------
-    .. [1] TBD
+        :class:`~pandas.DataFrame` of the ``LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx`` file.
     """
     fname = _pup.fetch("liwc22-norms.xlsx")
     df = (
@@ -108,11 +118,15 @@ def fetch_liwc22norms() -> pd.DataFrame:
 
 def fetch_psychnorms() -> pd.DataFrame:
     """
-    Fetch the psychNorms table.
+    Fetch the psychNorms metabase table.
 
-    See the `psychNorms GitHub repository <https://github.com/Zak-Hussain/psychNorms>`__.
+    Distributed on the `psychNorms GitHub repository <https://github.com/Zak-Hussain/psychNorms>`__.
 
-    https://arxiv.org/abs/2412.04936
+    If used, cite:
+    Hussain et al., 2024.
+    Probing the contents of semantic representations from text, behavior, and brain data
+    using the psychNorms metabase. *arXiv*
+    doi:`10.48550/arXiv.2412.04936 <https://doi.org/10.48550/arXiv.2412.04936>`__
     """
     fnames = _pup.fetch("psychnorms.zip", processor=pooch.Unzip())
     fname = _pup.fetch("psychnorms_metadata.csv")
@@ -137,10 +151,8 @@ def fetch_scope() -> pd.DataFrame:
     `https://sc.edu/scopedb/fulldb/data_with_metadata.xlsx
     <https://sc.edu/scopedb/fulldb/data_with_metadata.xlsx>`__.
 
-    Citation:
-    Gao et al., 2023.
-    SCOPE: The South Carolina psycholinguistic metabase.
-    *Behav Res Methods*
+    If used, cite:
+    Gao et al., 2023. SCOPE: The South Carolina psycholinguistic metabase. *Behav Res Methods*
     doi:`10.3758/s13428-022-01934-0 <https://doi.org/10.3758/s13428-022-01934-0>`__
     """
     # fname1 = _pup.fetch("scope.csv")

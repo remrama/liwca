@@ -19,7 +19,7 @@ Text corpora for LIWC analysis.
    corpora.fetch_cmu_book_summaries
    corpora.fetch_cmu_movie_summaries
    corpora.fetch_hippocorpus
-   corpora.fetch_liwc_demo_data
+   corpora.fetch_liwc22_demo_data
    corpora.fetch_reddit_short_stories
    corpora.fetch_sherlock
    corpora.fetch_tedtalks

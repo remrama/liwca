@@ -28,7 +28,7 @@ __all__ = [
     "fetch_cmu_book_summaries",
     "fetch_cmu_movie_summaries",
     "fetch_hippocorpus",
-    "fetch_liwc_demo_data",
+    "fetch_liwc22_demo_data",
     "fetch_reddit_short_stories",
     "fetch_sherlock",
     "fetch_tedtalks",
@@ -102,10 +102,17 @@ def fetch_autobiomemsim() -> pd.DataFrame:
 
 def fetch_cmu_book_summaries() -> pd.DataFrame:
     """
-    Fetch the CMU Book Summary Dataset.
+    Fetch the CMU Book Summary Corpus.
 
-    https://www.cs.cmu.edu/~dbamman/booksummaries.html
-    http://arxiv.org/abs/1305.1319
+    Plot summaries for ~16k books from Wikipedia and associated metadata.
+
+    Distributed `by Carnegie Mellon University
+    <https://www.cs.cmu.edu/~dbamman/booksummaries.html>`__.
+
+    If used, cite:
+    Bamman & Smith., 2013.
+    New alignment methods for discriminative book summarization.
+    doi:`10.48550/arXiv.1305.1319 <https://doi.org/10.48550/arXiv.1305.1319>`__
 
     Returns
     -------
@@ -131,10 +138,17 @@ def fetch_cmu_book_summaries() -> pd.DataFrame:
 
 def fetch_cmu_movie_summaries() -> pd.DataFrame:
     """
-    Fetch the CMU Movie Summaries Dataset.
+    Fetch the CMU Movie Summary Corpus.
 
-    http://www.cs.cmu.edu/~ark/personas
-    http://www.cs.cmu.edu/~dbamman/pubs/pdf/bamman+oconnor+smith.acl13.pdf
+    Plot summaries for ~42k movies from Wikipedia and associated metadata.
+
+    Distributed `by Carnegie Mellon University
+    <https://www.cs.cmu.edu/~dbamman/moviesummaries.html>`__.
+
+    If used, cite:
+    Bamman et al., 2013.
+    Learning latent personas of film characters.
+    `https://aclanthology.org/P13-1035.pdf <https://aclanthology.org/P13-1035.pdf>`__
 
     Returns
     -------
@@ -151,11 +165,27 @@ def fetch_cmu_movie_summaries() -> pd.DataFrame:
 
 def fetch_hippocorpus() -> pd.DataFrame:
     """
-    Fetch the Hippocorpus dataset of imagined, recalled, and retold stories.
+    Fetch the Hippocorpus.
 
-    A crowdsourced corpus of short English narratives in which the same
-    events appear as both lived experiences (recalled, retold) and
-    imagined fictions, released by Microsoft Research.
+    A crowdsourced corpus of imagined, recalled, and retold stories.
+
+    Distributed `by Microsoft Research <https://www.microsoft.com/en-us/download/details.aspx?id=105291>`__.
+
+    Direct download link:
+    `https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip
+    <https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip>`__
+
+    If used, cite:
+    Sap et al., 2020.
+    Recollection versus imagination:
+    Exploring human memory and cognition via neural language models.
+    *Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics*
+    doi:`10.18653/v1/2020.acl-main.178 <https://doi.org/10.18653/v1/2020.acl-main.178>`__
+
+    .. seealso::
+        Sap et al., 2022.
+        Quantifying the narrative flow of imagined versus autobiographical stories
+        *PNAS* doi:`10.1073/pnas.2211715119 <https://doi.org/10.1073/pnas.2211715119>`__
 
     Returns
     -------
@@ -164,14 +194,8 @@ def fetch_hippocorpus() -> pd.DataFrame:
 
     Notes
     -----
-    Described in Sap et al.\\ [1]_ and distributed via the Microsoft
-    download CDN\\ [2]_.
-
-    References
-    ----------
-    .. [1] TBD
-    .. [2] `https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip
-           <https://download.microsoft.com/download/3/c/3/3c388755-ac68-4858-8343-9acfb33c631d/hippocorpus-u20220112.zip>`__
+    Also available `on Kaggle <https://www.kaggle.com/datasets/saurabhshahane/hippocorpus>`__
+    and `on Hugging Face <https://huggingface.co/datasets/allenai/hippocorpus>`__.
     """
     processor = pooch.Unzip(
         members=[
@@ -191,27 +215,27 @@ def fetch_hippocorpus() -> pd.DataFrame:
     return df
 
 
-def fetch_liwc_demo_data() -> pd.DataFrame:
+def fetch_liwc22_demo_data() -> pd.DataFrame:
     """
-    Fetch the LIWC-22 demo data archive.
+    Fetch the LIWC-22 Demo Dataset corpus.
 
     A zip of example input/output files distributed with the LIWC-22
     application. Useful for trying analysis pipelines without having
     to bring your own texts.
 
+    Distributed `on the LIWC website <https://www.liwc.app/help/workbench>`__.
+
+    Direct link to downloaded file:
+    `https://www.liwc.app/static/files/liwc-22-demo-data.zip
+    <https://www.liwc.app/static/files/liwc-22-demo-data.zip>`__
+
+    If used, cite the LIWC-22 Psychometrics Manual:
+    Boyd et al., 2022. The development and psychometric properties of LIWC-22.
+
     Returns
     -------
     :class:`pandas.DataFrame`
         :class:`~pandas.DataFrame` of all the individual ``.txt`` files from unzipped file.
-
-    Notes
-    -----
-    Distributed on the LIWC website\\ [1]_.
-
-    References
-    ----------
-    .. [1] `https://www.liwc.app/static/files/liwc-22-demo-data.zip
-           <https://www.liwc.app/static/files/liwc-22-demo-data.zip>`__
     """
 
     def _build(member_paths: list[Path]) -> pd.DataFrame:
@@ -239,13 +263,16 @@ def fetch_reddit_short_stories() -> pd.DataFrame:
 
     A collection of posts from r/WritingPrompts.
 
-    https://github.com/tdude92/reddit-short-stories
-    https://www.kaggle.com/trevordu/reddit-short-stories
+    Distributed `on GitHub <https://github.com/tdude92/reddit-short-stories>`__.
 
     Returns
     -------
     :class:`pandas.DataFrame`
         :class:`~pandas.DataFrame` of the ``reddit_short_stories.txt`` file.
+
+    Notes
+    -----
+    Also available `on Kaggle <https://www.kaggle.com/trevordu/reddit-short-stories>`__.
     """
 
     def _build(source_path: Path) -> pd.DataFrame:
@@ -272,11 +299,13 @@ def fetch_sherlock() -> pd.DataFrame:
     """
     Fetch the Sherlock Topic Model Paper corpus.
 
-    See `GitHub repository <https://github.com/ContextLab/sherlock-topic-model-paper>`__.
+    Distributed `on GitHub <https://github.com/ContextLab/sherlock-topic-model-paper>`__.
 
-    Citation:
+    If used, cite:
+    Heusser et al., 2021,
     Geometric models reveal behavioural and neural signatures
     of transforming naturalistic experiences into episodic memories.
+    *Nat Hum Behav* doi:`10.1038/s41562-021-01051-6 <https://doi.org/10.1038/s41562-021-01051-6>`__
 
     Returns
     -------
@@ -306,9 +335,10 @@ def fetch_sherlock() -> pd.DataFrame:
 
 def fetch_tedtalks(language: str = "en") -> pd.DataFrame:
     """
-    Fetch the Ultimate TED Talks corpus.
+    Fetch the TED Talks Transcripts for NLP corpus.
 
-    https://www.kaggle.com/datasets/miguelcorraljr/ted-ultimate-dataset
+    Distributed `on Kaggle
+    <https://www.kaggle.com/datasets/miguelcorraljr/ted-ultimate-dataset>`__.
 
     Parameters
     ----------
