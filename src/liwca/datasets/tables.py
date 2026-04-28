@@ -17,7 +17,6 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-import pooch
 
 from ._common import get_location as _get_location
 from ._common import make_pup
@@ -118,7 +117,14 @@ def fetch_liwc22norms() -> pd.DataFrame:
 
 def fetch_psychnorms() -> pd.DataFrame:
     """
-    Fetch the psychNorms metabase table.
+    Fetch the psychNorms column-classification metadata table.
+
+    The returned :class:`~pandas.DataFrame` describes each of the ~290
+    psycholinguistic norms aggregated in psychNorms - one row per norm,
+    columns ``norm``, ``description``, ``citation``, ``category``,
+    ``source``. For per-norm lexicon access (the actual word-level scores
+    sliced into a weighted ``.dicx``), use
+    :func:`liwca.datasets.dictionaries.fetch_psychnorms`.
 
     Distributed on the `psychNorms GitHub repository <https://github.com/Zak-Hussain/psychNorms>`__.
 
@@ -127,25 +133,34 @@ def fetch_psychnorms() -> pd.DataFrame:
     Probing the contents of semantic representations from text, behavior, and brain data
     using the psychNorms metabase. *arXiv*
     doi:`10.48550/arXiv.2412.04936 <https://doi.org/10.48550/arXiv.2412.04936>`__
+
+    See Also
+    --------
+    liwca.datasets.dictionaries.fetch_psychnorms :
+        Fetch one psychNorms norm as a weighted ``.dicx`` dictionary.
+    liwca.datasets.dictionaries.list_psychnorms_stems :
+        List the valid stems accepted by ``dictionaries.fetch_psychnorms``.
     """
-    fnames = _pup.fetch("psychnorms.zip", processor=pooch.Unzip())
     fname = _pup.fetch("psychnorms-metadata.csv")
-    fnames.append(fname)
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    fpath = fpaths["psychNorms.csv"]
-    # fpath = fpaths["psychNorms_metadata.csv"]
-    df = pd.read_csv(fpath, low_memory=False)
-    return df
+    return pd.read_csv(fname)
 
 
 def fetch_scope() -> pd.DataFrame:
     """
-    Fetch the South Carolina Psycholinguistic Metabase (SCOPE).
+    Fetch the SCOPE column-classification metadata table.
 
-    The `South CarOlina Psycholinguistic metabase (SCOPE)
-    <https://sc.edu/study/colleges_schools/artsandsciences/psychology/research_clinical_facilities/scope/>`__
-    is a curated collection of psycholinguistic properties of words from major databases.
-    It contains more than 250 variables and over 100,000 words and 81,000 nonwords.
+    The returned :class:`~pandas.DataFrame` describes each variable in the
+    `South CarOlina Psycholinguistic metabase (SCOPE)
+    <https://sc.edu/study/colleges_schools/artsandsciences/psychology/research_clinical_facilities/scope/>`__,
+    one row per variable, with hierarchical ``Level.1`` / ``Level.2`` /
+    ``Level3.`` grouping plus ``Source``, ``Definition``, ``Citation``, and
+    ``Web.Link`` columns. For per-column lexicon access (the actual
+    word-level scores sliced into a weighted ``.dicx``), use
+    :func:`liwca.datasets.dictionaries.fetch_scope`.
+
+    SCOPE is a curated collection of psycholinguistic properties of words
+    from major databases - more than 250 variables and over 100,000 words
+    plus ~80,000 nonwords.
 
     Direct link to downloaded file:
     `https://sc.edu/scopedb/fulldb/data_with_metadata.xlsx
@@ -154,36 +169,13 @@ def fetch_scope() -> pd.DataFrame:
     If used, cite:
     Gao et al., 2023. SCOPE: The South Carolina psycholinguistic metabase. *Behav Res Methods*
     doi:`10.3758/s13428-022-01934-0 <https://doi.org/10.3758/s13428-022-01934-0>`__
+
+    See Also
+    --------
+    liwca.datasets.dictionaries.fetch_scope :
+        Fetch one SCOPE variable as a weighted ``.dicx`` dictionary.
+    liwca.datasets.dictionaries.list_scope_stems :
+        List the valid stems accepted by ``dictionaries.fetch_scope``.
     """
-    # fname1 = _pup.fetch("scope.csv")
-    # fname2 = _pup.fetch("scope-metadata.csv")
-    # fnames = [fname1, fname2]
-    # fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    # if read:
-    #     df = pd.read_csv(fpaths["scope.csv"])
-    #     return df
-    # return fpaths
     fname = _pup.fetch("scope.xlsx")
-    fpath = Path(fname)
-    # df = pd.read_excel(fpath,
-    #     sheet_name="metadata",
-    #     engine="openpyxl",
-    #     engine_kwargs={"read_only": True},
-    #     usecols="A:S",
-    #     nrows=271,
-    # )
-    df = pd.read_excel(fpath, sheet_name="data", engine="calamine")
-    # fpath,
-    # dtype=float,
-    # sheet_name="data",
-    # engine="calamine",
-    # nrows=187929,
-    # usecols="B:CR,CT:GB,GG:HH,HJ:JL",
-    # usecols="A:JM",
-    # "CS", # IPA, weird encodings, str
-    # "GC:GF"  # vectors
-    # "HI", # weird 1-2-1
-    # "JM", # categorical string
-    # "A",  # string
-    # )
-    return df
+    return pd.read_excel(fname, sheet_name="metadata")

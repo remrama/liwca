@@ -30,6 +30,10 @@ Dictionaries
 LIWC-format dictionaries from published research. Most are binary (each
 term either belongs to a category or doesn't); :func:`~liwca.datasets.dictionaries.fetch_wrad`
 returns a weighted dictionary (referential-activity scores).
+:func:`~liwca.datasets.dictionaries.fetch_scope` and
+:func:`~liwca.datasets.dictionaries.fetch_psychnorms` slice a single column
+out of the SCOPE / psychNorms metabases as a weighted, single-category
+dictionary.
 
 .. autosummary::
 
@@ -39,14 +43,23 @@ returns a weighted dictionary (referential-activity scores).
    dictionaries.fetch_honor
    dictionaries.fetch_leeq
    dictionaries.fetch_mystical
+   dictionaries.fetch_psychnorms
+   dictionaries.fetch_scope
    dictionaries.fetch_sleep
    dictionaries.fetch_threat
    dictionaries.fetch_wrad
+   dictionaries.list_psychnorms_stems
+   dictionaries.list_scope_stems
 
 Tables
 ------
 
-Reference tables and norms.
+Reference tables and column-classification metadata for the published
+norms. :func:`~liwca.datasets.tables.fetch_psychnorms` and
+:func:`~liwca.datasets.tables.fetch_scope` return the metadata tables
+describing each lexicon in the corresponding metabase; for the actual
+word-level scores see the per-stem dictionary fetchers in
+:mod:`liwca.datasets.dictionaries`.
 
 .. autosummary::
 

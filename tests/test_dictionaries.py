@@ -22,6 +22,8 @@ _FETCH_FUNCTIONS = [
     dictionaries.fetch_honor,
     dictionaries.fetch_leeq,
     dictionaries.fetch_mystical,
+    dictionaries.fetch_psychnorms,
+    dictionaries.fetch_scope,
     dictionaries.fetch_sleep,
     dictionaries.fetch_threat,
     dictionaries.fetch_wrad,
@@ -38,6 +40,10 @@ _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
     "fetch_honor": {"honor.dic"},
     "fetch_leeq": {"leeq.tsv"},
     "fetch_mystical": {"mystical.xlsx"},
+    # fetch_psychnorms reads `psychnorms.zip` for word-level scores and
+    # `psychnorms-metadata.csv` for stem validation.
+    "fetch_psychnorms": {"psychnorms.zip", "psychnorms-metadata.csv"},
+    "fetch_scope": {"scope.xlsx"},
     "fetch_sleep": {"sleep.tsv"},
     "fetch_threat": {"threat.txt"},
     "fetch_wrad": {"wrad.Wt"},
@@ -225,3 +231,75 @@ class TestPathResolver:
             result = dictionaries.path("bigtwo", version="b")
         mock_fetch.assert_called_once_with(version="b")
         assert result.name == "bigtwo-vb.dicx"
+
+    def test_scope_lowercases_stem_in_cache_name(self) -> None:
+        """SCOPE stems are PascalCase upstream but the .dicx filename is lowercased."""
+        with patch.object(dictionaries, "fetch_scope") as mock_fetch:
+            result = dictionaries.path("scope", stem="Conc_Brys")
+        mock_fetch.assert_called_once_with(stem="Conc_Brys")
+        assert result.name == "scope-conc_brys.dicx"
+
+    def test_psychnorms_path(self) -> None:
+        with patch.object(dictionaries, "fetch_psychnorms") as mock_fetch:
+            result = dictionaries.path("psychnorms", stem="concreteness_brysbaert")
+        mock_fetch.assert_called_once_with(stem="concreteness_brysbaert")
+        assert result.name == "psychnorms-concreteness_brysbaert.dicx"
+
+
+# ---------------------------------------------------------------------------
+# Metabase stem resolution (SCOPE / psychNorms)
+# ---------------------------------------------------------------------------
+
+
+class TestMetabaseStemResolution:
+    """Stem-validation behaviour for fetch_scope / fetch_psychnorms.
+
+    These tests bypass the network by patching the memoised stem maps
+    directly; the underlying metadata files are exercised via test_remote.py.
+    """
+
+    def test_resolve_scope_stem_is_case_insensitive(self) -> None:
+        with patch.object(dictionaries, "_scope_stems", return_value={"conc_brys": "Conc_Brys"}):
+            assert dictionaries._resolve_scope_stem("Conc_Brys") == "Conc_Brys"
+            assert dictionaries._resolve_scope_stem("conc_brys") == "Conc_Brys"
+            assert dictionaries._resolve_scope_stem("CONC_BRYS") == "Conc_Brys"
+
+    def test_resolve_scope_stem_unknown_raises(self) -> None:
+        with patch.object(dictionaries, "_scope_stems", return_value={"conc_brys": "Conc_Brys"}):
+            with pytest.raises(ValueError, match="Unknown SCOPE stem"):
+                dictionaries._resolve_scope_stem("not_a_real_stem")
+
+    def test_resolve_psychnorms_stem_is_case_insensitive(self) -> None:
+        with patch.object(
+            dictionaries, "_psychnorms_stems", return_value=frozenset({"concreteness_brysbaert"})
+        ):
+            assert (
+                dictionaries._resolve_psychnorms_stem("Concreteness_Brysbaert")
+                == "concreteness_brysbaert"
+            )
+
+    def test_resolve_psychnorms_stem_unknown_raises(self) -> None:
+        with patch.object(
+            dictionaries, "_psychnorms_stems", return_value=frozenset({"concreteness_brysbaert"})
+        ):
+            with pytest.raises(ValueError, match="Unknown psychNorms stem"):
+                dictionaries._resolve_psychnorms_stem("not_a_real_stem")
+
+    def test_list_scope_stems_returns_sorted_lowercase(self) -> None:
+        with patch.object(
+            dictionaries,
+            "_scope_stems",
+            return_value={"freq_hal": "Freq_HAL", "conc_brys": "Conc_Brys"},
+        ):
+            stems = dictionaries.list_scope_stems()
+        assert stems == sorted(stems)
+        assert all(s == s.lower() for s in stems)
+
+    def test_list_psychnorms_stems_returns_sorted(self) -> None:
+        with patch.object(
+            dictionaries,
+            "_psychnorms_stems",
+            return_value=frozenset({"frequency_lund", "concreteness_brysbaert"}),
+        ):
+            stems = dictionaries.list_psychnorms_stems()
+        assert stems == sorted(stems)

@@ -71,6 +71,42 @@ def test_example_terms_in_dictionary(name: str, examples: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Metabase per-stem fetchers (SCOPE / psychNorms)
+# ---------------------------------------------------------------------------
+
+# (source, stem) representative pairs; one pair each is enough to exercise
+# the lazy-build, lowercase-normalisation, and weighted-.dicx round-trip.
+_METABASE_STEM_FETCHERS = [
+    ("scope", "Conc_Brys"),  # PascalCase input - exercises lowercase normalisation
+    ("psychnorms", "concreteness_brysbaert"),
+]
+
+
+@pytest.mark.parametrize("source,stem", _METABASE_STEM_FETCHERS)
+def test_fetch_metabase_stem(source: str, stem: str) -> None:
+    """Slice one column from a metabase; verify weighted-dicx shape and dtype."""
+    fetch_fn = getattr(dictionaries, f"fetch_{source}")
+    dx = fetch_fn(stem)
+    assert isinstance(dx, pd.DataFrame)
+    assert dx.index.name == "DicTerm"
+    assert dx.columns.name == "Category"
+    assert dx.shape[0] > 0
+    assert dx.shape[1] == 1
+    assert dx.dtypes.eq("float64").all()
+
+
+def test_list_metabase_stems_nonempty() -> None:
+    """Stem listings are populated from the upstream metadata files."""
+    scope_stems = dictionaries.list_scope_stems()
+    pn_stems = dictionaries.list_psychnorms_stems()
+    assert len(scope_stems) > 100
+    assert len(pn_stems) > 100
+    # Behavioural Response Variables and POS columns are excluded.
+    assert "lexicald_rt_v_elp" not in scope_stems  # SCOPE Response Variable
+    assert "pos_brysbaert" not in pn_stems  # psychNorms part_of_speech
+
+
+# ---------------------------------------------------------------------------
 # Corpora
 # ---------------------------------------------------------------------------
 

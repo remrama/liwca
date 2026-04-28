@@ -20,10 +20,15 @@ _FETCH_FUNCTIONS = [
 ]
 
 # Filenames each public fetcher pulls from the shared Pooch registry.
+# Tables-side ``fetch_psychnorms`` / ``fetch_scope`` return only the
+# column-classification metadata, so they read just the metadata source
+# (CSV for psychNorms, the ``metadata`` sheet of the SCOPE xlsx). The full
+# psychnorms.zip and the SCOPE ``data`` sheet are pulled by the per-stem
+# fetchers in :mod:`liwca.datasets.dictionaries`.
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
     "fetch_liwc2015norms": {"liwc2015-norms.xlsx"},
     "fetch_liwc22norms": {"liwc22-norms.xlsx"},
-    "fetch_psychnorms": {"psychnorms.zip", "psychnorms-metadata.csv"},
+    "fetch_psychnorms": {"psychnorms-metadata.csv"},
     "fetch_scope": {"scope.xlsx"},
 }
 

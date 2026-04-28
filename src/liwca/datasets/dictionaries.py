@@ -40,10 +40,14 @@ __all__ = [
     "fetch_honor",
     "fetch_leeq",
     "fetch_mystical",
+    "fetch_psychnorms",
+    "fetch_scope",
     "fetch_sleep",
     "fetch_threat",
     "fetch_wrad",
     "get_location",
+    "list_psychnorms_stems",
+    "list_scope_stems",
     "path",
 ]
 
@@ -107,6 +111,10 @@ def path(name: str, **kwargs) -> Path:
             if kwargs.get("version", "2") is not None:
                 cache_name += f"-v{kwargs['version']}"
             cache_name += ".dicx"
+        elif name == "scope":
+            cache_name = f"scope-{kwargs['stem'].lower()}.dicx"
+        elif name == "psychnorms":
+            cache_name = f"psychnorms-{kwargs['stem'].lower()}.dicx"
         else:
             cache_name = f"{name}.dicx"
         return Path(_pup.path) / cache_name
@@ -544,6 +552,251 @@ def fetch_wrad() -> pd.DataFrame:
         processor=BuildDicx(_build, "wrad.dicx", weighted=True),
     )
     return read_dicx_weighted(dicx_path)
+
+
+# ---------------------------------------------------------------------------
+# Metabase fetchers: SCOPE and psychNorms
+# ---------------------------------------------------------------------------
+#
+# SCOPE and psychNorms are *metabases* - large tables where most columns are
+# individual published lexicons (concreteness, valence, arousal, etc.) with
+# float-valued scores per word. ``fetch_scope(stem)`` and
+# ``fetch_psychnorms(stem)`` slice one column out of the metabase, lower-case
+# the word index (averaging case-variants when the source ships both), and
+# cache the result as a single-category weighted ``.dicx`` per stem. The full
+# metabase is downloaded once; each fresh stem pays a one-time parse cost.
+#
+# The metadata file/sheet that ships with each source classifies columns
+# (e.g. SCOPE Level.1 = "Response Variables" marks behavioural RTs, not
+# lexicons; psychNorms ``category == 'part_of_speech'`` marks POS tags).
+# Lexicon-vs-non-lexicon stems are derived from those classifications and
+# cross-checked against actual data dtypes; the result is memoised.
+
+
+_SCOPE_STEMS_CACHE: dict[str, str] | None = None
+_PSYCHNORMS_STEMS_CACHE: frozenset[str] | None = None
+
+
+def _scope_stems() -> dict[str, str]:
+    """Return a mapping of lowercase stem -> canonical SCOPE column name."""
+    global _SCOPE_STEMS_CACHE
+    if _SCOPE_STEMS_CACHE is not None:
+        return _SCOPE_STEMS_CACHE
+    source_path = Path(_pup.fetch("scope.xlsx"))
+    meta = pd.read_excel(source_path, sheet_name="metadata")
+    # Drop behavioural Response Variables (RT/accuracy of lexical decision,
+    # naming, etc.) - they are measurements, not lexicons.
+    meta = meta[meta["Level.1"] != "Response Variables"]
+    candidate_names = meta["Name"].dropna().astype(str).tolist()
+    # Cross-check against actual data dtypes: drop non-numeric columns
+    # (POS tags, IPA strings, comma-separated semantic vectors, etc.).
+    sample = pd.read_excel(
+        source_path,
+        sheet_name="data",
+        usecols=lambda c: c in candidate_names,
+        nrows=200,
+    )
+    numeric_cols = sample.select_dtypes(include="number").columns
+    mapping = {c.lower(): c for c in candidate_names if c in numeric_cols}
+    if len(mapping) != len(set(mapping)):
+        raise ValueError("SCOPE column names collide under lowercase normalisation")
+    _SCOPE_STEMS_CACHE = mapping
+    return _SCOPE_STEMS_CACHE
+
+
+def _psychnorms_stems() -> frozenset[str]:
+    """Return the set of valid psychNorms stems (already lowercase snake_case)."""
+    global _PSYCHNORMS_STEMS_CACHE
+    if _PSYCHNORMS_STEMS_CACHE is not None:
+        return _PSYCHNORMS_STEMS_CACHE
+    meta_path = Path(_pup.fetch("psychnorms-metadata.csv"))
+    meta = pd.read_csv(meta_path)
+    # Drop part-of-speech tag columns - they are categorical strings, not
+    # lexicons. All other psychNorms norms are float-valued.
+    lexicons = meta.loc[meta["category"] != "part_of_speech", "norm"]
+    _PSYCHNORMS_STEMS_CACHE = frozenset(lexicons.dropna().astype(str))
+    return _PSYCHNORMS_STEMS_CACHE
+
+
+def _resolve_scope_stem(stem: str) -> str:
+    """Lowercase a SCOPE stem and resolve it to the canonical column name."""
+    stems = _scope_stems()
+    canonical = stems.get(stem.lower())
+    if canonical is None:
+        raise ValueError(
+            f"Unknown SCOPE stem {stem!r}; "
+            f"see liwca.datasets.dictionaries.list_scope_stems() for valid names."
+        )
+    return canonical
+
+
+def _resolve_psychnorms_stem(stem: str) -> str:
+    """Validate a psychNorms stem and return it unchanged (already canonical)."""
+    stem_lc = stem.lower()
+    if stem_lc not in _psychnorms_stems():
+        raise ValueError(
+            f"Unknown psychNorms stem {stem!r}; "
+            f"see liwca.datasets.dictionaries.list_psychnorms_stems() for valid names."
+        )
+    return stem_lc
+
+
+def list_scope_stems() -> list[str]:
+    """Return the sorted list of valid SCOPE stems for :func:`fetch_scope`.
+
+    Stems are lowercase column names from the SCOPE ``data`` sheet. Behavioural
+    Response Variables (lexical decision RT/accuracy, naming, etc.) and
+    non-numeric columns (POS tags, IPA, distributed semantic vectors) are
+    excluded. The first call downloads ``scope.xlsx`` if not already cached.
+
+    Returns
+    -------
+    list of str
+        Sorted lowercase stem names. Pass any of these to
+        :func:`fetch_scope`.
+
+    See Also
+    --------
+    liwca.datasets.tables.fetch_scope :
+        Fetch the SCOPE column-classification metadata table for richer
+        information about each stem (Level.1/Level.2 grouping, source,
+        citation).
+    """
+    return sorted(_scope_stems())
+
+
+def list_psychnorms_stems() -> list[str]:
+    """Return the sorted list of valid psychNorms stems for :func:`fetch_psychnorms`.
+
+    Stems are lowercase ``norm`` names from ``psychnorms-metadata.csv``,
+    excluding the two part-of-speech tag columns (which are categorical
+    strings rather than lexicons). The first call downloads
+    ``psychnorms-metadata.csv`` if not already cached.
+
+    Returns
+    -------
+    list of str
+        Sorted lowercase stem names. Pass any of these to
+        :func:`fetch_psychnorms`.
+
+    See Also
+    --------
+    liwca.datasets.tables.fetch_psychnorms :
+        Fetch the psychNorms column-classification metadata table for richer
+        information about each stem (category, description, source, citation).
+    """
+    return sorted(_psychnorms_stems())
+
+
+def fetch_scope(stem: str) -> pd.DataFrame:
+    """Fetch one lexicon column from SCOPE as a weighted dictionary.
+
+    The `South CarOlina Psycholinguistic metabase (SCOPE)
+    <https://sc.edu/study/colleges_schools/artsandsciences/psychology/research_clinical_facilities/scope/>`__
+    aggregates over 250 psycholinguistic variables for ~190,000 words and
+    ~80,000 nonwords. This fetcher downloads ``scope.xlsx`` once and slices
+    the requested column into a single-category weighted ``.dicx`` cached
+    alongside the source file.
+
+    Word case-variants in the source (e.g. ``Café`` vs ``café``) are merged
+    by averaging their scores so the lowercase ``DicTerm`` index is unique.
+
+    Parameters
+    ----------
+    stem : str
+        Name of the SCOPE column to extract (case-insensitive). For
+        example, ``"concreteness_brysbaert"`` resolves to the canonical
+        ``Concreteness_Brysbaert`` column. See :func:`list_scope_stems`
+        for valid names, or :func:`liwca.datasets.tables.fetch_scope` for
+        the classification metadata.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Weighted dictionary with one column named after the canonical SCOPE
+        column and a lowercase ``DicTerm`` index.
+
+    If used, cite:
+    Gao et al., 2023. SCOPE: The South Carolina psycholinguistic metabase.
+    *Behavior Research Methods*
+    doi:`10.3758/s13428-022-01934-0 <https://doi.org/10.3758/s13428-022-01934-0>`__
+
+    Examples
+    --------
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_scope("concreteness_brysbaert")  # doctest: +SKIP
+    """
+    canonical = _resolve_scope_stem(stem)
+    cache_name = f"scope-{stem.lower()}.dicx"
+
+    def _build(source_path: Path) -> pd.DataFrame:
+        df = pd.read_excel(
+            source_path,
+            sheet_name="data",
+            usecols=["Word", canonical],
+        )
+        df = df.dropna(subset=[canonical])
+        df["Word"] = df["Word"].astype(str).str.lower()
+        # Average case-variants so the (unique, lowercase) DicTerm index validates.
+        df = df.groupby("Word", as_index=True)[[canonical]].mean().sort_index()
+        return df.astype("float64").rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
+
+    dicx_path = _pup.fetch(
+        "scope.xlsx",
+        processor=BuildDicx(_build, cache_name, weighted=True),
+    )
+    return read_dicx_weighted(dicx_path)
+
+
+def fetch_psychnorms(stem: str) -> pd.DataFrame:
+    """Fetch one lexicon column from psychNorms as a weighted dictionary.
+
+    The `psychNorms metabase <https://github.com/Zak-Hussain/psychNorms>`__
+    aggregates 290+ psycholinguistic norms for ~107,000 words across 27
+    semantic categories (frequency, valence, arousal, concreteness, sensory
+    ratings, etc.). This fetcher downloads ``psychnorms.zip`` once and slices
+    the requested column into a single-category weighted ``.dicx`` cached at
+    the dictionaries cache root.
+
+    Parameters
+    ----------
+    stem : str
+        Name of the psychNorms ``norm`` to extract (case-insensitive).
+        psychNorms columns are already lowercase ``snake_case``, so the stem
+        usually matches the column name verbatim (e.g.
+        ``"concreteness_brysbaert"``). See :func:`list_psychnorms_stems`
+        for valid names, or :func:`liwca.datasets.tables.fetch_psychnorms`
+        for the classification metadata.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Weighted dictionary with one column named after the psychNorms norm
+        and a lowercase ``DicTerm`` index.
+
+    If used, cite:
+    Hussain et al., 2024.
+    Probing the contents of semantic representations from text, behavior, and
+    brain data using the psychNorms metabase. *arXiv*
+    doi:`10.48550/arXiv.2412.04936 <https://doi.org/10.48550/arXiv.2412.04936>`__
+
+    Examples
+    --------
+    >>> from liwca.datasets import dictionaries
+    >>> dx = dictionaries.fetch_psychnorms("concreteness_brysbaert")  # doctest: +SKIP
+    """
+    canonical = _resolve_psychnorms_stem(stem)
+    cache_path = Path(_pup.path) / f"psychnorms-{canonical}.dicx"
+    if not cache_path.exists():
+        unzipped = _pup.fetch("psychnorms.zip", processor=pooch.Unzip())
+        csv_path = next(Path(f) for f in unzipped if Path(f).name == "psychNorms.csv")
+        df = pd.read_csv(csv_path, usecols=["word", canonical], low_memory=False)
+        df = df.dropna(subset=[canonical])
+        df["word"] = df["word"].astype(str).str.lower()
+        df = df.groupby("word", as_index=True)[[canonical]].mean().sort_index()
+        df = df.astype("float64").rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
+        write_dicx_weighted(df, cache_path)
+    return read_dicx_weighted(cache_path)
 
 
 def _fetch_liwc2015() -> pd.DataFrame:
