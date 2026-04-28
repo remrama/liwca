@@ -939,7 +939,7 @@ def _resolve_dictionary_arg(value: Any) -> Any:
 
     try:
         return str(_dx_datasets.path(value))
-    except ValueError, NotImplementedError:
+    except (ValueError, NotImplementedError):
         return value
 
 
