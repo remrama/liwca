@@ -1,6 +1,6 @@
 .. _guide-datasets:
 
-Fetching datasets
+Fetching Datasets
 =================
 
 Fetching dictionaries

@@ -1,6 +1,6 @@
 .. _guide-liwc22:
 
-LIWC-22-cli wrapper
+LIWC-22-cli Wrapper
 ===================
 
 Auto-open
