@@ -109,3 +109,12 @@ results = liwca.count(data, dx)
 - [sentibank](https://github.com/socius-org/sentibank)
 - [sentidict](https://github.com/andyreagan/sentidict)
 - [Shifterator](https://github.com/ryanjgallagher/shifterator)
+
+### Dataset resources
+
+- [Noah's ARK](https://noahs-ark.github.io) ([archived Noah's ARK](https://www.cs.cmu.edu/~ark))
+- [Psycho/Neurolinguistic Databases & Resources](https://www.reilly-coglab.com/data)
+- [LitBank](https://github.com/dbamman/litbank)
+- [DreamBank](https://github.com/mattbierner/DreamScrape)
+- [Shifterator lexicons](https://github.com/ryanjgallagher/shifterator/tree/master/shifterator/lexicons)
+- [Standup comedy transcripts and LIWC results table](https://link.springer.com/article/10.1186/s40359-024-02187-6)
