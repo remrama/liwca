@@ -77,7 +77,7 @@ df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
 out_path = liwc.wc(
     input=df,                      # DataFrame or path
     output="results.csv",
-    row_id_indices=["doc_id"],
+    id_columns=["doc_id"],
     include_categories=["anger", "joy"],
 )
 results = pd.read_csv(out_path, index_col=0)

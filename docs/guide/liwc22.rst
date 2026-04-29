@@ -19,7 +19,7 @@ its license server) must be running when you call the CLI:
    out_path = liwc.wc(
        input=df,  # DataFrame or path
        output="results.csv",
-       row_id_indices=["doc_id"],
+       id_columns=["doc_id"],
    )
    results = pd.read_csv(out_path, index_col=0)
 
@@ -32,7 +32,7 @@ The ``input`` argument accepts either a filepath or a
 ``output`` path on success (or ``None`` when ``dry_run=True``). For mode
 ``wc`` the output file is reshaped in place via ``wc_output_schema``:
 ``Row ID`` is renamed back to the source column name when
-``row_id_indices`` is given, the constant ``Segment`` column is dropped
+``id_columns`` is given, the constant ``Segment`` column is dropped
 (or promoted to a second index level when segmentation is used), and the
 column axis is named ``Category``.
 
@@ -64,8 +64,8 @@ names (``str``, resolved against the input's header row):
        output="lsm.csv",
        text_column="text",
        person_column="speaker",
-       calculate_lsm=3,
-       output_type=1,
+       level="both",
+       pairwise=False,
    )
 
 Pass ``auto_open=True`` to let liwca start and stop LIWC-22 automatically.
@@ -76,7 +76,7 @@ calls:
 
    with liwca.Liwc22(auto_open=True) as liwc:
        liwc.wc(input="data.csv", output="wc.csv")
-       liwc.freq(input="data.csv", output="freq.csv", n_gram=2)
+       liwc.freq(input="data.csv", output="freq.csv", ngram=2)
 
 See the :ref:`API reference <api-liwc22>` for the full argument lists, and
 the `LIWC CLI documentation <https://www.liwc.app/help/cli>`_ and

@@ -124,58 +124,58 @@ FLAG_BY_DEST: dict[str, str] = {
     "csv_quote": "-quote",
     "skip_header": "-sh",
     "include_subfolders": "-subdir",
-    "url_regexp": "-urlre",
+    "url_regex": "-urlre",
     "prune_interval": "-pint",
-    "prune_threshold_value": "-pval",
+    "prune_threshold": "-pval",
     "column_delimiter": "-cd",
     # --- shared across multiple modes ---
     "input": "-i",
     "output": "-o",
     "combine_columns": "-ccol",
-    "column_indices": "-ci",
+    "text_columns": "-ci",
     "output_format": "-f",
     "segmentation": "-s",
     "skip_wc": "-skip",
-    "index_of_id_column": "-idind",
+    "id_column": "-idind",
     "conversion_list": "-cl",
-    "n_gram": "-n",
+    "ngram": "-n",
     "trim_s": "-ts",
-    "omit_speakers_num_turns": "-osnof",
-    "omit_speakers_word_count": "-oswf",
+    "min_turns": "-osnof",
+    "min_words": "-oswf",
     "dictionary": "-d",
     "stop_list": "-sl",
     "single_line": "-sl",
     # --- mode-unique ---
     "clean_escaped_spaces": "-ces",
-    "console_text": "-ct",
+    "text": "-ct",
     "exclude_categories": "-ec",
-    "environment_variable": "-envvar",
+    "env_var": "-envvar",
     "include_categories": "-ic",
-    "row_id_indices": "-id",
+    "id_columns": "-id",
     "threads": "-t",
     "drop_words": "-d",
     "save_theme_scores": "--save-theme-scores",
     "enable_pca": "-epca",
-    "mem_output_type": "-memot",
+    "dtm_format": "-memot",
     "threshold_type": "-ttype",
     "threshold_value": "-tval",
-    "category_to_contextualize": "-categ",
+    "category": "-categ",
     "keep_punctuation": "-inpunct",
     "word_window_left": "-nleft",
     "word_window_right": "-nright",
     "word_list": "-wl",
-    "words_to_contextualize": "-words",
-    "output_data_points": "-dp",
+    "words": "-words",
+    "include_data_points": "-dp",
     "scaling_method": "-scale",
-    "segments_number": "-segs",
-    "speaker_list": "-spl",
-    "regex_removal": "-rr",
+    "n_segments": "-segs",
+    "speakers": "-spl",
+    "remove_regex": "-rr",
     "calculate_lsm": "-clsm",
     "group_column": "-gc",
     "output_type": "-ot",
     "person_column": "-pc",
     "text_column": "-tc",
-    "expanded_output": "-expo",
+    "expanded": "-expo",
 }
 
 # Dests in FLAG_BY_DEST that are bool flags (emit flag alone when True;
@@ -185,7 +185,7 @@ BOOL_FLAGS: frozenset[str] = frozenset(
         "single_line",
         "save_theme_scores",
         "enable_pca",
-        "expanded_output",
+        "expanded",
     }
 )
 
@@ -199,7 +199,7 @@ YES_NO_FLAGS: frozenset[str] = frozenset(
         "combine_columns",
         "trim_s",
         "keep_punctuation",
-        "output_data_points",
+        "include_data_points",
     }
 )
 
@@ -207,17 +207,17 @@ YES_NO_FLAGS: frozenset[str] = frozenset(
 ONE_ZERO_FLAGS: frozenset[str] = frozenset({"clean_escaped_spaces"})
 
 # Dests whose Python value is an iterable of strings, emitted as a single
-# comma-joined CLI argument.  Column-list entries (``column_indices``,
-# ``row_id_indices``) are resolved to 1-based ints by :func:`_resolve_columns`
+# comma-joined CLI argument.  Column-list entries (``text_columns``,
+# ``id_columns``) are resolved to 1-based ints by :func:`_resolve_columns`
 # *before* ``build_command`` sees them, so every element is safely stringable
 # by the time it reaches the comma-join.
 LIST_FLAGS: frozenset[str] = frozenset(
     {
         "include_categories",
         "exclude_categories",
-        "words_to_contextualize",
-        "column_indices",
-        "row_id_indices",
+        "words",
+        "text_columns",
+        "id_columns",
     }
 )
 
@@ -226,7 +226,7 @@ LIST_FLAGS: frozenset[str] = frozenset(
 # int before ``build_command``.
 COLUMN_FLAGS: frozenset[str] = frozenset(
     {
-        "index_of_id_column",
+        "id_column",
         "group_column",
         "person_column",
         "text_column",
@@ -237,8 +237,8 @@ COLUMN_FLAGS: frozenset[str] = frozenset(
 # the same 0-based-int / column-name semantics as :data:`COLUMN_FLAGS`.
 COLUMN_LIST_FLAGS: frozenset[str] = frozenset(
     {
-        "column_indices",
-        "row_id_indices",
+        "text_columns",
+        "id_columns",
     }
 )
 
@@ -257,7 +257,7 @@ _ALL_HOISTED: frozenset[str] = frozenset(
         "count_urls",
         "preprocess_cjk",
         "include_subfolders",
-        "url_regexp",
+        "url_regex",
         "csv_delimiter",
         "csv_escape",
         "csv_quote",
@@ -285,7 +285,7 @@ MODE_GLOBALS: dict[str, frozenset[str]] = {
         "count_urls",
         "preprocess_cjk",
         "include_subfolders",
-        "url_regexp",
+        "url_regex",
     },
 }
 
@@ -294,11 +294,11 @@ MODE_GLOBALS: dict[str, frozenset[str]] = {
 # DataFrame and mentions more than one column.  ``ct`` is absent because
 # transcript-conversion operates on files, not tabular data.
 _DF_TEXT_SELECTOR: dict[str, str] = {
-    "wc": "column_indices",
-    "freq": "column_indices",
-    "mem": "column_indices",
-    "context": "column_indices",
-    "arc": "column_indices",
+    "wc": "text_columns",
+    "freq": "text_columns",
+    "mem": "text_columns",
+    "context": "text_columns",
+    "arc": "text_columns",
     "lsm": "text_column",
 }
 
@@ -491,7 +491,7 @@ def _coerce_to_list(value: Any) -> Any:
     """Wrap a single ``str``/``int`` into a one-element list; pass through otherwise.
 
     Applied to LIST_FLAGS before column resolution so that
-    ``column_indices="text"`` doesn't silently explode into four char elements.
+    ``text_columns="text"`` doesn't silently explode into four char elements.
     """
     if value is None:
         return None
@@ -537,8 +537,8 @@ def _prepare_frame_input(
         text_name = str(user_input.name) if user_input.name is not None else "text"
         user_input = user_input.to_frame(name=text_name)
         selector = _DF_TEXT_SELECTOR.get(mode)
-        if selector == "column_indices" and merged.get("column_indices") is None:
-            merged["column_indices"] = [text_name]
+        if selector == "text_columns" and merged.get("text_columns") is None:
+            merged["text_columns"] = [text_name]
         elif selector == "text_column" and merged.get("text_column") is None:
             merged["text_column"] = text_name
 
@@ -549,12 +549,10 @@ def _prepare_frame_input(
         )
     if user_input.empty:
         raise ValueError("DataFrame `input` is empty.")
-    if mode == "wc" and (
-        merged.get("console_text") is not None or merged.get("environment_variable") is not None
-    ):
+    if mode == "wc" and (merged.get("text") is not None or merged.get("env_var") is not None):
         raise ValueError(
-            "Cannot pass a DataFrame as `input` together with console_text "
-            "or environment_variable; choose one input source."
+            "Cannot pass a DataFrame as `input` together with `text` "
+            "or `env_var`; choose one input source."
         )
     selector = _DF_TEXT_SELECTOR.get(mode)
     if selector and merged.get(selector) is None:
@@ -601,7 +599,7 @@ wc_output_schema = pa.DataFrameSchema(
 
 
 def _derive_row_id_names(
-    row_id_indices: Iterable[int | str] | None,
+    id_columns: Iterable[int | str] | None,
     *,
     input_columns: list[str] | None,
 ) -> list[str] | None:
@@ -609,14 +607,14 @@ def _derive_row_id_names(
 
     Best-effort:
 
-    * ``row_id_indices is None`` -> return ``None`` (keep LIWC's ``"Row ID"``).
+    * ``id_columns is None`` -> return ``None`` (keep LIWC's ``"Row ID"``).
     * all entries are ``str`` -> return them verbatim.
     * all entries are ``int`` and ``input_columns`` is known -> look them up.
     * otherwise -> return ``None`` (fall back to ``"Row ID"``).
     """
-    if row_id_indices is None:
+    if id_columns is None:
         return None
-    values = list(row_id_indices)
+    values = list(id_columns)
     if not values:
         return None
     if all(isinstance(v, str) for v in values):
@@ -922,6 +920,42 @@ def _check_choice(name: str, value: Any, choices: Iterable[Any]) -> None:
         raise ValueError(f"{name!r} must be one of {list(choices)}, got {value!r}.")
 
 
+# Public-name -> CLI-int translation for behavioral simplifications.  These
+# stay private; the mode methods convert before stuffing into ``cli_args``.
+_SCALING_METHOD_MAP: dict[str, int] = {"percent": 1, "zscore": 2}
+_LSM_LEVEL_MAP: dict[str, int] = {"person": 1, "group": 2, "both": 3}
+
+
+def _resolve_word_window(value: Any) -> tuple[int, int]:
+    """Translate ``word_window`` into ``(left, right)`` non-negative ints.
+
+    A bare ``int`` becomes ``(n, n)``; a 2-tuple/list of ``int`` is
+    returned as-is after validation.  Booleans are rejected (Python's
+    ``bool`` is a subclass of ``int``).
+    """
+    if isinstance(value, bool):
+        raise TypeError("'word_window' must be an int or 2-tuple of ints, got bool.")
+    if isinstance(value, int):
+        if value < 0:
+            raise ValueError(f"'word_window' must be non-negative, got {value!r}.")
+        return value, value
+    if isinstance(value, (tuple, list)):
+        if len(value) != 2:
+            raise ValueError(
+                f"'word_window' tuple must have length 2 (left, right), got {len(value)}."
+            )
+        left, right = value
+        for side, n in (("left", left), ("right", right)):
+            if isinstance(n, bool) or not isinstance(n, int):
+                raise TypeError(
+                    f"'word_window' {side} side must be an int, got {type(n).__name__}."
+                )
+            if n < 0:
+                raise ValueError(f"'word_window' {side} side must be non-negative, got {n!r}.")
+        return int(left), int(right)
+    raise TypeError(f"'word_window' must be an int or 2-tuple of ints, got {type(value).__name__}.")
+
+
 def _resolve_dictionary_arg(value: Any) -> Any:
     """Translate a ``liwca.datasets.dictionaries`` friendly name to a local path.
 
@@ -983,11 +1017,11 @@ class Liwc22:
     preprocess_cjk : :class:`str`, optional
         Preprocess CJK text with Jieba (Chinese) or Kuromoji (Japanese)
         tokeniser - one of ``"chinese"``, ``"japanese"``, ``"none"`` (default).
-    url_regexp : :class:`str`, optional
+    url_regex : :class:`str`, optional
         Regular expression used to capture URLs in text.
     count_urls : :class:`bool`, optional
         If ``True`` (default), count URLs as a single word.  Only meaningful
-        if *url_regexp* is set.
+        if *url_regex* is set.
     precision : :class:`int`, optional
         Number of decimal places in output (0-16, default: ``2``).
     auto_open : :class:`bool`, optional
@@ -1007,8 +1041,8 @@ class Liwc22:
     >>> liwc.wc("data.csv", "results.csv")  # doctest: +SKIP
 
     >>> with liwca.Liwc22() as liwc:  # doctest: +SKIP
-    ...     liwc.wc("data.csv", "wc.csv", column_indices="text")
-    ...     liwc.freq("data.csv", "freq.csv", n_gram=2)
+    ...     liwc.wc("data.csv", "wc.csv", text_columns="text")
+    ...     liwc.freq("data.csv", "freq.csv", ngram=2)
     """
 
     def __init__(
@@ -1021,7 +1055,7 @@ class Liwc22:
         include_subfolders: bool = True,
         skip_header: bool = True,
         preprocess_cjk: str = "none",
-        url_regexp: str | None = None,
+        url_regex: str | None = None,
         count_urls: bool = True,
         precision: int = 2,
         auto_open: bool = True,
@@ -1036,8 +1070,8 @@ class Liwc22:
         _check_bool("include_subfolders", include_subfolders)
         _check_bool("skip_header", skip_header)
         _check_choice("preprocess_cjk", preprocess_cjk, ("chinese", "japanese", "none"))
-        if url_regexp is not None:
-            _check_type("url_regexp", url_regexp, str)
+        if url_regex is not None:
+            _check_type("url_regex", url_regex, str)
         _check_bool("count_urls", count_urls)
         _check_type("precision", precision, int)
         if isinstance(precision, bool) or not 0 <= precision <= 16:
@@ -1054,7 +1088,7 @@ class Liwc22:
             "include_subfolders": include_subfolders,
             "skip_header": skip_header,
             "preprocess_cjk": preprocess_cjk,
-            "url_regexp": url_regexp,
+            "url_regex": url_regex,
             "count_urls": count_urls,
             "precision": precision,
         }
@@ -1144,10 +1178,10 @@ class Liwc22:
                 header_override=input_columns,
             )
 
-            # Preserve the caller's row_id_indices (strings or 0-based ints)
+            # Preserve the caller's id_columns (strings or 0-based ints)
             # before resolution clobbers them into 1-based ints.
             row_id_names = _derive_row_id_names(
-                _coerce_to_list(cli_args.get("row_id_indices")),
+                _coerce_to_list(cli_args.get("id_columns")),
                 input_columns=input_columns,
             )
 
@@ -1183,18 +1217,18 @@ class Liwc22:
         input: str | Path | pd.DataFrame | pd.Series,
         output: str | Path,
         *,
-        console_text: str | None = None,
-        environment_variable: str | None = None,
-        clean_escaped_spaces: bool = True,
-        column_indices: int | str | Iterable[int | str] | None = None,
-        combine_columns: bool = True,
-        row_id_indices: int | str | Iterable[int | str] | None = None,
         dictionary: str = "LIWC22",
+        text_columns: int | str | Iterable[int | str] | None = None,
+        id_columns: int | str | Iterable[int | str] | None = None,
+        combine_columns: bool = True,
         include_categories: str | Iterable[str] | None = None,
         exclude_categories: str | Iterable[str] | None = None,
         segmentation: str | None = None,
         output_format: str = "csv",
         threads: int | None = None,
+        text: str | None = None,
+        env_var: str | None = None,
+        clean_escaped_spaces: bool = True,
     ) -> str:
         """
         Run a standard LIWC-22 word count analysis.
@@ -1208,33 +1242,13 @@ class Liwc22:
             Path to an input file/folder, a :class:`pandas.DataFrame`, or a
             :class:`pandas.Series`.  DataFrame/Series input is written to a
             temp CSV, fed to LIWC-CLI, and the temp file is removed when the
-            call returns.  A DataFrame requires *column_indices* to identify
+            call returns.  A DataFrame requires *text_columns* to identify
             the text column(s).  A Series auto-wraps into a single-column
             frame using the Series name (or ``"text"``).  Use ``"console"``
-            with *console_text* or ``"envvar"`` with *environment_variable*
+            with *text* or ``"envvar"`` with *env_var*
             to analyse literal text.
         output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        console_text : :class:`str`, optional
-            Text string to analyse.  Use with ``input="console"``.
-        environment_variable : :class:`str`, optional
-            Environment variable name containing text.  Use with
-            ``input="envvar"``.
-        clean_escaped_spaces : :class:`bool`, optional
-            With ``input="console"``: if ``True``, escaped spaces like
-            ``\\n`` are converted to actual spaces (CLI default: ``True``).
-        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
-            Columns containing analysable text.  Each entry is either a
-            0-based integer index or a column-name string (requires the
-            input to have a header row).  A bare ``str`` or ``int`` is
-            accepted for single-column selection.  All columns processed by
-            default (not allowed for DataFrame input).
-        combine_columns : :class:`bool`, optional
-            If ``True``, combine spreadsheet columns into a single text per
-            row (CLI default: ``True``).
-        row_id_indices : :class:`int`, :class:`str`, or iterable thereof, optional
-            Columns to use as row identifiers.  Multiple columns are
-            concatenated with ``;``.  Defaults to row number.
         dictionary : :class:`str`, optional
             LIWC dictionary name (e.g. ``LIWC22``, ``LIWC2015``), path to a
             custom ``.dicx`` file, or one of the
@@ -1242,6 +1256,18 @@ class Liwc22:
             ``"sleep"``, ``"emfd"``, ``"bigtwo"``) - friendly names are
             auto-resolved to the cached local ``.dicx`` path
             (default: LIWC22).
+        text_columns : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns containing analysable text.  Each entry is either a
+            0-based integer index or a column-name string (requires the
+            input to have a header row).  A bare ``str`` or ``int`` is
+            accepted for single-column selection.  All columns processed by
+            default (required for DataFrame input).
+        id_columns : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns to use as row identifiers.  Multiple columns are
+            concatenated with ``;``.  Defaults to row number.
+        combine_columns : :class:`bool`, optional
+            If ``True``, combine spreadsheet columns into a single text per
+            row (CLI default: ``True``).
         include_categories : :class:`str` or iterable of :class:`str`, optional
             Dictionary categories to include in output.  Mutually exclusive
             with *exclude_categories*.
@@ -1255,6 +1281,14 @@ class Liwc22:
             Output file format - one of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         threads : :class:`int`, optional
             Number of processing threads (default: available cores - 1).
+        text : :class:`str`, optional
+            Text string to analyse.  Use with ``input="console"``.
+        env_var : :class:`str`, optional
+            Environment variable name containing text.  Use with
+            ``input="envvar"``.
+        clean_escaped_spaces : :class:`bool`, optional
+            With ``input="console"``: if ``True``, escaped spaces like
+            ``\\n`` are converted to actual spaces (CLI default: ``True``).
 
         Returns
         -------
@@ -1266,9 +1300,9 @@ class Liwc22:
         ------
         :class:`ValueError`
             If both *include_categories* and *exclude_categories* are set,
-            or if *input* is a DataFrame without *column_indices*, or if
+            or if *input* is a DataFrame without *text_columns*, or if
             *input* is an empty DataFrame, or if *input* is a DataFrame
-            combined with *console_text* / *environment_variable*.
+            combined with *text* / *env_var*.
         :class:`TypeError`
             If *input* / *output* are of the wrong type.
         :class:`RuntimeError`
@@ -1290,8 +1324,8 @@ class Liwc22:
         >>> path = Liwc22().wc(  # doctest: +SKIP
         ...     df,
         ...     "wc.csv",
-        ...     column_indices="text",
-        ...     row_id_indices="doc_id",
+        ...     text_columns="text",
+        ...     id_columns="doc_id",
         ... )
         """
         if include_categories is not None and exclude_categories is not None:
@@ -1306,18 +1340,18 @@ class Liwc22:
             {
                 "input": input,
                 "output": output,
-                "console_text": console_text,
-                "environment_variable": environment_variable,
-                "clean_escaped_spaces": clean_escaped_spaces,
-                "column_indices": column_indices,
-                "combine_columns": combine_columns,
-                "row_id_indices": row_id_indices,
                 "dictionary": dictionary,
+                "text_columns": text_columns,
+                "id_columns": id_columns,
+                "combine_columns": combine_columns,
                 "include_categories": include_categories,
                 "exclude_categories": exclude_categories,
                 "segmentation": segmentation,
                 "output_format": output_format,
                 "threads": threads,
+                "text": text,
+                "env_var": env_var,
+                "clean_escaped_spaces": clean_escaped_spaces,
             },
         )
 
@@ -1326,16 +1360,16 @@ class Liwc22:
         input: str | Path | pd.DataFrame | pd.Series,
         output: str | Path,
         *,
-        column_indices: int | str | Iterable[int | str] | None = None,
+        text_columns: int | str | Iterable[int | str] | None = None,
         combine_columns: bool = True,
         conversion_list: str | None = None,
         stop_list: str = "internal-EN",
-        trim_s: bool = True,
-        n_gram: int = 1,
-        skip_wc: int = 10,
         drop_words: int = 5,
+        ngram: int = 1,
+        trim_s: bool = True,
+        skip_wc: int = 10,
         prune_interval: int = 10_000_000,
-        prune_threshold_value: int = 5,
+        prune_threshold: int = 5,
         output_format: str = "csv",
     ) -> str:
         """
@@ -1345,13 +1379,13 @@ class Liwc22:
         ----------
         input : str, :class:`~pathlib.Path`, DataFrame, or Series
             Path to input file/folder, a DataFrame (requires
-            *column_indices*), or a Series (auto-wraps).
+            *text_columns*), or a Series (auto-wraps).
         output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+        text_columns : :class:`int`, :class:`str`, or iterable thereof, optional
             Columns containing analysable text.  A bare ``str`` or ``int`` is
             accepted for single-column selection.  All columns processed by
-            default (not allowed for DataFrame input).
+            default (required for DataFrame input).
         combine_columns : :class:`bool`, optional
             If ``True``, combine spreadsheet columns into a single text per
             row (CLI default: ``True``).
@@ -1361,17 +1395,17 @@ class Liwc22:
         stop_list : :class:`str`, optional
             Path to a stop list, an internal list name (e.g. ``internal-EN``),
             or ``"none"`` (default: internal-EN).
-        trim_s : :class:`bool`, optional
-            If ``True``, trim trailing ``'s`` from words (CLI default: ``True``).
-        n_gram : :class:`int`, optional
-            N-gram size (1-5), inclusive of all lower n-grams (default: 1).
-        skip_wc : :class:`int`, optional
-            Skip texts with word count less than this value (default: 10).
         drop_words : :class:`int`, optional
             Drop n-grams with frequency less than this value (default: 5).
+        ngram : :class:`int`, optional
+            N-gram size (1-5), inclusive of all lower n-grams (default: 1).
+        trim_s : :class:`bool`, optional
+            If ``True``, trim trailing ``'s`` from words (CLI default: ``True``).
+        skip_wc : :class:`int`, optional
+            Skip texts with word count less than this value (default: 10).
         prune_interval : :class:`int`, optional
             Prune frequency list every N words to optimise RAM (default: 10_000_000).
-        prune_threshold_value : :class:`int`, optional
+        prune_threshold : :class:`int`, optional
             Minimum n-gram frequency retained during pruning (default: 5).
         output_format : :class:`str`, optional
             Output file format - one of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
@@ -1383,23 +1417,23 @@ class Liwc22:
         """
         _check_bool("combine_columns", combine_columns)
         _check_bool("trim_s", trim_s)
-        _check_choice("n_gram", n_gram, (1, 2, 3, 4, 5))
+        _check_choice("ngram", ngram, (1, 2, 3, 4, 5))
         _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "freq",
             {
                 "input": input,
                 "output": output,
-                "column_indices": column_indices,
+                "text_columns": text_columns,
                 "combine_columns": combine_columns,
                 "conversion_list": conversion_list,
                 "stop_list": stop_list,
-                "trim_s": trim_s,
-                "n_gram": n_gram,
-                "skip_wc": skip_wc,
                 "drop_words": drop_words,
+                "ngram": ngram,
+                "trim_s": trim_s,
+                "skip_wc": skip_wc,
                 "prune_interval": prune_interval,
-                "prune_threshold_value": prune_threshold_value,
+                "prune_threshold": prune_threshold,
                 "output_format": output_format,
             },
         )
@@ -1409,23 +1443,23 @@ class Liwc22:
         input: str | Path | pd.DataFrame | pd.Series,
         output: str | Path,
         *,
-        column_indices: int | str | Iterable[int | str] | None = None,
+        text_columns: int | str | Iterable[int | str] | None = None,
+        id_column: int | str | None = None,
         combine_columns: bool = True,
-        index_of_id_column: int | str | None = None,
         conversion_list: str | None = None,
         stop_list: str = "internal-EN",
+        ngram: int = 1,
         trim_s: bool = True,
-        n_gram: int = 1,
         skip_wc: int = 10,
         segmentation: str | None = None,
         threshold_type: str = "min-obspct",
         threshold_value: float = 10.0,
-        mem_output_type: str = "binary",
         enable_pca: bool = False,
         save_theme_scores: bool = False,
         column_delimiter: str = " ",
         prune_interval: int = 10_000_000,
-        prune_threshold_value: int = 5,
+        prune_threshold: int = 5,
+        dtm_format: str = "binary",
         output_format: str = "csv",
     ) -> str:
         """
@@ -1438,24 +1472,24 @@ class Liwc22:
         ----------
         input : str, :class:`~pathlib.Path`, DataFrame, or Series
             Path to input file/folder, a DataFrame (requires
-            *column_indices*), or a Series (auto-wraps).
+            *text_columns*), or a Series (auto-wraps).
         output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+        text_columns : :class:`int`, :class:`str`, or iterable thereof, optional
             Columns containing analysable text.
+        id_column : :class:`int` or :class:`str`, optional
+            Column to use as row identifier.
         combine_columns : :class:`bool`, optional
             If ``True``, combine spreadsheet columns into a single text per row.
-        index_of_id_column : :class:`int` or :class:`str`, optional
-            Column to use as row identifier.
         conversion_list : :class:`str`, optional
             Path to a conversion list or an internal list name.
         stop_list : :class:`str`, optional
             Path to a stop list, an internal list name, or ``"none"``
             (default: ``"internal-EN"``).
+        ngram : :class:`int`, optional
+            N-gram size (1-5).
         trim_s : :class:`bool`, optional
             If ``True``, trim trailing ``'s`` from words.
-        n_gram : :class:`int`, optional
-            N-gram size (1-5).
         skip_wc : :class:`int`, optional
             Skip texts with word count less than this value (default: 10).
         segmentation : :class:`str`, optional
@@ -1464,17 +1498,17 @@ class Liwc22:
             One of ``min-obspct`` (default), ``min-freq``, ``top-obspct``, ``top-freq``.
         threshold_value : :class:`float`, optional
             Threshold cutoff value (default: 10.0).
-        mem_output_type : :class:`str`, optional
-            Document-term matrix format - one of ``binary`` (default),
-            ``relative-freq``, or ``raw-counts``.
         enable_pca : :class:`bool`, optional
             Enable Principal Component Analysis (default ``False``).
         save_theme_scores : :class:`bool`, optional
             Save the theme-scores table for PCA (default ``False``).
         column_delimiter : :class:`str`, optional
             Delimiter between grams in n-gram column names (default: space).
-        prune_interval, prune_threshold_value : :class:`int`, optional
+        prune_interval, prune_threshold : :class:`int`, optional
             RAM-pruning controls (defaults: 10_000_000 and 5).
+        dtm_format : :class:`str`, optional
+            Document-term matrix format - one of ``binary`` (default),
+            ``relative-freq``, or ``raw-counts``.
         output_format : :class:`str`, optional
             One of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         """
@@ -1482,36 +1516,36 @@ class Liwc22:
         _check_bool("trim_s", trim_s)
         _check_bool("enable_pca", enable_pca)
         _check_bool("save_theme_scores", save_theme_scores)
-        _check_choice("n_gram", n_gram, (1, 2, 3, 4, 5))
+        _check_choice("ngram", ngram, (1, 2, 3, 4, 5))
         _check_choice(
             "threshold_type",
             threshold_type,
             ("min-obspct", "min-freq", "top-obspct", "top-freq"),
         )
-        _check_choice("mem_output_type", mem_output_type, ("binary", "relative-freq", "raw-counts"))
+        _check_choice("dtm_format", dtm_format, ("binary", "relative-freq", "raw-counts"))
         _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "mem",
             {
                 "input": input,
                 "output": output,
-                "column_indices": column_indices,
+                "text_columns": text_columns,
+                "id_column": id_column,
                 "combine_columns": combine_columns,
-                "index_of_id_column": index_of_id_column,
                 "conversion_list": conversion_list,
                 "stop_list": stop_list,
+                "ngram": ngram,
                 "trim_s": trim_s,
-                "n_gram": n_gram,
                 "skip_wc": skip_wc,
                 "segmentation": segmentation,
                 "threshold_type": threshold_type,
                 "threshold_value": threshold_value,
-                "mem_output_type": mem_output_type,
                 "enable_pca": enable_pca,
                 "save_theme_scores": save_theme_scores,
                 "column_delimiter": column_delimiter,
                 "prune_interval": prune_interval,
-                "prune_threshold_value": prune_threshold_value,
+                "prune_threshold": prune_threshold,
+                "dtm_format": dtm_format,
                 "output_format": output_format,
             },
         )
@@ -1521,15 +1555,14 @@ class Liwc22:
         input: str | Path | pd.DataFrame | pd.Series,
         output: str | Path,
         *,
-        column_indices: int | str | Iterable[int | str] | None = None,
-        combine_columns: bool = True,
-        index_of_id_column: int | str | None = None,
         dictionary: str = "LIWC22",
-        category_to_contextualize: str | None = None,
+        text_columns: int | str | Iterable[int | str] | None = None,
+        id_column: int | str | None = None,
+        combine_columns: bool = True,
+        category: str | None = None,
         word_list: str | None = None,
-        words_to_contextualize: str | Iterable[str] | None = None,
-        word_window_left: int = 3,
-        word_window_right: int = 3,
+        words: str | Iterable[str] | None = None,
+        word_window: int | tuple[int, int] = 3,
         keep_punctuation: bool = True,
     ) -> str:
         """
@@ -1543,51 +1576,50 @@ class Liwc22:
         ----------
         input : str, :class:`~pathlib.Path`, DataFrame, or Series
             Path to input file/folder, a DataFrame (requires
-            *column_indices*), or a Series (auto-wraps).
+            *text_columns*), or a Series (auto-wraps).
         output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
-            Columns containing analysable text.
-        combine_columns : :class:`bool`, optional
-            If ``True``, combine spreadsheet columns into a single text per row.
-        index_of_id_column : :class:`int` or :class:`str`, optional
-            Column to use as row identifier.
         dictionary : :class:`str`, optional
             LIWC dictionary name, path to a custom ``.dicx`` file, or a
             :mod:`liwca.datasets.dictionaries` friendly name (e.g.
             ``"sleep"``, ``"emfd"``, ``"bigtwo"``) - friendly names are
             auto-resolved to the cached local ``.dicx`` path.
-        category_to_contextualize : :class:`str`, optional
+        text_columns : :class:`int`, :class:`str`, or iterable thereof, optional
+            Columns containing analysable text.
+        id_column : :class:`int` or :class:`str`, optional
+            Column to use as row identifier.
+        combine_columns : :class:`bool`, optional
+            If ``True``, combine spreadsheet columns into a single text per row.
+        category : :class:`str`, optional
             Dictionary category to contextualise (default: first category).
         word_list : :class:`str`, optional
             Path to a word list file for contextualisation.
-        words_to_contextualize : :class:`str` or iterable of :class:`str`, optional
+        words : :class:`str` or iterable of :class:`str`, optional
             Words to contextualise.  Wildcards (``*``) allowed.
-        word_window_left, word_window_right : :class:`int`, optional
-            Context words around the target word (defaults: 3, 3).
+        word_window : :class:`int` or 2-tuple of :class:`int`, optional
+            Number of context words around the target word.  An ``int`` sets
+            the same window on both sides; a ``(left, right)`` tuple sets
+            them independently (default: ``3``, i.e. 3 words on each side).
         keep_punctuation : :class:`bool`, optional
             If ``True``, include punctuation in context items (CLI default: ``True``).
         """
         _check_bool("combine_columns", combine_columns)
         _check_bool("keep_punctuation", keep_punctuation)
-        _check_type("word_window_left", word_window_left, int)
-        _check_type("word_window_right", word_window_right, int)
-        if word_window_left < 0 or word_window_right < 0:
-            raise ValueError("word_window_left/right must be non-negative.")
+        left, right = _resolve_word_window(word_window)
         return self._run_mode(
             "context",
             {
                 "input": input,
                 "output": output,
-                "column_indices": column_indices,
-                "combine_columns": combine_columns,
-                "index_of_id_column": index_of_id_column,
                 "dictionary": dictionary,
-                "category_to_contextualize": category_to_contextualize,
+                "text_columns": text_columns,
+                "id_column": id_column,
+                "combine_columns": combine_columns,
+                "category": category,
                 "word_list": word_list,
-                "words_to_contextualize": words_to_contextualize,
-                "word_window_left": word_window_left,
-                "word_window_right": word_window_right,
+                "words": words,
+                "word_window_left": left,
+                "word_window_right": right,
                 "keep_punctuation": keep_punctuation,
             },
         )
@@ -1597,13 +1629,13 @@ class Liwc22:
         input: str | Path | pd.DataFrame | pd.Series,
         output: str | Path,
         *,
-        column_indices: int | str | Iterable[int | str] | None = None,
+        text_columns: int | str | Iterable[int | str] | None = None,
+        id_column: int | str | None = None,
         combine_columns: bool = True,
-        index_of_id_column: int | str | None = None,
-        segments_number: int = 5,
-        scaling_method: int = 1,
+        n_segments: int = 5,
+        scaling: str = "percent",
         skip_wc: int = 10,
-        output_data_points: bool = True,
+        include_data_points: bool = True,
         output_format: str = "csv",
     ) -> str:
         """
@@ -1616,42 +1648,43 @@ class Liwc22:
         ----------
         input : str, :class:`~pathlib.Path`, DataFrame, or Series
             Path to input file/folder, a DataFrame (requires
-            *column_indices*), or a Series (auto-wraps).
+            *text_columns*), or a Series (auto-wraps).
         output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        column_indices : :class:`int`, :class:`str`, or iterable thereof, optional
+        text_columns : :class:`int`, :class:`str`, or iterable thereof, optional
             Columns containing analysable text.
+        id_column : :class:`int` or :class:`str`, optional
+            Column to use as row identifier.
         combine_columns : :class:`bool`, optional
             If ``True``, combine spreadsheet columns into a single text per row.
-        index_of_id_column : :class:`int` or :class:`str`, optional
-            Column to use as row identifier.
-        segments_number : :class:`int`, optional
+        n_segments : :class:`int`, optional
             Number of segments to divide text into (default: 5).
-        scaling_method : :class:`int`, optional
-            Scaling method - ``1`` = 0-100 scale (default), ``2`` = Z-score.
+        scaling : :class:`str`, optional
+            Scaling method - ``"percent"`` (default, 0-100 scale) or
+            ``"zscore"`` (Z-score).
         skip_wc : :class:`int`, optional
             Skip texts with word count less than this value (default: 10).
-        output_data_points : :class:`bool`, optional
+        include_data_points : :class:`bool`, optional
             If ``True``, output individual data points (CLI default: ``True``).
         output_format : :class:`str`, optional
             One of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         """
         _check_bool("combine_columns", combine_columns)
-        _check_bool("output_data_points", output_data_points)
-        _check_choice("scaling_method", scaling_method, (1, 2))
+        _check_bool("include_data_points", include_data_points)
+        _check_choice("scaling", scaling, ("percent", "zscore"))
         _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "arc",
             {
                 "input": input,
                 "output": output,
-                "column_indices": column_indices,
+                "text_columns": text_columns,
+                "id_column": id_column,
                 "combine_columns": combine_columns,
-                "index_of_id_column": index_of_id_column,
-                "segments_number": segments_number,
-                "scaling_method": scaling_method,
+                "n_segments": n_segments,
+                "scaling_method": _SCALING_METHOD_MAP[scaling],
                 "skip_wc": skip_wc,
-                "output_data_points": output_data_points,
+                "include_data_points": include_data_points,
                 "output_format": output_format,
             },
         )
@@ -1661,10 +1694,10 @@ class Liwc22:
         input: str | Path,
         output: str | Path,
         *,
-        speaker_list: str,
-        regex_removal: str | None = None,
-        omit_speakers_num_turns: int = 0,
-        omit_speakers_word_count: int = 10,
+        speakers: str,
+        remove_regex: str | None = None,
+        min_turns: int = 0,
+        min_words: int = 10,
         single_line: bool = False,
     ) -> str:
         """
@@ -1677,13 +1710,13 @@ class Liwc22:
             not supported - ``ct`` operates on raw transcripts.
         output : :class:`str` or :class:`~pathlib.Path`
             Output file/folder path, or ``"console"``.
-        speaker_list : :class:`str`
+        speakers : :class:`str`
             Path to a text/csv/xlsx file containing a list of speakers.
-        regex_removal : :class:`str`, optional
+        remove_regex : :class:`str`, optional
             Regex pattern; first match is removed from each line.
-        omit_speakers_num_turns : :class:`int`, optional
+        min_turns : :class:`int`, optional
             Omit speakers with fewer turns than this value (default: 0).
-        omit_speakers_word_count : :class:`int`, optional
+        min_words : :class:`int`, optional
             Omit speakers with word count less than this value (default: 10).
         single_line : :class:`bool`, optional
             Don't combine untagged lines with the previous speaker (default ``False``).
@@ -1694,10 +1727,10 @@ class Liwc22:
             {
                 "input": input,
                 "output": output,
-                "speaker_list": speaker_list,
-                "regex_removal": regex_removal,
-                "omit_speakers_num_turns": omit_speakers_num_turns,
-                "omit_speakers_word_count": omit_speakers_word_count,
+                "speakers": speakers,
+                "remove_regex": remove_regex,
+                "min_turns": min_turns,
+                "min_words": min_words,
                 "single_line": single_line,
             },
         )
@@ -1710,13 +1743,13 @@ class Liwc22:
         text_column: int | str | None = None,
         person_column: int | str,
         group_column: int | str | None = None,
-        calculate_lsm: int = 3,
-        output_type: int = 1,
-        expanded_output: bool = False,
+        level: str = "both",
         segmentation: str | None = None,
-        omit_speakers_num_turns: int = 0,
-        omit_speakers_word_count: int = 10,
+        min_turns: int = 0,
+        min_words: int = 10,
         single_line: bool = False,
+        pairwise: bool = False,
+        expanded: bool = False,
         output_format: str = "csv",
     ) -> str:
         """
@@ -1738,25 +1771,27 @@ class Liwc22:
             Person ID column.
         group_column : :class:`int` or :class:`str`, optional
             Group ID column.  ``None`` (the default) means "no groups".
-        calculate_lsm : :class:`int`, optional
-            ``1`` = person-level, ``2`` = group-level, ``3`` = both (default: 3).
-        output_type : :class:`int`, optional
-            ``1`` = one-to-many (default), ``2`` = pairwise.
-        expanded_output : :class:`bool`, optional
-            Include expanded LSM output (default ``False``).
+        level : :class:`str`, optional
+            Analysis level - ``"person"``, ``"group"``, or ``"both"`` (default).
         segmentation : :class:`str`, optional
             Split text into segments.
-        omit_speakers_num_turns, omit_speakers_word_count : :class:`int`, optional
-            Skip thresholds (defaults: 0, 10).
+        min_turns, min_words : :class:`int`, optional
+            Skip speakers with fewer turns / words than these thresholds
+            (defaults: 0, 10).
         single_line : :class:`bool`, optional
             Don't combine untagged lines with the previous speaker (default ``False``).
+        pairwise : :class:`bool`, optional
+            If ``True``, compute pairwise LSM between every pair of speakers;
+            if ``False`` (default), compute one-to-many LSM.
+        expanded : :class:`bool`, optional
+            Include expanded LSM output (default ``False``).
         output_format : :class:`str`, optional
             One of ``csv``, ``xlsx``, ``ndjson`` (default: csv).
         """
-        _check_bool("expanded_output", expanded_output)
+        _check_bool("expanded", expanded)
         _check_bool("single_line", single_line)
-        _check_choice("calculate_lsm", calculate_lsm, (1, 2, 3))
-        _check_choice("output_type", output_type, (1, 2))
+        _check_bool("pairwise", pairwise)
+        _check_choice("level", level, ("person", "group", "both"))
         _check_choice("output_format", output_format, ("csv", "xlsx", "ndjson"))
         return self._run_mode(
             "lsm",
@@ -1766,13 +1801,13 @@ class Liwc22:
                 "text_column": text_column,
                 "person_column": person_column,
                 "group_column": group_column,
-                "calculate_lsm": calculate_lsm,
-                "output_type": output_type,
-                "expanded_output": expanded_output,
+                "calculate_lsm": _LSM_LEVEL_MAP[level],
                 "segmentation": segmentation,
-                "omit_speakers_num_turns": omit_speakers_num_turns,
-                "omit_speakers_word_count": omit_speakers_word_count,
+                "min_turns": min_turns,
+                "min_words": min_words,
                 "single_line": single_line,
+                "output_type": 2 if pairwise else 1,
+                "expanded": expanded,
                 "output_format": output_format,
             },
         )

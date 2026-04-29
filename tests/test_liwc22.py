@@ -40,13 +40,11 @@ MODE_REQUIRED_KWARGS: dict[str, dict[str, object]] = {
     "mem": {"input": "texts/", "output": "mem.csv"},
     "context": {"input": "data.txt", "output": "ctx.csv"},
     "arc": {"input": "stories/", "output": "arc.csv"},
-    "ct": {"input": "transcripts/", "output": "merged.csv", "speaker_list": "speakers.txt"},
+    "ct": {"input": "transcripts/", "output": "merged.csv", "speakers": "speakers.txt"},
     "lsm": {
         "input": "chat.csv",
         "output": "lsm.csv",
-        "calculate_lsm": 3,
         "group_column": 0,
-        "output_type": 1,
         "person_column": 1,
         "text_column": 2,
     },
@@ -117,7 +115,7 @@ class TestBuildCommand:
         assert "-o" in cmd and "results.csv" in cmd
 
     def test_mode_flag_appears_once(self) -> None:
-        cmd = build_command("freq", {"input": "a", "output": "b", "n_gram": 2})
+        cmd = build_command("freq", {"input": "a", "output": "b", "ngram": 2})
         assert cmd.count("-m") == 1
 
     def test_none_values_skipped(self) -> None:
@@ -289,7 +287,7 @@ class TestLiwc22Class:
         with pytest.raises(TypeError):
             Liwc22(dry_run=True).wc()
 
-    def test_ct_missing_speaker_list_raises(self) -> None:
+    def test_ct_missing_speakers_raises(self) -> None:
         with pytest.raises(TypeError):
             Liwc22(dry_run=True).ct(input="x", output="y")
 
@@ -297,7 +295,7 @@ class TestLiwc22Class:
         """One instance can drive multiple mode calls with no state leakage."""
         liwc = Liwc22(dry_run=True)
         assert liwc.wc(input="x", output="y") == "y"
-        assert liwc.freq(input="x", output="y", n_gram=2) == "y"
+        assert liwc.freq(input="x", output="y", ngram=2) == "y"
 
 
 # ---------------------------------------------------------------------------
@@ -373,10 +371,10 @@ class TestArgTranslation:
         Liwc22(dry_run=True).wc(input="x", output="y", include_categories=["anger", "joy"])
         assert captured["cli_args"]["include_categories"] == ["anger", "joy"]  # type: ignore[index]
 
-    def test_words_to_contextualize_list(self) -> None:
+    def test_words_list(self) -> None:
         cmd = build_command(
             "context",
-            {"input": "a", "output": "b", "words_to_contextualize": ["hope", "fear"]},
+            {"input": "a", "output": "b", "words": ["hope", "fear"]},
         )
         idx = cmd.index("-words")
         assert cmd[idx + 1] == "hope,fear"
@@ -391,8 +389,6 @@ class TestArgTranslation:
             output="y.csv",
             text_column=0,
             person_column=1,
-            calculate_lsm=3,
-            output_type=1,
         )
         cli_args = captured["cli_args"]
         assert isinstance(cli_args, dict)
@@ -407,8 +403,6 @@ class TestArgTranslation:
             output="y.csv",
             text_column=0,
             person_column=1,
-            calculate_lsm=3,
-            output_type=1,
         )
         cli_args = captured["cli_args"]
         assert isinstance(cli_args, dict)
@@ -438,8 +432,6 @@ class TestArgTranslation:
             output="y.csv",
             text_column=0,
             person_column=1,
-            calculate_lsm=3,
-            output_type=1,
         )
         cli_args = captured["cli_args"]
         assert isinstance(cli_args, dict)
@@ -461,8 +453,6 @@ class TestArgTranslation:
             output="y.csv",
             text_column="text",
             person_column="speaker",
-            calculate_lsm=3,
-            output_type=1,
         )
         cli_args = captured["cli_args"]
         assert isinstance(cli_args, dict)
@@ -481,8 +471,6 @@ class TestArgTranslation:
                 output="y.csv",
                 text_column="nonexistent_column",
                 person_column="speaker",
-                calculate_lsm=3,
-                output_type=1,
             )
 
 
@@ -515,8 +503,6 @@ class TestValidation:
                 output="y.csv",
                 text_column="text",
                 person_column="speaker",
-                calculate_lsm=3,
-                output_type=1,
             )
 
     def test_column_name_with_console_input_raises(self) -> None:
@@ -525,8 +511,8 @@ class TestValidation:
             Liwc22(dry_run=True).wc(
                 input="console",
                 output="y.csv",
-                console_text="hello world",
-                column_indices=["text"],
+                text="hello world",
+                text_columns=["text"],
             )
 
 
@@ -678,7 +664,7 @@ class TestDataFrameInput:
     ) -> None:
         df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["hello world", "foo bar"]})
         out = tmp_path / "out.csv"
-        Liwc22().wc(input=df, output=str(out), column_indices="text")
+        Liwc22().wc(input=df, output=str(out), text_columns="text")
 
         # The cli_args that reached _run should have a filesystem path, not a DataFrame.
         input_passed = stub_run["cli_args"]["input"]
@@ -689,40 +675,40 @@ class TestDataFrameInput:
     def test_dataframe_input_resolves_column_names_without_file_read(
         self, stub_run: dict[str, Any], tmp_path: Path
     ) -> None:
-        """column_indices=['text'] against a DataFrame resolves via df.columns."""
+        """text_columns=['text'] against a DataFrame resolves via df.columns."""
         df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["x y z", "p q"]})
         out = tmp_path / "out.csv"
-        Liwc22().wc(input=df, output=str(out), column_indices=["text"])
+        Liwc22().wc(input=df, output=str(out), text_columns=["text"])
 
         # 'text' is the 2nd column (0-based index 1); LIWC CLI wants 1-based.
         cli_args = stub_run["cli_args"]
-        # column_indices is a LIST_FLAG, so it comes through as a list of 1-based ints
-        assert cli_args["column_indices"] == [2]
+        # text_columns is a LIST_FLAG, so it comes through as a list of 1-based ints
+        assert cli_args["text_columns"] == [2]
 
-    def test_dataframe_input_with_console_text_raises(self, tmp_path: Path) -> None:
+    def test_dataframe_input_with_text_kwarg_raises(self, tmp_path: Path) -> None:
         df = pd.DataFrame({"text": ["hi"]})
-        with pytest.raises(ValueError, match="console_text"):
-            Liwc22(dry_run=True).wc(input=df, output=str(tmp_path / "o.csv"), console_text="inline")
+        with pytest.raises(ValueError, match="`text`"):
+            Liwc22(dry_run=True).wc(input=df, output=str(tmp_path / "o.csv"), text="inline")
 
     def test_empty_dataframe_input_raises(self, tmp_path: Path) -> None:
         df = pd.DataFrame({"text": []}).astype(str)
         with pytest.raises(ValueError, match="empty"):
             Liwc22(dry_run=True).wc(input=df, output=str(tmp_path / "o.csv"))
 
-    def test_dataframe_input_without_column_indices_raises(self) -> None:
+    def test_dataframe_input_without_text_columns_raises(self) -> None:
         df = pd.DataFrame({"doc_id": ["a"], "text": ["hi"]})
-        with pytest.raises(ValueError, match="column_indices"):
+        with pytest.raises(ValueError, match="text_columns"):
             Liwc22(dry_run=True).wc(input=df, output="out.csv")
 
-    def test_series_input_autofills_column_indices(
+    def test_series_input_autofills_text_columns(
         self, stub_run: dict[str, Any], tmp_path: Path
     ) -> None:
-        """Series input auto-wraps; column_indices fills with the Series name."""
+        """Series input auto-wraps; text_columns fills with the Series name."""
         s = pd.Series(["hello", "world"], name="msg")
         out = tmp_path / "out.csv"
         Liwc22().wc(input=s, output=str(out))
         # Series had one column "msg" at position 0 (0-based) -> 1-based index 1.
-        assert stub_run["cli_args"]["column_indices"] == [1]
+        assert stub_run["cli_args"]["text_columns"] == [1]
 
     def test_series_input_unnamed_defaults_to_text(
         self, stub_run: dict[str, Any], tmp_path: Path
@@ -730,7 +716,7 @@ class TestDataFrameInput:
         s = pd.Series(["hello", "world"])
         out = tmp_path / "out.csv"
         Liwc22().wc(input=s, output=str(out))
-        assert stub_run["cli_args"]["column_indices"] == [1]
+        assert stub_run["cli_args"]["text_columns"] == [1]
 
 
 class TestPositionalAndPath:
@@ -755,17 +741,17 @@ class TestPositionalAndPath:
 
 
 class TestSingleStringColumnIndices:
-    """Bare-string column_indices (and other LIST_FLAGS) don't explode to chars."""
+    """Bare-string text_columns (and other LIST_FLAGS) don't explode to chars."""
 
-    def test_single_string_column_indices(
+    def test_single_string_text_columns(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         fixture = tmp_path / "chat.csv"
         fixture.write_text("id,text\n1,hi\n", encoding="utf-8")
         captured = _capture_cli_args(monkeypatch)
-        Liwc22(dry_run=True).wc(str(fixture), "out.csv", column_indices="text")
+        Liwc22(dry_run=True).wc(str(fixture), "out.csv", text_columns="text")
         # "text" is the 2nd column (1-based index 2).
-        assert captured["cli_args"]["column_indices"] == [2]
+        assert captured["cli_args"]["text_columns"] == [2]
 
     def test_single_string_include_categories(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured = _capture_cli_args(monkeypatch)
@@ -893,10 +879,10 @@ class TestTypeAssertions:
         with pytest.raises(ValueError, match="output_format"):
             Liwc22(dry_run=True).wc("x", "y", output_format="pdf")
 
-    def test_bad_calculate_lsm_raises(self) -> None:
-        with pytest.raises(ValueError, match="calculate_lsm"):
+    def test_bad_level_raises(self) -> None:
+        with pytest.raises(ValueError, match="level"):
             Liwc22(dry_run=True).lsm(
-                "x.csv", "y.csv", text_column=0, person_column=1, calculate_lsm=5
+                "x.csv", "y.csv", text_column=0, person_column=1, level="invalid"
             )
 
 
@@ -933,7 +919,7 @@ class TestWcOutputSchema:
     """In-place shaping of the wc-mode output file and schema validation."""
 
     def test_default_wc_shape(self, stub_run: dict[str, Any], tmp_path: Path) -> None:
-        """No row_id_indices + constant Segment -> 'Row ID' index, no Segment col."""
+        """No id_columns + constant Segment -> 'Row ID' index, no Segment col."""
         out = tmp_path / "out.csv"
         Liwc22().wc(input=str(tmp_path / "in.csv"), output=str(out))
 
@@ -942,12 +928,12 @@ class TestWcOutputSchema:
         assert "Segment" not in shaped.columns
         assert list(shaped.columns) == ["WC", "Tone"]
 
-    def test_row_id_indices_renames_to_source_column(
+    def test_id_columns_renames_to_source_column(
         self, stub_run: dict[str, Any], tmp_path: Path
     ) -> None:
         df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["x", "y"]})
         out = tmp_path / "out.csv"
-        Liwc22().wc(input=df, output=str(out), column_indices="text", row_id_indices=["doc_id"])
+        Liwc22().wc(input=df, output=str(out), text_columns="text", id_columns=["doc_id"])
 
         shaped = pd.read_csv(out, index_col=0)
         assert shaped.index.name == "doc_id"
