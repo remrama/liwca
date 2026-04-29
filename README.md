@@ -19,11 +19,11 @@
 
 Features:
 
-- Reading and writing dictionary files (`.dic`/`.dicx`)
-- Merging dictionary files
-- Fetching public LIWC-format dictionaries from remote repositories
+- Calling `LIWC-22-cli` from Python
 - Pure-Python word counting (no LIWC-22 needed)
-- Calling `liwc-22-cli` from Python
+- Distributed Dictionary Representation scoring
+- Reading, writing, and merging dictionary files (`.dic`/`.dicx`)
+- Downloading public datasets, including dictionaries, corpora, and relevant tables
 
 ## Installation
 
@@ -31,61 +31,81 @@ Features:
 pip install --upgrade liwca
 ```
 
-## Quick Start
-
-```python
-import liwca
-
-# Fetch a public dictionary and count words (no LIWC-22 needed)
-dx = liwca.fetch_threat()
-results = liwca.count(["danger lurks ahead"], dx)
-```
-
 ## Usage
 
-### Fetching dictionaries
+### LIWC-22 wrapper
+
+Requires LIWC-22 app with academic license installed locally.
 
 ```python
 import liwca
 
-dx = liwca.fetch_sleep()           # Fetch and load a public dictionary
-dx = liwca.fetch_bigtwo()          # Versioned dictionary (version="a" by default)
-dx = liwca.read_dx("./my.dicx")    # Read a local dictionary file
-liwca.write_dx(dx, "./my.dic")     # Write to a different format
+with liwca.Liwc22(count_urls=True) as liwc:
+    outpath = liwc.wc(
+        "data.csv",
+        "liwc-results.csv",
+        dictionary="LIWC22",
+        text_columns="text",
+    )
 ```
 
 ### Word counting
 
-Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 needed).
+Pure-Python word counting using LIWC-style dictionaries (no LIWC-22 installation required).
 
 ```python
+import liwca
+from liwca.datasets import dictionaries
 texts = ["I feel happy today", "This is a sad story"]
-results = liwca.count(texts, dx)                      # percentages (default)
-results = liwca.count(texts, dx, as_percentage=False)  # raw counts
+dx = dictionaries.fetch_emfd()
+
+# Return results at document level
+doc_scores = liwca.count(texts, dx)
+
+# Return results at document and word level
+doc_scores, word_scores = liwca.count(texts, dx, return_words=True)
 ```
 
-### LIWC-22 wrapper (requires LIWC-22)
+### Input/output
 
-The LIWC-22 desktop application (or its license server) must be running when you call the CLI.
-See the [LIWC CLI documentation](https://www.liwc.app/help/cli) and [Python CLI example](https://github.com/ryanboyd/liwc-22-cli-python/blob/main/LIWC-22-cli_Example.py) for more details.
+Read and write LIWC-style dictionary files with schema validation.
 
 ```python
-import pandas as pd
+import liwca
 
-liwc = liwca.Liwc22(encoding="utf-8", count_urls=True)
-df = pd.DataFrame({"doc_id": ["a", "b"], "text": ["...", "..."]})
-out_path = liwc.wc(
-    input=df,                      # DataFrame or path
-    output="results.csv",
-    id_columns=["doc_id"],
-    include_categories=["anger", "joy"],
-)
-results = pd.read_csv(out_path, index_col=0)
+# Read a dic file
+dx = liwca.read_dic("my.dic")
+
+# Read a dicx file
+dx = liwca.read_dicx("my.dicx")
+
+# Read a weighted dicx file
+dx = liwca.read_dicx_weighted("myweighted.dicx")
+
+# Write to any similar file type
+dx.write_dic("mynew.dic")
+dx.write_dicx("mynew.dicx")
+dx.write_dicx_weighted("mynewweighted.dicx")
 ```
 
-## Similar Projects
+### Downloading datasets
 
-- [pyliwc](https://github.com/camille1/pyliwc)
+Fetch public datasets, including dictionaries and corpora.
+
+```python
+from liwca.datasets import corpora, dictionaries
+
+data = corpora.fetch_cmu_book_summaries()
+dx = dictionaries.fetch_threat()
+results = liwca.count(data, dx)
+```
+
+## Similar projects
+
 - [liwc-python](https://github.com/chbrown/liwc-python)
 - [lingmatch](https://github.com/miserman/lingmatch)
+- [pyliwc](https://github.com/camille1/pyliwc)
+- [qdap](https://github.com/trinker/qdap) / [qdapDictionaries](https://github.com/trinker/qdapDictionaries)
 - [sentibank](https://github.com/socius-org/sentibank)
+- [sentidict](https://github.com/andyreagan/sentidict)
+- [Shifterator](https://github.com/ryanjgallagher/shifterator)

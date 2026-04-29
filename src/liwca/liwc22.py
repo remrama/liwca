@@ -1034,6 +1034,14 @@ class Liwc22:
     dry_run : :class:`bool`, optional
         Print each CLI command without executing it (default ``False``).
 
+    Notes
+    -----
+    The LIWC-22 desktop application (or its license server) must be running when you call the CLI.
+
+    .. seealso::
+        - [LIWC CLI documentation](https://www.liwc.app/help/cli)
+        - [LIWC CLI Python example](https://github.com/ryanboyd/liwc-22-cli-python)
+
     Examples
     --------
     >>> import liwca

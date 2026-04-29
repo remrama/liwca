@@ -196,6 +196,16 @@ def fetch_hippocorpus() -> pd.DataFrame:
     -----
     Also available `on Kaggle <https://www.kaggle.com/datasets/saurabhshahane/hippocorpus>`__
     and `on Hugging Face <https://huggingface.co/datasets/allenai/hippocorpus>`__.
+
+    Also analyzed in Su et al., 2026, *Commun Psychol*,
+    Retention and transformation of internal experiencesin autobiographical memory narrative
+    doi:`10.1038/s44271-026-00425-8 <https://doi.org/10.1038/s44271-026-00425-8>`__
+    and available in preprocessed form in `an OSF repository <https://osf.io/a65bg>`__.
+
+    Also analyzed in Sunny et al., 2025, *CoNLL 2025*,
+    From stories to statistics: Methodological biases in LLM-based narrative flow quantification
+    doi:`10.18653/v1/2025.conll-1.14 <https://doi.org/10.18653/v1/2025.conll-1.14>`__
+    With some processing code `on GitHub <https://github.com/mandalab/narrative-flow-autobio>`__.
     """
     processor = pooch.Unzip(
         members=[
