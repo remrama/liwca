@@ -51,7 +51,7 @@ All remote data is fetched via [Pooch](https://www.fatiando.org/pooch/) and cach
 
 - **`corpora.py`** — Per-corpus `fetch_*()` functions returning local `Path` objects to downloaded text corpora. Public functions: `fetch_autobiomemsim`, `fetch_cmu_book_summaries`, `fetch_cmu_movie_summaries`, `fetch_hippocorpus`, `fetch_liwc22_demo_data`, `fetch_reddit_short_stories`, `fetch_sherlock`, `fetch_tedtalks`.
 
-- **`tables.py`** — Per-table `fetch_*()` functions returning local `Path` objects to downloaded norm/statistics tables. Public functions: `fetch_liwc2015norms`, `fetch_liwc22norms`, `fetch_psychnorms`, `fetch_scope`.
+- **`tables.py`** — Per-table `fetch_*()` functions returning local `Path` objects to downloaded norm/statistics tables. Public functions: `fetch_norms_liwc2015`, `fetch_norms_liwc22`, `fetch_psychnorms`, `fetch_scope`.
 
 ## LIWC Domain Context
 

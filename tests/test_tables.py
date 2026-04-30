@@ -13,8 +13,8 @@ from liwca.datasets import tables
 # ---------------------------------------------------------------------------
 
 _FETCH_FUNCTIONS = [
-    tables.fetch_liwc2015norms,
-    tables.fetch_liwc22norms,
+    tables.fetch_norms_liwc2015,
+    tables.fetch_norms_liwc22,
     tables.fetch_psychnorms,
     tables.fetch_scope,
 ]
@@ -26,8 +26,8 @@ _FETCH_FUNCTIONS = [
 # psychnorms.zip and the SCOPE ``data`` sheet are pulled by the per-stem
 # fetchers in :mod:`liwca.datasets.dictionaries`.
 _EXPECTED_REGISTRY_KEYS: dict[str, set[str]] = {
-    "fetch_liwc2015norms": {"liwc2015-norms.xlsx"},
-    "fetch_liwc22norms": {"liwc22-norms.xlsx"},
+    "fetch_norms_liwc2015": {"norms-liwc2015.xlsx"},
+    "fetch_norms_liwc22": {"norms-liwc22.xlsx"},
     "fetch_psychnorms": {"psychnorms-metadata.csv"},
     "fetch_scope": {"scope.xlsx"},
 }
@@ -44,7 +44,7 @@ class TestFetchFunctions:
         """Pooch errors propagate up from fetch functions."""
         with patch.object(tables._pup, "fetch", side_effect=ConnectionError("no internet")):
             with pytest.raises(ConnectionError):
-                tables.fetch_liwc22norms()
+                tables.fetch_norms_liwc22()
 
 
 # ---------------------------------------------------------------------------

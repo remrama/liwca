@@ -135,8 +135,8 @@ def test_fetch_corpus(name: str, fetch_fn) -> None:
 # ---------------------------------------------------------------------------
 
 _TABLE_FETCHERS = [
-    ("liwc2015norms", tables.fetch_liwc2015norms),
-    ("liwc22norms", tables.fetch_liwc22norms),
+    ("norms_liwc2015", tables.fetch_norms_liwc2015),
+    ("norms_liwc22", tables.fetch_norms_liwc22),
     ("psychnorms", tables.fetch_psychnorms),
     ("scope", tables.fetch_scope),
 ]
