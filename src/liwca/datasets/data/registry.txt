@@ -61,11 +61,11 @@ manual-liwc2015-table1.tsv md5:880a3bbd6042110de035dc126f40c95d https://zenodo.o
 manual-liwc2015-table2.tsv md5:66e579822e8b5881d8aeb518fe45908d https://zenodo.org/records/11397710/files/table2.tsv
 manual-liwc2015-table3.tsv md5:876279c0d51f1d158bcf51762c16c900 https://zenodo.org/records/11397710/files/table3.tsv
 manual-liwc2015-table4.tsv md5:0e227f23fe6b0d27a3c47974575ed1c3 https://zenodo.org/records/11397710/files/table4.tsv
-manual-liwc22-table1.tsv md5:85579927884076d4309459b85769917b https://zenodo.org/records/11397741/files/table1.tsv
-manual-liwc22-table2.tsv md5:973116213d69190d196835ffe73f1a23 https://zenodo.org/records/11397741/files/table2.tsv
-manual-liwc22-table3.tsv md5:59810ca034320526c3000118a74c42e3 https://zenodo.org/records/11397741/files/table3.tsv
-manual-liwc22-table4.tsv md5:f0531bd9d889ae9024db4ba97c4accd4 https://zenodo.org/records/11397741/files/table4.tsv
-manual-liwc22-tableA1.tsv md5:2dfaa8e8fb26da6d25d577a96d75ee6a https://zenodo.org/records/11397741/files/tableA1.tsv
+manual-liwc22-table1.tsv md5:85579927884076d4309459b85769917b https://zenodo.org/records/19947917/files/table1.tsv
+manual-liwc22-table2.tsv md5:973116213d69190d196835ffe73f1a23 https://zenodo.org/records/19947917/files/table2.tsv
+manual-liwc22-table3.tsv md5:98730d273e159aac95ec10ecb551e5a9 https://zenodo.org/records/19947917/files/table3.tsv
+manual-liwc22-table4.tsv md5:f0531bd9d889ae9024db4ba97c4accd4 https://zenodo.org/records/19947917/files/table4.tsv
+manual-liwc22-tableA1.tsv md5:2dfaa8e8fb26da6d25d577a96d75ee6a https://zenodo.org/records/19947917/files/tableA1.tsv
 norms-liwc2015.xlsx md5:477e2af4c663d45dde90d91631451846 https://www.liwc.app/static/documents/LIWC2015.Descriptive.Statistics.Full.xlsx
 norms-liwc22.xlsx md5:c5de2f1e047767ad753c4a11ab35fe15 https://www.liwc.app/static/documents/LIWC-22.Descriptive.Statistics-Test.Kitchen.xlsx
 psychnorms-metadata.csv md5:3b44f2117b535572f2ee79e7adeb64a6 https://raw.githubusercontent.com/Zak-Hussain/psychNorms/refs/heads/main/psychNorms_metadata.csv

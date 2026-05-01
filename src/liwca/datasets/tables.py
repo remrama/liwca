@@ -145,7 +145,7 @@ def fetch_psychnorms() -> pd.DataFrame:
     return pd.read_csv(fname)
 
 
-def fetch_psychometrics_manual(version: str, table: str) -> pd.DataFrame:  # noqa
+def fetch_psychometrics_manual(version: str, table: str) -> pd.DataFrame:  # noqa: C901
     """
     Fetch a table from a LIWC Psychometrics Manual.
 
@@ -286,7 +286,7 @@ def fetch_psychometrics_manual(version: str, table: str) -> pd.DataFrame:  # noq
                 .T.rename_axis("corpus")
                 .rename(columns=lambda x: x.replace("Total ", "n_"))
             )
-    elif version in {"LIWC2007", "LIWC22"} and table == "3":
+    elif version == "LIWC2007" and table == "3":
 
         def _build(source_path: Path) -> pd.DataFrame:
             return (
@@ -373,6 +373,7 @@ def fetch_psychometrics_manual(version: str, table: str) -> pd.DataFrame:  # noq
                 )
                 .set_index(["parent", "category"])
             )
+
     elif version == "LIWC22" and table == "1":
 
         def _build(source_path: Path) -> pd.DataFrame:
@@ -414,6 +415,21 @@ def fetch_psychometrics_manual(version: str, table: str) -> pd.DataFrame:  # noq
                 )
                 .set_index(["parent", "category"])
             )
+    elif version == "LIWC22" and table == "3":
+
+        def _build(source_path: Path) -> pd.DataFrame:
+            _df = (
+                pd.read_csv(source_path, sep="\t", skiprows=[1, 2], na_values=["mean", "SD"])
+                .assign(parent=lambda x: x["Category"].where(x["Twitter"].isna()).ffill())
+                .dropna(subset=["Twitter"])
+                .rename(columns={"Category": "name"})
+                .set_index(["parent", "name"])
+            )
+            columns = pd.Series(_df.columns).replace(r"^Unnamed: \d+", pd.NA, regex=True).ffill()
+            _df.columns = pd.MultiIndex.from_product(
+                (columns.unique(), ["mean", "sd"]), names=("corpus", "statistic")
+            )
+            return _df
     elif version == "LIWC22" and table == "4":
 
         def _build(source_path: Path) -> pd.DataFrame:
