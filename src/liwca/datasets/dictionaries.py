@@ -29,7 +29,7 @@ from ..io import (
     write_dicx,
     write_dicx_weighted,
 )
-from ._common import AuthorizedZenodoDownloader, make_pup
+from ._common import AuthorizedDownloader, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -817,7 +817,7 @@ def _fetch_liwc2015() -> pd.DataFrame:
 
     dicx_path = _pup.fetch(
         "liwc2015.xlsx",
-        downloader=AuthorizedZenodoDownloader(),
+        downloader=AuthorizedDownloader("zenodo"),
         processor=BuildDicx(_build, "liwc2015.dicx"),
     )
     return read_dicx(dicx_path)
@@ -840,7 +840,7 @@ def _fetch_liwc22() -> pd.DataFrame:
 
     dicx_path = _pup.fetch(
         "liwc22.xlsx",
-        downloader=AuthorizedZenodoDownloader(),
+        downloader=AuthorizedDownloader("zenodo"),
         processor=BuildDicx(_build, "liwc22.dicx"),
     )
     return read_dicx(dicx_path)
@@ -910,7 +910,7 @@ def _fetch_translated(fstem: str) -> pd.DataFrame:
     """
     if fstem not in _TRANSLATED_DICTIONARIES:
         raise ValueError(f"Unknown translated dictionary {fstem!r}")
-    downloader = AuthorizedZenodoDownloader()
+    downloader = AuthorizedDownloader("zenodo")
     processor = pooch.Unzip()
     fnames = _pup.fetch("translated.zip", downloader=downloader, processor=processor)
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}
@@ -1047,7 +1047,7 @@ def _usermade_dicx_path(fstem: str) -> Path:
     """
     fnames = _pup.fetch(
         "usermade.zip",
-        downloader=AuthorizedZenodoDownloader(),
+        downloader=AuthorizedDownloader("zenodo"),
         processor=pooch.Unzip(),
     )
     fpaths = {Path(fn).name: Path(fn) for fn in fnames}

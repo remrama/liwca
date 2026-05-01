@@ -8,6 +8,11 @@ reddit-short-stories.txt md5:ce5589e856b49ed37a4384f5f73be019 https://raw.github
 sherlock.zip md5:5d0e0d4fddce27d6b97e1772ab2fd5b5 https://github.com/ContextLab/sherlock-topic-model-paper/archive/refs/tags/v1.0.zip
 tedtalks.zip md5:d32a2065ff6d334a8c5746dd5abfe37c https://www.kaggle.com/api/v1/datasets/download/miguelcorraljr/ted-ultimate-dataset
 testkitchen.zip md5:aaf73c10e2a37fee219f3bfd7efb9716 https://zenodo.org/api/records/19666173/files/testkitchen.zip/content
+58frd.zip md5:7af48f3ebb3d4aa6d5a02fa5057a874f https://files.osf.io/v1/resources/9jhxu/providers/osfstorage/62fd67d95358e10dd79204dc
+cmnh6.xlsx md5:7686787eab20e5bdde20a1b18e137d40 https://files.osf.io/v1/resources/9jhxu/providers/osfstorage/62febd065358e112a99200a7
+jb5au.xlsx md5:51c84563396226740e8a557d9b4d80f3 https://files.osf.io/v1/resources/9jhxu/providers/osfstorage/62fd68c75358e10dd7920675
+my8tk.csv md5:df442436568bd96d4270388f1c30e214 https://files.osf.io/v1/resources/9jhxu/providers/osfstorage/62fd68c02705030e0b16d381
+ncztv.csv md5:9a8bd590f791e10dc383ae41daa69ba0 https://files.osf.io/v1/resources/9jhxu/providers/osfstorage/62febcef5358e112ac9200cd
 
 # dictionaries
 bigtwo-va.dic md5:d2240a5eb36568d9eefaa428130a0577 https://osf.io/download/62txv

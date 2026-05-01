@@ -17,12 +17,14 @@ import pandas as pd
 import pooch
 
 __all__ = [
-    "AuthorizedZenodoDownloader",
+    "AuthorizedDownloader",
     "CacheCsv",
     "UnzipToCsv",
     "get_location",
     "make_pup",
 ]
+
+_AUTHORIZED_REPOSITORIES = frozenset({"zenodo", "osf"})
 
 
 def get_location(pup: pooch.Pooch) -> Path:
@@ -132,22 +134,41 @@ class CacheCsv:
         return str(cache_path)
 
 
-class AuthorizedZenodoDownloader(pooch.HTTPDownloader):
-    """Pooch HTTP downloader that lazily injects a ``ZENODO_TOKEN`` bearer header.
+class AuthorizedDownloader(pooch.HTTPDownloader):
+    """Pooch HTTP downloader that lazily injects a per-repository bearer token.
 
-    Subclass of :class:`pooch.HTTPDownloader` that reads ``ZENODO_TOKEN`` from
-    the environment only when invoked - so calls that hit a cached file (and
-    never trigger the downloader) succeed without a token.
+    Subclass of :class:`pooch.HTTPDownloader` that reads a token named
+    ``f"{repository.upper()}_TOKEN"`` (e.g. ``ZENODO_TOKEN``, ``OSF_TOKEN``)
+    from the environment only when invoked - so calls that hit a cached file
+    (and never trigger the downloader) succeed without a token.
+
+    Parameters
+    ----------
+    repository : {"zenodo", "osf"}
+        Which repository's token env var to read.
 
     Raises
     ------
+    ValueError
+        If ``repository`` is not a recognised repository.
     OSError
-        Only when invoked and ``ZENODO_TOKEN`` is unset.
+        Only when invoked and the corresponding ``*_TOKEN`` env var is unset.
     """
 
+    def __init__(self, repository: str, **kwargs) -> None:
+        if repository not in _AUTHORIZED_REPOSITORIES:
+            raise ValueError(
+                f"repository must be one of {sorted(_AUTHORIZED_REPOSITORIES)}; got {repository!r}"
+            )
+        super().__init__(**kwargs)
+        self.repository = repository
+        self.token_env_var = f"{repository.upper()}_TOKEN"
+
     def __call__(self, url, output_file, pup, check_only=False):
-        if (token := os.environ.get("ZENODO_TOKEN")) is None:
-            raise OSError("A `ZENODO_TOKEN` with repository access must be set to fetch this file.")
+        if (token := os.environ.get(self.token_env_var)) is None:
+            raise OSError(
+                f"A `{self.token_env_var}` with repository access must be set to fetch this file."
+            )
         self.kwargs["headers"] = {
             **(self.kwargs.get("headers") or {}),
             "Authorization": f"Bearer {token}",
