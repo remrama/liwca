@@ -1,7 +1,9 @@
 """Tests that fetch every registered remote dataset.
 
-These tests require network access and are only run on push to main
-(not on pull requests). See .github/workflows/tests.yaml.
+These tests require network access and are marked ``network`` so that the
+default ``pytest`` invocation (which uses ``-m "not network"``) skips them.
+The dedicated ``test-remote`` CI job opts in via ``-m network`` on push to
+main. See .github/workflows/tests.yaml.
 """
 
 from __future__ import annotations
@@ -10,6 +12,8 @@ import pandas as pd
 import pytest
 
 from liwca.datasets import corpora, dictionaries, tables
+
+pytestmark = pytest.mark.network
 
 # ---------------------------------------------------------------------------
 # Dictionaries

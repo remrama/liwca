@@ -74,8 +74,11 @@ ignore_missing_imports = true
 strict = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=liwca --cov-report=term-missing --doctest-modules"
+addopts = "--cov=liwca --cov-report=term-missing --doctest-modules -m 'not network'"
 testpaths = ["tests", "src"]
+markers = [
+  "network: tests that hit the network (skipped by default; opt in with -m network).",
+]
 
 [tool.ruff]
 line-length = 100
