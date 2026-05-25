@@ -45,13 +45,15 @@ Always use `uv` when running Python scripts or installing dependencies. Never us
 
 All remote data is fetched via [Pooch](https://www.fatiando.org/pooch/) and cached locally. Cache root defaults to `pooch.os_cache("liwca")` and can be overridden with `$LIWCA_DATA_DIR`. The shared registry file at `src/liwca/datasets/data/registry.txt` is the single source of truth for filenames, MD5 hashes, and download URLs.
 
-- **`_common.py`** — Shared helpers: `make_pup(category)` builds a `pooch.Pooch` for one cache subdirectory (`"dictionaries"`, `"corpora"`, or `"tables"`), all loading the same `registry.txt`. Also defines `UnzipToCsv` and `CacheCsv` processors (download-and-parse-once caching), and `AuthorizedDownloader(repository)` (lazily injects a bearer header for restricted-access datasets, reading the token from `f"{repository.upper()}_TOKEN"` — `"zenodo"` and `"osf"` are supported).
+- **`_common.py`** — Shared helpers, all re-exported from `liwca.datasets` as the supported extension API for third-party packages (e.g. `liwca_private`). `make_pup(category, *, registry_package, registry_filename)` builds a `pooch.Pooch` for one cache subdirectory (`"dictionaries"`, `"corpora"`, or `"tables"`); `registry_package` defaults to `"liwca.datasets.data"` but extensions can point it at their own resource package to share the cache layout. Also defines `UnzipToCsv`, `CacheCsv`, and `BuildDicx` processors (download-and-parse-once caching to CSV or `.dicx`).
 
 - **`dictionaries.py`** — Per-dictionary `fetch_*()` functions that download remote LIWC-format dictionaries and return validated DataFrames. Includes custom parsers for non-standard formats. Public functions: `fetch_bigtwo`, `fetch_emfd`, `fetch_empath`, `fetch_hedonometer`, `fetch_honor`, `fetch_leeq`, `fetch_mystical`, `fetch_psychnorms`, `fetch_scope`, `fetch_sleep`, `fetch_threat`, `fetch_wrad`. Also exposes `path(name, **kwargs)` to get the local `.dicx` path for a named dictionary, and `list_psychnorms_stems` / `list_scope_stems` for multi-stem dictionaries.
 
 - **`corpora.py`** — Per-corpus `fetch_*()` functions returning local `Path` objects to downloaded text corpora. Public functions: `fetch_autobiomemsim`, `fetch_cmu_book_summaries`, `fetch_cmu_movie_summaries`, `fetch_hippocorpus`, `fetch_liwc22_demo_data`, `fetch_reddit_short_stories`, `fetch_sherlock`, `fetch_tedtalks`.
 
 - **`tables.py`** — Per-table `fetch_*()` functions returning local `Path` objects to downloaded norm/statistics tables. Public functions: `fetch_norms_liwc2015`, `fetch_norms_liwc22`, `fetch_psychnorms`, `fetch_scope`.
+
+Restricted-access fetchers (LIWC originals, translated/usermade dictionaries, OSF-private corpora) live in the separate `liwca_private` companion package and are not shipped here. They consume the extension API above to register their own `registry.txt` while sharing the `$LIWCA_DATA_DIR` cache.
 
 ## LIWC Domain Context
 

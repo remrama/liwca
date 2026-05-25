@@ -1,9 +1,15 @@
-"""Shared helpers for the dataset submodules.
+"""Shared helpers for the dataset submodules and third-party extensions.
 
-Provides a Pooch factory (one cache subdirectory per category, all sharing
-the same ``data/registry.txt``), a Zenodo-authenticated downloader for
-restricted-access fetchers, and a Pooch processor that unzips an archive
-and caches a parsed DataFrame as CSV alongside it.
+These helpers form the supported extension surface for packages that want to
+add their own fetchers on top of liwca (e.g. ``liwca_private``):
+
+- :func:`make_pup` — Pooch factory; one cache subdirectory per category,
+  loading a registry file from any importable resource package.
+- :class:`UnzipToCsv`, :class:`CacheCsv`, :class:`BuildDicx` — Pooch
+  processors that parse a downloaded source once and cache the result
+  (CSV or ``.dicx``) alongside it.
+
+All are re-exported from :mod:`liwca.datasets` for convenience.
 """
 
 from __future__ import annotations
@@ -16,15 +22,15 @@ from pathlib import Path
 import pandas as pd
 import pooch
 
+from ..io import write_dicx, write_dicx_weighted
+
 __all__ = [
-    "AuthorizedDownloader",
+    "BuildDicx",
     "CacheCsv",
     "UnzipToCsv",
     "get_location",
     "make_pup",
 ]
-
-_AUTHORIZED_REPOSITORIES = frozenset({"zenodo", "osf"})
 
 
 def get_location(pup: pooch.Pooch) -> Path:
@@ -35,17 +41,35 @@ def get_location(pup: pooch.Pooch) -> Path:
     return Path(pup.path)
 
 
-def make_pup(category: str) -> pooch.Pooch:
+def make_pup(
+    category: str,
+    *,
+    registry_package: str = "liwca.datasets.data",
+    registry_filename: str = "registry.txt",
+) -> pooch.Pooch:
     """Build a :class:`pooch.Pooch` for one dataset category.
 
     Each category (``"corpora"``, ``"dictionaries"``, ``"tables"``) gets its
-    own cache subdirectory under ``$LIWCA_DATA_DIR`` (or the OS user cache),
-    but all categories load the same shared registry file at
-    ``liwca/datasets/data/registry.txt``.
+    own cache subdirectory under ``$LIWCA_DATA_DIR`` (or the OS user cache).
+    By default, all categories load the same shared registry file at
+    ``liwca/datasets/data/registry.txt``. Third-party packages can point
+    ``registry_package`` / ``registry_filename`` at their own resource to
+    extend liwca with private fetchers while sharing the cache layout.
+
+    Parameters
+    ----------
+    category : str
+        Cache subdirectory name (typically ``"corpora"``, ``"dictionaries"``,
+        or ``"tables"``).
+    registry_package : str, default ``"liwca.datasets.data"``
+        Importable package containing the registry file, in
+        :func:`importlib.resources.files` form.
+    registry_filename : str, default ``"registry.txt"``
+        Name of the registry file inside ``registry_package``.
     """
     root = Path(os.environ.get("LIWCA_DATA_DIR") or pooch.os_cache("liwca"))
     pup = pooch.create(path=root / category, base_url="")
-    with open(str(files("liwca.datasets.data").joinpath("registry.txt"))) as f:
+    with open(str(files(registry_package).joinpath(registry_filename))) as f:
         pup.load_registry(f)
     return pup
 
@@ -134,43 +158,52 @@ class CacheCsv:
         return str(cache_path)
 
 
-class AuthorizedDownloader(pooch.HTTPDownloader):
-    """Pooch HTTP downloader that lazily injects a per-repository bearer token.
+class BuildDicx:
+    """Pooch processor that parses a source dictionary file and caches as ``.dicx``.
 
-    Subclass of :class:`pooch.HTTPDownloader` that reads a token named
-    ``f"{repository.upper()}_TOKEN"`` (e.g. ``ZENODO_TOKEN``, ``OSF_TOKEN``)
-    from the environment only when invoked - so calls that hit a cached file
-    (and never trigger the downloader) succeed without a token.
+    Sibling of :class:`CacheCsv` for dictionary fetchers. On first run
+    (``action`` is ``"download"`` or ``"update"``), ``build_fn`` is called on
+    the downloaded source file and the resulting DataFrame is written as
+    ``cache_name`` next to the source - via :func:`liwca.io.write_dicx` for
+    binary dictionaries (default) or :func:`liwca.io.write_dicx_weighted`
+    when ``weighted=True``. On subsequent runs (``action == "fetch"`` and
+    the .dicx exists), the cached path is returned directly with no
+    parsing or rewriting.
 
     Parameters
     ----------
-    repository : {"zenodo", "osf"}
-        Which repository's token env var to read.
-
-    Raises
-    ------
-    ValueError
-        If ``repository`` is not a recognised repository.
-    OSError
-        Only when invoked and the corresponding ``*_TOKEN`` env var is unset.
+    build_fn : callable
+        Receives the downloaded source file as a :class:`~pathlib.Path` and
+        returns a dictionary :class:`~pandas.DataFrame` (lowercase string
+        index named ``"DicTerm"``, columns named ``"Category"``). Cells
+        must be int8 0/1 when ``weighted=False``, or float64 when
+        ``weighted=True``.
+    cache_name : str
+        Filename for the cached .dicx; written alongside the source file.
+    weighted : bool, default ``False``
+        If ``False`` (default), the output is validated and written as a
+        binary ``.dicx`` (``X``/empty cells). If ``True``, it is written
+        as a weighted ``.dicx`` with numeric cells (signed allowed).
     """
 
-    def __init__(self, repository: str, **kwargs) -> None:
-        if repository not in _AUTHORIZED_REPOSITORIES:
-            raise ValueError(
-                f"repository must be one of {sorted(_AUTHORIZED_REPOSITORIES)}; got {repository!r}"
-            )
-        super().__init__(**kwargs)
-        self.repository = repository
-        self.token_env_var = f"{repository.upper()}_TOKEN"
+    def __init__(
+        self,
+        build_fn: Callable[[Path], pd.DataFrame],
+        cache_name: str,
+        *,
+        weighted: bool = False,
+    ) -> None:
+        self.build_fn = build_fn
+        self.cache_name = cache_name
+        self.weighted = weighted
 
-    def __call__(self, url, output_file, pup, check_only=False):
-        if (token := os.environ.get(self.token_env_var)) is None:
-            raise OSError(
-                f"A `{self.token_env_var}` with repository access must be set to fetch this file."
-            )
-        self.kwargs["headers"] = {
-            **(self.kwargs.get("headers") or {}),
-            "Authorization": f"Bearer {token}",
-        }
-        return super().__call__(url, output_file, pup, check_only=check_only)
+    def __call__(self, fname: str, action: str, pup: pooch.Pooch) -> str:
+        cache_path = Path(fname).parent / self.cache_name
+        if action == "fetch" and cache_path.exists():
+            return str(cache_path)
+        df = self.build_fn(Path(fname))
+        if self.weighted:
+            write_dicx_weighted(df, cache_path)
+        else:
+            write_dicx(df, cache_path)
+        return str(cache_path)

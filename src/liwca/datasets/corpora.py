@@ -14,14 +14,13 @@ Power users who want the raw local file path can call
 from __future__ import annotations
 
 import logging
-import warnings
 from pathlib import Path
 
 import pandas as pd
 import pooch
 from tqdm.auto import tqdm
 
-from ._common import AuthorizedDownloader, CacheCsv, UnzipToCsv, make_pup
+from ._common import CacheCsv, UnzipToCsv, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -382,147 +381,3 @@ def fetch_tedtalks(language: str = "en") -> pd.DataFrame:
     fpath = fpaths[f"ted_talks_{language}.csv"]
     df = pd.read_csv(fpath)
     return df
-
-
-def _fetch_testkitchen() -> pd.DataFrame:
-    """
-    Fetch the LIWC Test Kitchen corpus.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-
-    def _build(member_paths: list[Path]) -> pd.DataFrame:
-        # Single pass over TK_<fullname>/<shortname>_*.txt: read each file
-        # and populate source_map the first time a given <shortname> is seen.
-        data = {}
-        source_map: dict[str, str] = {}
-        for p in tqdm(member_paths, desc="Parsing LIWC Test Kitchen"):
-            if not p.parent.name.startswith("TK_"):
-                continue
-            source_shortname = p.stem.split("_")[0]
-            source_map.setdefault(source_shortname, p.parent.name.split("_", 1)[1])
-            try:
-                text = p.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                text = p.read_text(encoding="windows-1252")
-            data[p.stem] = text.strip().strip('"').strip()
-        ser = pd.Series(data, name="text").rename_axis("text_id")
-        df = ser.to_frame()
-        df.index = df.index.str.split("_").str[0].map(source_map)
-        return df
-
-    csv_path = _pup.fetch(
-        "testkitchen.zip",
-        downloader=AuthorizedDownloader("zenodo"),
-        processor=UnzipToCsv(_build, "testkitchen.csv"),
-    )
-    return pd.read_csv(csv_path, index_col="text_id")
-
-
-def _fetch_58frd(language: str = "en") -> pd.DataFrame:
-    """
-    Fetch the 58frd corpus.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-    assert language in {"en", "es", "fr"}, "Language must be one of 'en', 'es', or 'fr'."
-    language_folder = {"en": "English", "es": "Spanish", "fr": "French"}[language]
-
-    def _build(member_paths: list[Path]) -> pd.DataFrame:
-        records = []
-        for fp in tqdm(member_paths, desc="Parsing 58frd"):
-            if not fp.suffix == ".txt":
-                continue
-            if not fp.parent.parent.name == language_folder:
-                continue
-            age = fp.parent.name.split("_")[-1]
-            text = fp.read_text(encoding="windows-1252").strip()
-            text_id = fp.stem
-            records.append({"text_id": text_id, "age": age, "text": text})
-        df = pd.DataFrame.from_records(records, index="text_id")
-        return df
-
-    downloader = AuthorizedDownloader("osf")
-    processor = UnzipToCsv(_build, "58frd.csv")
-    csv_path = _pup.fetch("58frd.zip", downloader=downloader, processor=processor)
-    return pd.read_csv(csv_path, index_col="text_id")
-
-
-def _fetch_cmnh6(**kwargs) -> pd.DataFrame:
-    """
-    Fetch the cmnh6 corpus.
-
-    .. note:: This is a restricted file that requires approved access.
-
-    Parameters
-    ----------
-    **kwargs : Any
-        Forwarded to :func:`pandas.read_excel`.
-    """
-    downloader = AuthorizedDownloader("osf")
-    excel_path = _pup.fetch("cmnh6.xlsx", downloader=downloader)
-    return pd.read_excel(excel_path, **kwargs)
-
-
-def _fetch_jb5au() -> pd.DataFrame:
-    """
-    Fetch the jb5au corpus.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-
-    def _build(source_path: Path) -> pd.DataFrame:
-        return (
-            pd.read_excel(source_path, usecols=range(7)).sort_values(["ID", "Date"]).set_index("ID")
-        )
-
-    downloader = AuthorizedDownloader("osf")
-    processor = CacheCsv(_build, "jb5au.csv")
-    with warnings.catch_warnings():
-        # filterwarnings args can be moved to catch_warnings once Python 3.10 support is dropped
-        warnings.filterwarnings(
-            action="ignore",
-            message="Unknown extension is not supported and will be removed",
-            category=UserWarning,
-            module="openpyxl",
-        )
-        csv_path = _pup.fetch("jb5au.xlsx", downloader=downloader, processor=processor)
-    return pd.read_csv(csv_path, index_col="ID")
-
-
-def _fetch_my8tk() -> pd.DataFrame:
-    """
-    Fetch the my8tk corpus.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-
-    def _build(source_path: Path) -> pd.DataFrame:
-        return (
-            pd.read_csv(source_path, parse_dates=["date"])
-            .drop_duplicates(subset=["id"])
-            .set_index("id")
-            .sort_index()
-            .assign(text=lambda x: x["text"].str.strip())
-            .rename(columns={"dream": "title"})
-            .astype({"rating": "Int8", "cohesion": "Int8", "lucidity": "Int8", "views": "Int16"})
-        )
-
-    downloader = AuthorizedDownloader("osf")
-    csv_path = _pup.fetch("my8tk.csv", downloader=downloader)
-    return _build(csv_path)
-
-
-def _fetch_ncztv() -> pd.DataFrame:
-    """
-    Fetch the ncztv corpus.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-
-    def _build(source_path: Path) -> pd.DataFrame:
-        return pd.read_csv(source_path)
-
-    downloader = AuthorizedDownloader("osf")
-    csv_path = _pup.fetch("ncztv.csv", downloader=downloader)
-    return _build(csv_path)

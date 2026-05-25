@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable
 from pathlib import Path
 
 import pandas as pd
@@ -26,10 +25,9 @@ from ..io import (
     read_dic,
     read_dicx,
     read_dicx_weighted,
-    write_dicx,
     write_dicx_weighted,
 )
-from ._common import AuthorizedDownloader, make_pup
+from ._common import BuildDicx, make_pup
 from ._common import get_location as _get_location
 
 __all__ = [
@@ -97,91 +95,25 @@ def path(name: str, **kwargs) -> Path:
     >>> dictionaries.path("wrad")  # doctest: +SKIP
     PosixPath('.../dictionaries/wrad.dicx')
     """
-    # Resolve in priority order: curated public fetchers > translated stems >
-    # user-made stems. Several names (e.g. "sleep", "honor", "mystical",
-    # "threat") collide between the public set and the user-made set; the
-    # public (curated) version wins.
     fetcher = globals().get(f"fetch_{name}")
-    if fetcher is not None:
-        fetcher(**kwargs)  # populate the cache
-        if name == "bigtwo":
-            cache_name = f"bigtwo-v{kwargs.get('version', 'a')}.dicx"
-        elif name == "hedonometer":
-            cache_name = f"hedonometer-{kwargs['language']}"
-            if kwargs.get("version", "2") is not None:
-                cache_name += f"-v{kwargs['version']}"
-            cache_name += ".dicx"
-        elif name == "scope":
-            cache_name = f"scope-{kwargs['stem'].lower()}.dicx"
-        elif name == "psychnorms":
-            cache_name = f"psychnorms-{kwargs['stem'].lower()}.dicx"
-        else:
-            cache_name = f"{name}.dicx"
-        return Path(_pup.path) / cache_name
-    if name in _TRANSLATED_DICTIONARIES:
-        _fetch_translated(name)
-        return Path(_pup.path) / f"{name}.dicx"
-    if name in _USERMADE_DICTIONARIES:
-        _fetch_usermade(name)
-        return _usermade_dicx_path(name)
-    available = sorted(n.removeprefix("fetch_") for n in __all__ if n.startswith("fetch_"))
-    raise ValueError(f"Unknown dictionary {name!r}; available: {available}")
-
-
-# ---------------------------------------------------------------------------
-# Pooch processor: parse a source file once, cache as .dicx
-# ---------------------------------------------------------------------------
-
-
-class BuildDicx:
-    """Pooch processor that parses a source dictionary file and caches as ``.dicx``.
-
-    Sibling of :class:`liwca.datasets._common.CacheCsv` for the dictionaries
-    module. On first run (``action`` is ``"download"`` or ``"update"``),
-    ``build_fn`` is called on the downloaded source file and the resulting
-    DataFrame is written as ``cache_name`` next to the source - via
-    :func:`liwca.io.write_dicx` for binary dictionaries (default) or
-    :func:`liwca.io.write_dicx_weighted` when ``weighted=True``. On
-    subsequent runs (``action == "fetch"`` and the .dicx exists), the
-    cached path is returned directly with no parsing or rewriting.
-
-    Parameters
-    ----------
-    build_fn : callable
-        Receives the downloaded source file as a :class:`~pathlib.Path` and
-        returns a dictionary :class:`~pandas.DataFrame` (lowercase string
-        index named ``"DicTerm"``, columns named ``"Category"``). Cells
-        must be int8 0/1 when ``weighted=False``, or float64 when
-        ``weighted=True``.
-    cache_name : str
-        Filename for the cached .dicx; written alongside the source file.
-    weighted : bool, default ``False``
-        If ``False`` (default), the output is validated and written as a
-        binary ``.dicx`` (``X``/empty cells). If ``True``, it is written
-        as a weighted ``.dicx`` with numeric cells (signed allowed).
-    """
-
-    def __init__(
-        self,
-        build_fn: Callable[[Path], pd.DataFrame],
-        cache_name: str,
-        *,
-        weighted: bool = False,
-    ) -> None:
-        self.build_fn = build_fn
-        self.cache_name = cache_name
-        self.weighted = weighted
-
-    def __call__(self, fname: str, action: str, pup: pooch.Pooch) -> str:
-        cache_path = Path(fname).parent / self.cache_name
-        if action == "fetch" and cache_path.exists():
-            return str(cache_path)
-        df = self.build_fn(Path(fname))
-        if self.weighted:
-            write_dicx_weighted(df, cache_path)
-        else:
-            write_dicx(df, cache_path)
-        return str(cache_path)
+    if fetcher is None:
+        available = sorted(n.removeprefix("fetch_") for n in __all__ if n.startswith("fetch_"))
+        raise ValueError(f"Unknown dictionary {name!r}; available: {available}")
+    fetcher(**kwargs)  # populate the cache
+    if name == "bigtwo":
+        cache_name = f"bigtwo-v{kwargs.get('version', 'a')}.dicx"
+    elif name == "hedonometer":
+        cache_name = f"hedonometer-{kwargs['language']}"
+        if kwargs.get("version", "2") is not None:
+            cache_name += f"-v{kwargs['version']}"
+        cache_name += ".dicx"
+    elif name == "scope":
+        cache_name = f"scope-{kwargs['stem'].lower()}.dicx"
+    elif name == "psychnorms":
+        cache_name = f"psychnorms-{kwargs['stem'].lower()}.dicx"
+    else:
+        cache_name = f"{name}.dicx"
+    return Path(_pup.path) / cache_name
 
 
 # ---------------------------------------------------------------------------
@@ -797,279 +729,3 @@ def fetch_psychnorms(stem: str) -> pd.DataFrame:
         df = df.astype("float64").rename_axis("DicTerm", axis=0).rename_axis("Category", axis=1)
         write_dicx_weighted(df, cache_path)
     return read_dicx_weighted(cache_path)
-
-
-def _fetch_liwc2015() -> pd.DataFrame:
-    """
-    Fetch the LIWC2015 dictionary.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-
-    def _build(source_path: Path) -> pd.DataFrame:
-        df = pd.read_excel(source_path, skiprows=[0, 1, 2, 4]).rename_axis("Category", axis=1)
-        df.columns = df.columns.str.split("\n").str[1]
-        df.columns = pd.Series(df.columns).ffill()
-        df = df.melt(value_name="DicTerm").dropna()
-        df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
-        as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
-        return create_dx(as_dict)
-
-    dicx_path = _pup.fetch(
-        "liwc2015.xlsx",
-        downloader=AuthorizedDownloader("zenodo"),
-        processor=BuildDicx(_build, "liwc2015.dicx"),
-    )
-    return read_dicx(dicx_path)
-
-
-def _fetch_liwc22() -> pd.DataFrame:
-    """
-    Fetch the LIWC22 dictionary.
-
-    .. note:: This is a restricted file that requires approved access.
-    """
-
-    def _build(source_path: Path) -> pd.DataFrame:
-        df = pd.read_excel(source_path, skiprows=2).rename_axis("Category", axis=1)
-        df.columns = pd.Series(df.columns).replace(r"^Unnamed: \d+$", pd.NA, regex=True).ffill()
-        df = df.melt(value_name="DicTerm").dropna()
-        df = df.sort_values(["Category", "DicTerm"]).set_index("Category")
-        as_dict = df["DicTerm"].astype(str).groupby("Category").agg(list).to_dict()
-        return create_dx(as_dict)
-
-    dicx_path = _pup.fetch(
-        "liwc22.xlsx",
-        downloader=AuthorizedDownloader("zenodo"),
-        processor=BuildDicx(_build, "liwc22.dicx"),
-    )
-    return read_dicx(dicx_path)
-
-
-_TRANSLATED_DICTIONARIES = frozenset(
-    {
-        "LIWC2001-German",
-        "LIWC2001-Spanish",
-        "LIWC2007-Brazilian-Portuguese",
-        "LIWC2007-Chinese-Simplified",
-        "LIWC2007-Chinese-Traditional",
-        "LIWC2007-Dutch",
-        "LIWC2007-French",
-        "LIWC2007-Italian",
-        "LIWC2007-Norwegian",
-        "LIWC2007-Russian",
-        "LIWC2007-Serbian",
-        "LIWC2007-Spanish",
-        "LIWC2015-Brazilian-Portuguese",
-        "LIWC2015-Chinese-Simplified-v1.5",
-        "LIWC2015-Chinese-Simplified",
-        "LIWC2015-Chinese-Traditional-v1.5",
-        "LIWC2015-Chinese-Traditional",
-        "LIWC2015-Dutch",
-        "LIWC2015-Japanese",
-        "LIWC2015-Marathi",
-        "LIWC2015-Romanian",
-        "LIWC2015-Ukrainian",
-    }
-)
-
-
-def _normalize_translated_dicx(raw_path: Path, normalized_path: Path) -> None:
-    """Rewrite an old-format translated .dicx as a strict-format .dicx.
-
-    Some translated dictionaries from LIWC use the older ``Entry`` term-column
-    header instead of ``DicTerm``, and ``1``/empty for binary membership
-    instead of ``X``/empty. This function normalizes both into the LIWC-22
-    ``DicTerm`` + ``X``/empty format so downstream readers can stay strict.
-    """
-    df = pd.read_csv(raw_path, dtype="string", keep_default_na=False)
-    # Header normalisation: rename whatever the term column is called to "DicTerm".
-    first_col = df.columns[0]
-    if first_col != "DicTerm":
-        df = df.rename(columns={first_col: "DicTerm"})
-    df = df.set_index("DicTerm")
-    # Cell normalisation: any "1" becomes "X"; everything else (including "X"
-    # and empty) is preserved.
-    df = df.where(df != "1", "X")
-    df.to_csv(normalized_path, index=True, lineterminator="\n", encoding="utf-8")
-
-
-def _fetch_translated(fstem: str) -> pd.DataFrame:
-    """
-    Fetch a translated dictionary shared on the LIWC site.
-
-    Dictionaries are available on the
-    `LIWC dictionaries page <https://www.liwc.app/dictionaries>`__.
-
-    Some files use the older ``Entry`` header and ``1``/empty cell convention;
-    these are normalized to the standard ``DicTerm`` + ``X``/empty format and
-    cached alongside the source archive so subsequent calls (and the
-    :func:`path` resolver) hit a strict, LIWC-22-compatible ``.dicx``.
-
-    .. note:: These dictionaries require login for access.
-    """
-    if fstem not in _TRANSLATED_DICTIONARIES:
-        raise ValueError(f"Unknown translated dictionary {fstem!r}")
-    downloader = AuthorizedDownloader("zenodo")
-    processor = pooch.Unzip()
-    fnames = _pup.fetch("translated.zip", downloader=downloader, processor=processor)
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    raw_path = fpaths[f"{fstem}.dicx"]
-    normalized_path = Path(_pup.path) / f"{fstem}.dicx"
-    if not normalized_path.exists():
-        _normalize_translated_dicx(raw_path, normalized_path)
-    return read_dicx(normalized_path)
-
-
-_USERMADE_DICTIONARIES = frozenset(
-    {
-        "absolutist",
-        "age-stereotypes",
-        "agitation-dejection",
-        "ai-focus",
-        "american-indian-stereotype",
-        "anticoagulation",
-        "behavioral-activation",
-        "big-two-agency-communion",
-        "body-type",
-        "brand-personality",
-        "bureaucratic",
-        "climate-change",
-        "color-russian",
-        "color",
-        "controversial",
-        "corporate-social-responsibility",
-        "cost-benefit",
-        "creativity-and-innovation",
-        "crovitz-innovator-identification-method",
-        "dehumanization",
-        "diccionario-de-polaridad-y-clase-de-palabras-esp",
-        "digital-orientation-dimensions",
-        "emolex",
-        "empath-default",
-        "empathic-concern",
-        "english-personal-values-self-direction",
-        "english-prime",
-        "enriched-american-food",
-        "entrepreneurial-and-mentoring",
-        "extended-moral-foundations",
-        "foresight",
-        "forest-values",
-        "general-inquirer-iv",
-        "global-citizen",
-        "grant-evaluation",
-        "grievance",
-        "handmade-production-cue",
-        "home-perceptions",
-        "honor",
-        "imagination",
-        "incel-violent-extremism",
-        "invective",
-        "irish-far-right-mobilisation",
-        "linguistic-category-model",
-        "loughran-mcdonald-financial-sentiment-2018",
-        "loughran-mcdonald-financial-sentiment",
-        "loughran-mcdonald",
-        "marcadoresdiscursivos-espanol",
-        "masculine-feminine",
-        "mind-perception",
-        "mindfulness",
-        "moral-foundations-2.0",
-        "moral-foundations",
-        "moral-justification",
-        "moral-universalism-french",
-        "moral-universalism-german",
-        "moral-universalism-italian",
-        "moral-universalism-spanish",
-        "morality-as-cooperation",
-        "motivated-social-cognition",
-        "mystical",
-        "nonconformity",
-        "nostalgia",
-        "open-science",
-        "pain",
-        "personal-values",
-        "physiological-sensations",
-        "policy-position-uk",
-        "policy-position",
-        "pornography",
-        "portuguese-slang",
-        "privacy",
-        "promotion",
-        "prorefugee-content",
-        "prosocial",
-        "qualia",
-        "regressive-imagery",
-        "regulatory-mode",
-        "restless-ceos",
-        "romantic-love",
-        "security",
-        "self-care",
-        "self-determination-self-talk",
-        "self-transcendent-emotion",
-        "situational-8",
-        "sleep",
-        "social-ties",
-        "stem-german",
-        "stereotype-content",
-        "stress",
-        "threat",
-        "transactive-memory-systems-strength",
-        "urban-dictionary",
-        "violence-against-women",
-        "water-metaphor",
-        "weighted-referential-activity",
-        "weighted-reflection-reorganizing-list",
-        "well-being",
-        "whirlall",
-    }
-)
-
-# Subset of _USERMADE_DICTIONARIES whose .dicx contains numeric weights instead
-# of binary `X`/empty cells. Routed through read_dicx_weighted.
-_WEIGHTED_USERMADE_DICTIONARIES = frozenset(
-    {
-        "enriched-american-food",
-        "extended-moral-foundations",
-        "loughran-mcdonald",
-        "stereotype-content",
-        "weighted-referential-activity",
-        "weighted-reflection-reorganizing-list",
-    }
-)
-
-
-def _usermade_dicx_path(fstem: str) -> Path:
-    """Return the on-disk path to a usermade .dicx, fetching/unzipping if needed.
-
-    Used by both :func:`_fetch_usermade` and :func:`path` so they share the
-    same cache-materialisation logic.
-    """
-    fnames = _pup.fetch(
-        "usermade.zip",
-        downloader=AuthorizedDownloader("zenodo"),
-        processor=pooch.Unzip(),
-    )
-    fpaths = {Path(fn).name: Path(fn) for fn in fnames}
-    return fpaths[f"{fstem}.dicx"]
-
-
-def _fetch_usermade(fstem: str) -> pd.DataFrame:
-    """
-    Fetch a user-made dictionary shared on the LIWC site.
-
-    Dictionaries are available on the
-    `LIWC dictionaries page <https://www.liwc.app/dictionaries>`__.
-
-    Most user-made files use the binary ``X``/empty cell convention; a small
-    set listed in :data:`_WEIGHTED_USERMADE_DICTIONARIES` ship numeric weights
-    and are routed through :func:`liwca.io.read_dicx_weighted`.
-
-    .. note:: These dictionaries require login for access.
-    """
-    if fstem not in _USERMADE_DICTIONARIES:
-        raise ValueError(f"Unknown user-made dictionary {fstem!r}")
-    fpath = _usermade_dicx_path(fstem)
-    if fstem in _WEIGHTED_USERMADE_DICTIONARIES:
-        return read_dicx_weighted(fpath)
-    return read_dicx(fpath)
