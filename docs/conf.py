@@ -76,6 +76,10 @@ html_theme_options = {
         "image_light": "_static/banner.png",
         "image_dark": "_static/banner-dark.png",
     },
+    "announcement": (
+        "⚠️This package is a under active development."
+        + " Features are untested and may change without notice.⚠️"
+    ),
 }
 
 # Sphinx project configuration
