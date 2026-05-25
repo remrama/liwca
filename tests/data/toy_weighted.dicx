@@ -1,0 +1,6 @@
+DicTerm,Negative,Neutral,Positive
+awful,-0.7,0.0,0.0
+bad,-0.5,0.0,0.0
+excellent,0.0,0.0,1.2
+great,0.0,0.0,0.9
+ok,0.0,1.0,0.0

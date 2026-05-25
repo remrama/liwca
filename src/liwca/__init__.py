@@ -1,13 +1,12 @@
 import logging
 
-from . import liwc22
 from .count import *
 from .ddr import *
-from .fetchers import *
 from .io import *
+from .liwc22 import Liwc22
 
 __author__ = "Remington Mallett <mallett.remy@gmail.com>"
-__version__ = "0.1.0.alpha.3"
+__version__ = "0.1.0.alpha.4"
 
 # NullHandler prevents "No handlers could be found" warnings when liwca is
 # imported as a library and the caller hasn't configured logging at all.

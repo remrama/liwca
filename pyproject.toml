@@ -12,14 +12,15 @@ authors = [
 maintainers = [
   {name = "Remington Mallett", email = "mallett.remy@gmail.com"},
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.25",
-  "openpyxl>=3.0",
+  "openpyxl>=3.1",
   "pandas>=2.2",
   "pandera>=0.27",
   "pooch>=1.8",
   "scikit-learn>=1.3",
+  "tqdm>=4.55",
 ]
 readme = "README.md"
 keywords = ["LIWC", "text", "language", "datasets"]
@@ -31,7 +32,6 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -40,6 +40,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/remrama/liwca"
+Documentation = "https://remrama.github.io/liwca"
 
 [project.optional-dependencies]
 ddr = ["gensim>=4.0"]
@@ -50,7 +51,7 @@ dev = [
   "pytest-cov>=6.0",
   "ruff>=0.6",
   "sphinx>=7.0",
-  "pydata-sphinx-theme>=0.16",
+  "sphinx-book-theme>=1.1",
 ]
 
 [tool.setuptools.dynamic]
@@ -64,23 +65,30 @@ namespaces = false
 where = ["src"]
 
 [tool.setuptools.package-data]
-liwca = ["data/registry.txt"]
+liwca = ["datasets/data/registry.txt"]
 
 [tool.mypy]
 files = ["src/"]
+python_version = "3.11"
 ignore_missing_imports = true
 strict = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=liwca --cov-report=term-missing --doctest-modules"
+addopts = "--cov=liwca --cov-report=term-missing --doctest-modules -m 'not network'"
 testpaths = ["tests", "src"]
+markers = [
+  "network: tests that hit the network (skipped by default; opt in with -m network).",
+]
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "C90", "NPY201"]  # ["E4", "E7", "E9"]
+select = ["E", "F", "I", "W", "C90", "UP", "NPY201"]  # ["E4", "E7", "E9"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10  # Flag C901 whenever complexity exceeds this level
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]  # Ignore star and unused import violations for __init__.py file

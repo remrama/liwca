@@ -36,7 +36,7 @@ import functools
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
-from typing import Union
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -77,7 +77,7 @@ def _load_gensim_model(name: str) -> Mapping[str, ArrayLike]:
             "Install it with:  pip install liwca[ddr]"
         ) from None
     logger.info("Loading gensim model '%s'", name)
-    return gensim_api.load(name)  # type: ignore[return-value]
+    return cast(Mapping[str, ArrayLike], gensim_api.load(name))
 
 
 def _load_embeddings(embeddings: str | Mapping[str, ArrayLike]) -> Mapping[str, ArrayLike]:
@@ -197,9 +197,9 @@ def _compute_similarities(
 
 
 def ddr(
-    texts: Union[Iterable[str], pd.Series],
+    texts: Iterable[str] | pd.Series,
     dx: pd.DataFrame,
-    embeddings: Union[str, Mapping[str, ArrayLike]],
+    embeddings: str | Mapping[str, ArrayLike],
     *,
     tokenizer: Callable[[str], list[str]] | None = None,
     precision: int | None = None,

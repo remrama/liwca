@@ -213,6 +213,21 @@ class TestDDREdgeCases:
         with pytest.raises(ValueError, match="Cannot determine embedding dimensionality"):
             liwca.ddr(["xyzzy plugh"], dx, empty_emb)
 
+    def test_dim_inferred_from_doc_when_all_dict_terms_oov(self):
+        """If every dict term is OOV but a doc token is in vocab, dim comes from there."""
+        dx = pd.DataFrame(
+            {"Cat": [1]},
+            index=pd.Index(["xyzzy"], dtype="string", name="DicTerm"),
+        )
+        dx.columns.name = "Category"
+        # Only the doc token "known" is in vocab; dim must be inferred from it.
+        embeddings = {"known": np.array([0.1, 0.2, 0.3, 0.4])}
+        result = liwca.ddr(["known"], dx, embeddings)
+        # Output is a single row; the dict term is OOV so the centroid is None
+        # and the score is NaN -- but the call itself must not raise.
+        assert result.shape == (1, 1)
+        assert np.isnan(result.loc[0, "Cat"])
+
     def test_multiple_documents(self, toy_dx, toy_embeddings):
         texts = ["layup", "dugout", "huddle"]
         result = liwca.ddr(texts, toy_dx, toy_embeddings)
@@ -262,7 +277,7 @@ class TestDDRIntegration:
     """Read a dictionary file, then run DDR."""
 
     def test_read_then_ddr(self, toy_dicx_path, toy_embeddings):
-        dx = liwca.read_dx(toy_dicx_path)
+        dx = liwca.read_dicx(toy_dicx_path)
         result = liwca.ddr(["the player dunked near the hoop"], dx, toy_embeddings)
         assert result.shape == (1, dx.shape[1])
         assert result.loc[0, "Basketball"] == result.loc[0].max()

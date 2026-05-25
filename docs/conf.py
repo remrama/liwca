@@ -31,7 +31,6 @@ rst_prolog = """
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = "pydata_sphinx_theme"
 html_title = liwca.__name__
 html_copy_source = False
 html_show_copyright = False
@@ -42,19 +41,34 @@ html_favicon = "_static/favicon.webp"
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
+html_theme = "sphinx_book_theme"
 html_theme_options = {
-    "github_url": "https://github.com/remrama/liwca",
-    "show_nav_level": 2,
+    "repository_url": f"https://github.com/remrama/{project}",
+    "repository_branch": "main",
+    "path_to_docs": "docs",
+    # "launch_buttons": {
+    #     "binderhub_url": "https://mybinder.org",
+    #     "notebook_interface": "jupyterlab",
+    # },
+    # "extra_navbar": "",
+    # "extra_footer": "",
+    # "show_navbar_depth": 1,
+    # "max_navbar_depth": 3,
+    # "collapse_navbar": True,
+    # "show_nav_level": 1,
     "show_toc_level": 2,
-    "navbar_persistent": ["search-button"],
-    "footer_end": [],
-    "search_bar_text": "Search",
-    "article_header_start": [],
-    "primary_sidebar_end": [],
-    "secondary_sidebar_items": {
-        "**": ["page-toc"],
-        "index": [],
-    },
+    # "navigation_depth": 3,
+    "toc_title": "On this page",
+    # "navbar_persistent": ["search-button"],
+    # "search_bar_text": "Search",
+    "use_edit_page_button": False,
+    "use_issues_button": False,
+    "use_repository_button": True,
+    "use_download_button": False,
+    "home_page_in_toc": False,
+    # "footer_end": [],
+    #     "article_header_start": [],
+    #     "primary_sidebar_end": [],
     "pygments_light_style": "github-light-colorblind",
     "pygments_dark_style": "github-dark-colorblind",
     "logo": {
@@ -62,12 +76,16 @@ html_theme_options = {
         "image_light": "_static/banner.png",
         "image_dark": "_static/banner-dark.png",
     },
+    "announcement": (
+        "⚠️This package is a under active development."
+        + " Features are untested and may change without notice.⚠️"
+    ),
 }
 
-html_sidebars = {
-    "**": [],
-}
-
+# Sphinx project configuration
+templates_path = ["_templates"]
+source_suffix = ".rst"
+source_encoding = "utf-8"
 add_function_parentheses = False
 
 # -- Extension configuration -------------------------------------------------
@@ -89,7 +107,6 @@ intersphinx_mapping = {
     "pooch": ("https://www.fatiando.org/pooch/latest/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
 }
-
 
 # -- linkcode (GitHub source links) ------------------------------------------
 
