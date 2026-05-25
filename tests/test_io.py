@@ -149,6 +149,13 @@ class TestReadDicx:
         with pytest.raises(ValueError, match="non-binary values"):
             liwca.read_dicx(fp)
 
+    def test_rejects_dicx_with_no_category_columns(self, tmp_path: Path) -> None:
+        """A binary .dicx file with only a DicTerm header errors loudly."""
+        fp = tmp_path / "header_only.dicx"
+        fp.write_text("DicTerm\nfoo\nbar\n")
+        with pytest.raises(ValueError, match="no Category columns"):
+            liwca.read_dicx(fp)
+
 
 class TestReadDic:
     """Tests for read_dic (binary .dic parser)."""
@@ -173,6 +180,51 @@ class TestReadDic:
         fp.write_text("this is not a valid dic file\n")
         with pytest.raises(ValueError, match="expected.*delimiters"):
             liwca.read_dic(fp)
+
+    def test_blank_body_rows_skipped(self, tmp_path: Path) -> None:
+        """Empty term lines in the body are silently skipped."""
+        fp = tmp_path / "blank_rows.dic"
+        fp.write_text("%\n1\tCatA\n%\nfoo\t1\n\t\nbar\t1\n")
+        dx = liwca.read_dic(fp)
+        assert sorted(dx.index) == ["bar", "foo"]
+
+    def test_empty_cids_in_body_skipped(self, tmp_path: Path) -> None:
+        """Stray empty tab-separated cids (e.g. double tabs) are ignored."""
+        fp = tmp_path / "empty_cids.dic"
+        fp.write_text("%\n1\tCatA\n2\tCatB\n%\nfoo\t1\t\t2\nbar\t1\n")
+        dx = liwca.read_dic(fp)
+        # Both categories landed for foo (empty cid between 1 and 2 is dropped).
+        assert dx.loc["foo", "CatA"] == 1
+        assert dx.loc["foo", "CatB"] == 1
+
+    def test_unknown_cid_logs_warning_and_skipped(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Body rows referencing an undeclared category id are dropped + warned."""
+        fp = tmp_path / "unknown_cid.dic"
+        # Header declares 1=CatA only; body references 1 and 9 (undeclared).
+        fp.write_text("%\n1\tCatA\n%\nfoo\t1\t9\nbar\t1\n")
+        with caplog.at_level("WARNING", logger="liwca.io"):
+            dx = liwca.read_dic(fp)
+        assert "undeclared" in caplog.text.lower()
+        assert "9" in caplog.text
+        # Only CatA membership survives.
+        assert list(dx.columns) == ["CatA"]
+        assert dx.loc["foo", "CatA"] == 1
+
+    def test_duplicate_term_category_rows_collapsed_with_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Same (term, category) listed twice -> collapsed to 1 with a warning."""
+        fp = tmp_path / "dup.dic"
+        fp.write_text("%\n1\tCatA\n%\nfoo\t1\nfoo\t1\nbar\t1\n")
+        with caplog.at_level("WARNING", logger="liwca.io"):
+            dx = liwca.read_dic(fp)
+        assert "duplicate" in caplog.text.lower()
+        # Collapse keeps a single membership row, not two.
+        assert set(dx.values.flat) <= {0, 1}
+        assert dx.loc["foo", "CatA"] == 1
+        assert (dx["CatA"] == 1).sum() == 2  # foo + bar, no double-count
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +258,13 @@ class TestReadDicxWeighted:
         """A binary-format .dicx parsed as weighted raises with a clear hint."""
         with pytest.raises(ValueError, match="read_dicx"):
             liwca.read_dicx_weighted(toy_dicx_path)
+
+    def test_rejects_dicx_with_no_category_columns(self, tmp_path: Path) -> None:
+        """A weighted .dicx file with only a DicTerm header errors loudly."""
+        fp = tmp_path / "header_only.dicx"
+        fp.write_text("DicTerm\nfoo\nbar\n")
+        with pytest.raises(ValueError, match="no Category columns"):
+            liwca.read_dicx_weighted(fp)
 
 
 # ---------------------------------------------------------------------------

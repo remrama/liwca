@@ -81,6 +81,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
+          flags: unit
 
   test-min-deps:
     runs-on: ubuntu-latest
@@ -129,4 +130,11 @@ jobs:
         run: pip install -e .[dev]
 
       - name: Run remote dictionary tests
-        run: pytest tests/test_remote.py -v -m network -o addopts=
+        run: pytest tests/test_remote.py -v -m network -o addopts= --cov=liwca --cov-report=xml
+
+      - name: Upload remote coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          flags: remote

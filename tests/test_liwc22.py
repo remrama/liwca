@@ -718,6 +718,26 @@ class TestDataFrameInput:
         Liwc22().wc(input=s, output=str(out))
         assert stub_run["cli_args"]["text_columns"] == [1]
 
+    def test_series_input_to_lsm_autofills_text_column(
+        self, stub_run: dict[str, Any], tmp_path: Path
+    ) -> None:
+        """lsm uses text_column (singular), so the Series-name fill targets that key."""
+        s = pd.Series(["a b c", "d e"], name="msg")
+        out = tmp_path / "lsm.csv"
+        Liwc22().lsm(input=s, output=str(out), person_column=0)
+        # Series's single column landed at position 0 (0-based) -> 1-based 1.
+        assert stub_run["cli_args"]["text_column"] == 1
+
+    def test_dataframe_input_to_ct_raises(self, tmp_path: Path) -> None:
+        """ct operates on transcript files; DataFrame input is unsupported."""
+        df = pd.DataFrame({"text": ["hi"]})
+        with pytest.raises(ValueError, match="ct mode operates on transcript files"):
+            Liwc22(dry_run=True).ct(
+                input=df,  # type: ignore[arg-type]
+                output=str(tmp_path / "o.csv"),
+                speakers="speakers.txt",
+            )
+
 
 class TestPositionalAndPath:
     """input/output accept positional args and Path values."""
@@ -884,6 +904,19 @@ class TestTypeAssertions:
             Liwc22(dry_run=True).lsm(
                 "x.csv", "y.csv", text_column=0, person_column=1, level="invalid"
             )
+
+    def test_encoding_must_be_string(self) -> None:
+        """Single-type _check_type path: encoding=int fails on the str check."""
+        with pytest.raises(TypeError, match="encoding"):
+            Liwc22(encoding=123)  # type: ignore[arg-type]
+
+    def test_csv_escape_must_be_string_when_set(self) -> None:
+        with pytest.raises(TypeError, match="csv_escape"):
+            Liwc22(csv_escape=123)  # type: ignore[arg-type]
+
+    def test_url_regex_must_be_string_when_set(self) -> None:
+        with pytest.raises(TypeError, match="url_regex"):
+            Liwc22(url_regex=123)  # type: ignore[arg-type]
 
 
 class TestReturnFilepath:
@@ -1084,3 +1117,518 @@ class TestResolveDictionaryArg:
         # The dictionary kwarg was substituted to the resolved local path
         # before reaching build_command.
         assert captured["dictionary"] == str(fake_dicx)
+
+
+# ---------------------------------------------------------------------------
+# App-management helpers (_is_liwc_running, _open_liwc_app, _close_liwc_app)
+# ---------------------------------------------------------------------------
+
+
+class TestIsLiwcRunning:
+    """_is_liwc_running scrapes tasklist (Windows) or pgrep (POSIX)."""
+
+    def test_windows_detects_running_process(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _is_liwc_running
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Windows")
+        fake_result = type(
+            "R", (), {"stdout": "Image Name\nLIWC-22.exe 1234 Console", "returncode": 0}
+        )()
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        assert _is_liwc_running() is True
+
+    def test_windows_detects_no_process(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _is_liwc_running
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Windows")
+        fake_result = type("R", (), {"stdout": "Image Name\nsomethingelse.exe", "returncode": 0})()
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        assert _is_liwc_running() is False
+
+    def test_posix_uses_pgrep_returncode_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _is_liwc_running
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+        fake_result = type("R", (), {"stdout": "1234", "returncode": 0})()
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        assert _is_liwc_running() is True
+
+    def test_posix_returncode_nonzero_means_not_running(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from liwca.liwc22 import _is_liwc_running
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+        fake_result = type("R", (), {"stdout": "", "returncode": 1})()
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        assert _is_liwc_running() is False
+
+    def test_filenotfounderror_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When tasklist/pgrep itself is missing, the helper degrades to False."""
+        from liwca.liwc22 import _is_liwc_running
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+
+        def boom(*a, **kw):
+            raise FileNotFoundError("pgrep")
+
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", boom)
+        assert _is_liwc_running() is False
+
+
+class TestOpenLiwcApp:
+    """_open_liwc_app prefers the license server, then falls back."""
+
+    def test_uses_license_server_when_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _open_liwc_app
+
+        launched: list[list[str]] = []
+
+        def fake_which(name: str) -> str | None:
+            if name == "LIWC-22-license-server":
+                return "/fake/LIWC-22-license-server"
+            return None
+
+        class FakePopen:
+            def __init__(self, args, **kwargs):
+                launched.append(args)
+
+        monkeypatch.setattr("liwca.liwc22.shutil.which", fake_which)
+        monkeypatch.setattr("liwca.liwc22.subprocess.Popen", FakePopen)
+        monkeypatch.setattr("liwca.liwc22.time.sleep", lambda s: None)
+
+        proc = _open_liwc_app(use_license_server=True)
+        assert proc is not None
+        assert launched[0][0] == "LIWC-22-license-server"
+
+    def test_falls_back_to_gui_when_license_server_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from liwca.liwc22 import _open_liwc_app
+
+        launched: list[list[str]] = []
+
+        def fake_which(name: str) -> str | None:
+            return None if "license-server" in name else "/fake/LIWC-22"
+
+        class FakePopen:
+            def __init__(self, args, **kwargs):
+                launched.append(args)
+
+        monkeypatch.setattr("liwca.liwc22.shutil.which", fake_which)
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+        monkeypatch.setattr("liwca.liwc22.subprocess.Popen", FakePopen)
+        monkeypatch.setattr("liwca.liwc22.time.sleep", lambda s: None)
+
+        proc = _open_liwc_app(use_license_server=False)
+        assert proc is not None
+        assert launched[0][0] == "/fake/LIWC-22"
+
+    def test_exits_when_no_executable_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _open_liwc_app
+
+        monkeypatch.setattr("liwca.liwc22.shutil.which", lambda name: None)
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+
+        with pytest.raises(SystemExit, match="LIWC-22"):
+            _open_liwc_app(use_license_server=False)
+
+
+class TestCloseLiwcApp:
+    """_close_liwc_app terminates the held process, or no-ops on None."""
+
+    def test_noop_on_none(self) -> None:
+        from liwca.liwc22 import _close_liwc_app
+
+        # Must not raise.
+        _close_liwc_app(None)
+
+    def test_calls_terminate_then_wait(self) -> None:
+        from liwca.liwc22 import _close_liwc_app
+
+        events: list[str] = []
+
+        class FakeProc:
+            def terminate(self) -> None:
+                events.append("terminate")
+
+            def wait(self, timeout: int = 0) -> None:
+                events.append(f"wait:{timeout}")
+
+            def kill(self) -> None:
+                events.append("kill")
+
+        _close_liwc_app(FakeProc())  # type: ignore[arg-type]
+        assert events == ["terminate", "wait:10"]
+
+    def test_kill_when_terminate_fails(self) -> None:
+        from liwca.liwc22 import _close_liwc_app
+
+        events: list[str] = []
+
+        class FakeProc:
+            def terminate(self) -> None:
+                events.append("terminate")
+
+            def wait(self, timeout: int = 0) -> None:
+                raise RuntimeError("hung")
+
+            def kill(self) -> None:
+                events.append("kill")
+
+        _close_liwc_app(FakeProc())  # type: ignore[arg-type]
+        assert events == ["terminate", "kill"]
+
+
+# ---------------------------------------------------------------------------
+# CLI resolution + error formatting
+# ---------------------------------------------------------------------------
+
+
+class TestResolveLiwcCli:
+    """_resolve_liwc_cli prefers .exe on Windows, then bare name, else raises."""
+
+    def test_windows_prefers_exe(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _resolve_liwc_cli
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Windows")
+        monkeypatch.setattr(
+            "liwca.liwc22.shutil.which",
+            lambda name: "/fake/LIWC-22-cli.exe" if name.endswith(".exe") else None,
+        )
+        assert _resolve_liwc_cli() == "/fake/LIWC-22-cli.exe"
+
+    def test_falls_back_to_bare_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _resolve_liwc_cli
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+        monkeypatch.setattr(
+            "liwca.liwc22.shutil.which",
+            lambda name: "/fake/LIWC-22-cli" if name == "LIWC-22-cli" else None,
+        )
+        assert _resolve_liwc_cli() == "/fake/LIWC-22-cli"
+
+    def test_raises_when_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _resolve_liwc_cli
+
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+        monkeypatch.setattr("liwca.liwc22.shutil.which", lambda name: None)
+        with pytest.raises(FileNotFoundError, match="LIWC-22-cli"):
+            _resolve_liwc_cli()
+
+
+class TestFormatCliError:
+    """_format_cli_error pulls error lines or falls back to tail of output."""
+
+    def _result(self, stdout: str = "", stderr: str = "", returncode: int = 1):
+        return type("R", (), {"stdout": stdout, "stderr": stderr, "returncode": returncode})()
+
+    def test_prefers_lines_with_error_markers(self) -> None:
+        from liwca.liwc22 import _format_cli_error
+
+        result = self._result(stdout="some help text\nERROR: dictionary not found\nmore help")
+        msg = _format_cli_error(["LIWC-22-cli", "wc"], result)
+        assert "dictionary not found" in msg
+        assert "help text" not in msg
+
+    def test_falls_back_to_tail_when_no_error_markers(self) -> None:
+        from liwca.liwc22 import _format_cli_error
+
+        lines = "\n".join(f"line {i}" for i in range(40))
+        msg = _format_cli_error(["LIWC-22-cli"], self._result(stdout=lines))
+        # Tail (last ~15 non-blank lines) should include the very last lines.
+        assert "line 39" in msg
+
+    def test_handles_completely_empty_output(self) -> None:
+        from liwca.liwc22 import _format_cli_error
+
+        msg = _format_cli_error(["LIWC-22-cli"], self._result())
+        assert "no output captured" in msg
+
+
+# ---------------------------------------------------------------------------
+# _run() error / launch paths
+# ---------------------------------------------------------------------------
+
+
+class TestRunBehavior:
+    """_run handles auto-open, raise-when-not-running, and CLI failures."""
+
+    def test_raises_when_app_not_running_and_no_auto_open(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from liwca.liwc22 import _run
+
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: False)
+        monkeypatch.setattr("liwca.liwc22._resolve_liwc_cli", lambda: "LIWC-22-cli")
+        with pytest.raises(RuntimeError, match="not running"):
+            _run(
+                "wc",
+                {"input": "x", "output": "y"},
+                auto_open=False,
+                use_gui=False,
+                dry_run=False,
+            )
+
+    def test_auto_opens_and_closes_when_not_running(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _run
+
+        calls = {"open": 0, "close": 0}
+
+        def fake_open(use_license_server: bool = True):
+            calls["open"] += 1
+            return "fake-proc"
+
+        def fake_close(proc):
+            calls["close"] += 1
+
+        fake_result = type("R", (), {"returncode": 0, "stdout": "ok", "stderr": ""})()
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: False)
+        monkeypatch.setattr("liwca.liwc22._resolve_liwc_cli", lambda: "LIWC-22-cli")
+        monkeypatch.setattr("liwca.liwc22._open_liwc_app", fake_open)
+        monkeypatch.setattr("liwca.liwc22._close_liwc_app", fake_close)
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        # Force POSIX so _join_windows_cmdline isn't called.
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+
+        _run(
+            "wc",
+            {"input": "x", "output": "y"},
+            auto_open=True,
+            use_gui=False,
+            dry_run=False,
+        )
+        assert calls == {"open": 1, "close": 1}
+
+    def test_runtime_error_on_nonzero_exit(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from liwca.liwc22 import _run
+
+        fake_result = type("R", (), {"returncode": 1, "stdout": "ERROR: bad thing", "stderr": ""})()
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: True)
+        monkeypatch.setattr("liwca.liwc22._resolve_liwc_cli", lambda: "LIWC-22-cli")
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+
+        with pytest.raises(RuntimeError, match="bad thing"):
+            _run(
+                "wc",
+                {"input": "x", "output": "y"},
+                auto_open=False,
+                use_gui=False,
+                dry_run=False,
+            )
+
+    def test_stderr_logged_at_debug(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Non-empty CLI stderr lands in the DEBUG log even on success."""
+        from liwca.liwc22 import _run
+
+        fake_result = type("R", (), {"returncode": 0, "stdout": "", "stderr": "advisory note"})()
+        monkeypatch.setattr("liwca.liwc22._is_liwc_running", lambda: True)
+        monkeypatch.setattr("liwca.liwc22._resolve_liwc_cli", lambda: "LIWC-22-cli")
+        monkeypatch.setattr("liwca.liwc22.subprocess.run", lambda *a, **kw: fake_result)
+        monkeypatch.setattr("liwca.liwc22.platform.system", lambda: "Linux")
+        with caplog.at_level("DEBUG", logger="liwca.liwc22"):
+            _run(
+                "wc",
+                {"input": "x", "output": "y"},
+                auto_open=False,
+                use_gui=False,
+                dry_run=False,
+            )
+        assert "advisory note" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# _coerce_column / _acquire_header / _coerce_to_list edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestColumnArgEdgeCases:
+    """Bad / unusual column-arg types surface as TypeError / ValueError."""
+
+    def test_bool_column_rejected_at_coerce(self) -> None:
+        from liwca.liwc22 import _coerce_column
+
+        with pytest.raises(TypeError, match="bool"):
+            _coerce_column(True, "text_column", header=None, input_path="x.csv")
+
+    def test_unknown_type_column_rejected(self) -> None:
+        from liwca.liwc22 import _coerce_column
+
+        with pytest.raises(TypeError, match="text_column"):
+            _coerce_column(1.5, "text_column", header=None, input_path="x.csv")
+
+    def test_acquire_header_skip_header_false_raises(self) -> None:
+        from liwca.liwc22 import _acquire_header
+
+        with pytest.raises(ValueError, match="skip_header=False"):
+            _acquire_header("x.csv", csv_delimiter=",", encoding="utf-8", skip_header=False)
+
+    def test_acquire_header_non_string_input_raises(self) -> None:
+        from liwca.liwc22 import _acquire_header
+
+        with pytest.raises(ValueError, match="no `input` path"):
+            _acquire_header(None, csv_delimiter=",", encoding="utf-8", skip_header=True)
+
+    def test_acquire_header_console_input_raises(self) -> None:
+        from liwca.liwc22 import _acquire_header
+
+        with pytest.raises(ValueError, match="console"):
+            _acquire_header("console", csv_delimiter=",", encoding="utf-8", skip_header=True)
+
+    def test_acquire_header_directory_input_raises(self, tmp_path: Path) -> None:
+        from liwca.liwc22 import _acquire_header
+
+        with pytest.raises(ValueError, match="directory"):
+            _acquire_header(str(tmp_path), csv_delimiter=",", encoding="utf-8", skip_header=True)
+
+    def test_read_header_handles_xlsx(self, tmp_path: Path) -> None:
+        """_read_header dispatches to read_excel for .xlsx inputs."""
+        from liwca.liwc22 import _read_header
+
+        fp = tmp_path / "in.xlsx"
+        pd.DataFrame({"alpha": [1], "beta": [2]}).to_excel(fp, index=False)
+        cols = _read_header(str(fp), csv_delimiter=None, encoding=None)
+        assert cols == ["alpha", "beta"]
+
+
+class TestCoerceToList:
+    """_coerce_to_list normalises bare scalars and passes None / iterables."""
+
+    def test_bool_wrapped_in_single_element_list(self) -> None:
+        from liwca.liwc22 import _coerce_to_list
+
+        assert _coerce_to_list(True) == [True]
+
+    def test_iterable_passed_through_as_list(self) -> None:
+        from liwca.liwc22 import _coerce_to_list
+
+        assert _coerce_to_list(("a", "b")) == ["a", "b"]
+
+    def test_none_returned_as_none(self) -> None:
+        from liwca.liwc22 import _coerce_to_list
+
+        assert _coerce_to_list(None) is None
+
+
+# ---------------------------------------------------------------------------
+# _resolve_word_window error paths
+# ---------------------------------------------------------------------------
+
+
+class TestResolveWordWindow:
+    """_resolve_word_window: bool rejected, lengths/sign checks, dispatch."""
+
+    def test_int_becomes_symmetric_tuple(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        assert _resolve_word_window(4) == (4, 4)
+
+    def test_tuple_passed_through(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        assert _resolve_word_window((2, 5)) == (2, 5)
+
+    def test_bool_rejected(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        with pytest.raises(TypeError, match="bool"):
+            _resolve_word_window(True)
+
+    def test_negative_int_rejected(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        with pytest.raises(ValueError, match="non-negative"):
+            _resolve_word_window(-1)
+
+    def test_tuple_wrong_length_rejected(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        with pytest.raises(ValueError, match="length 2"):
+            _resolve_word_window((1, 2, 3))
+
+    def test_tuple_with_non_int_rejected(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        with pytest.raises(TypeError, match="int"):
+            _resolve_word_window((1, "2"))
+
+    def test_tuple_with_negative_int_rejected(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        with pytest.raises(ValueError, match="non-negative"):
+            _resolve_word_window((1, -2))
+
+    def test_string_rejected(self) -> None:
+        from liwca.liwc22 import _resolve_word_window
+
+        with pytest.raises(TypeError, match="int or 2-tuple"):
+            _resolve_word_window("3")  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# _derive_row_id_names / _build_row_id_rename_map
+# ---------------------------------------------------------------------------
+
+
+class TestDeriveRowIdNames:
+    """_derive_row_id_names: string passthrough, int lookup, fallback to None."""
+
+    def test_none_returns_none(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names(None, input_columns=["a", "b"]) is None
+
+    def test_empty_returns_none(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names([], input_columns=["a", "b"]) is None
+
+    def test_strings_passed_through(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names(["a", "b"], input_columns=None) == ["a", "b"]
+
+    def test_ints_resolve_via_input_columns(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names([0, 2], input_columns=["a", "b", "c"]) == ["a", "c"]
+
+    def test_ints_without_input_columns_returns_none(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names([0, 1], input_columns=None) is None
+
+    def test_mixed_types_returns_none(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names(["a", 1], input_columns=["x", "y"]) is None
+
+    def test_int_out_of_range_returns_none(self) -> None:
+        from liwca.liwc22 import _derive_row_id_names
+
+        assert _derive_row_id_names([5], input_columns=["a", "b"]) is None
+
+
+class TestBuildRowIdRenameMap:
+    """_build_row_id_rename_map handles single + multi row-id cases."""
+
+    def test_single_row_id_renames_to_first_name(self) -> None:
+        from liwca.liwc22 import _build_row_id_rename_map
+
+        mapping = _build_row_id_rename_map(["Row ID", "WC"], ["doc_id"])
+        assert mapping == {"Row ID": "doc_id"}
+
+    def test_multi_row_ids_renamed_via_index(self) -> None:
+        from liwca.liwc22 import _build_row_id_rename_map
+
+        mapping = _build_row_id_rename_map(["Row ID 1", "Row ID 2", "WC"], ["a", "b"])
+        assert mapping == {"Row ID 1": "a", "Row ID 2": "b"}
+
+    def test_no_row_id_columns_returns_empty(self) -> None:
+        from liwca.liwc22 import _build_row_id_rename_map
+
+        mapping = _build_row_id_rename_map(["WC", "Tone"], ["doc_id"])
+        assert mapping == {}

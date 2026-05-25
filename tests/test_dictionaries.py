@@ -245,6 +245,19 @@ class TestPathResolver:
         mock_fetch.assert_called_once_with(stem="concreteness_brysbaert")
         assert result.name == "psychnorms-concreteness_brysbaert.dicx"
 
+    def test_hedonometer_path_with_version(self) -> None:
+        with patch.object(dictionaries, "fetch_hedonometer") as mock_fetch:
+            result = dictionaries.path("hedonometer", language="en", version="2")
+        mock_fetch.assert_called_once_with(language="en", version="2")
+        assert result.name == "hedonometer-en-v2.dicx"
+
+    def test_hedonometer_path_without_version(self) -> None:
+        """uk-ru variant has no version segment."""
+        with patch.object(dictionaries, "fetch_hedonometer") as mock_fetch:
+            result = dictionaries.path("hedonometer", language="uk-ru", version=None)
+        mock_fetch.assert_called_once_with(language="uk-ru", version=None)
+        assert result.name == "hedonometer-uk-ru.dicx"
+
 
 # ---------------------------------------------------------------------------
 # Metabase stem resolution (SCOPE / psychNorms)
@@ -303,3 +316,24 @@ class TestMetabaseStemResolution:
         ):
             stems = dictionaries.list_psychnorms_stems()
         assert stems == sorted(stems)
+
+
+# ---------------------------------------------------------------------------
+# Hedonometer arg validation
+# ---------------------------------------------------------------------------
+
+
+class TestHedonometerValidation:
+    """fetch_hedonometer asserts on unknown languages/versions before any I/O."""
+
+    def test_unknown_language_raises(self) -> None:
+        with pytest.raises(AssertionError, match="language"):
+            dictionaries.fetch_hedonometer(language="zz")
+
+    def test_unknown_version_raises(self) -> None:
+        with pytest.raises(AssertionError, match="version"):
+            dictionaries.fetch_hedonometer(language="en", version="99")
+
+    def test_uk_ru_with_version_raises(self) -> None:
+        with pytest.raises(AssertionError, match="uk-ru"):
+            dictionaries.fetch_hedonometer(language="uk-ru", version="2")

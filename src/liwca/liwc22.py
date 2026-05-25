@@ -74,7 +74,7 @@ def _open_liwc_app(use_license_server: bool = True) -> subprocess.Popen[bytes] |
         exe_path = shutil.which(app_name)
         if exe_path is None:
             mac_path = Path("/Applications/LIWC-22.app")
-            if mac_path.exists():
+            if mac_path.exists():  # pragma: no cover - macOS w/ installed LIWC-22.app
                 proc = subprocess.Popen(["open", "-a", "LIWC-22"])
                 time.sleep(5)
                 return proc
