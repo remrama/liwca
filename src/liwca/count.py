@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable, Iterable
-from typing import Literal, Union, overload
+from typing import Literal, overload
 
 import numpy as np
 import pandas as pd
@@ -168,7 +168,7 @@ def _build_word_result(
 
 @overload
 def count(
-    texts: Union[Iterable[str], pd.Series],
+    texts: Iterable[str] | pd.Series,
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = ...,
@@ -179,7 +179,7 @@ def count(
 
 @overload
 def count(
-    texts: Union[Iterable[str], pd.Series],
+    texts: Iterable[str] | pd.Series,
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = ...,
@@ -189,7 +189,7 @@ def count(
 
 
 def count(
-    texts: Union[Iterable[str], pd.Series],
+    texts: Iterable[str] | pd.Series,
     dx: pd.DataFrame,
     *,
     tokenizer: Callable[[str], list[str]] | None = None,

@@ -48,7 +48,7 @@ import csv
 import logging
 import re
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -212,7 +212,7 @@ def create_dx(categories: dict[str, list[str]]) -> pd.DataFrame:
 
 
 @pa.check_output(schema=dx_schema)
-def read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+def read_dic(fp: str | Path, **kwargs: Any) -> pd.DataFrame:
     """
     Read a binary LIWC dictionary from a ``.dic`` file.
 
@@ -233,7 +233,7 @@ def read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
     """
     logger.info("Reading binary .dic from %s", fp)
     kwargs.setdefault("encoding", "utf-8")
-    with open(fp, "rt", **kwargs) as f:
+    with open(fp, **kwargs) as f:
         data = f.read()
 
     # Use regex to get everything between the first and last '%' character (both start on new lines)
@@ -303,7 +303,7 @@ def read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
 
 @pa.check_output(schema=dx_schema)
-def read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+def read_dicx(fp: str | Path, **kwargs: Any) -> pd.DataFrame:
     """
     Read a binary ``.dicx`` file.
 
@@ -351,7 +351,7 @@ def read_dicx(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
 
 @pa.check_output(schema=dx_weighted_schema)
-def read_dicx_weighted(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+def read_dicx_weighted(fp: str | Path, **kwargs: Any) -> pd.DataFrame:
     """
     Read a weighted ``.dicx`` file.
 
@@ -405,7 +405,7 @@ def read_dicx_weighted(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
 
 
 @pa.check_input(schema=dx_schema)
-def write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
+def write_dic(dx: pd.DataFrame, fp: str | Path) -> None:
     """
     Write a binary dictionary to a ``.dic`` file.
 
@@ -417,7 +417,7 @@ def write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
         Output ``.dic`` filepath.
     """
     logger.info("Writing binary .dic (%d terms, %d categories) to %s", len(dx), dx.shape[1], fp)
-    with open(fp, "wt", encoding="utf-8", newline="") as f:
+    with open(fp, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow("%")
         writer.writerows([i, col] for i, col in enumerate(dx.columns, 1))
@@ -429,7 +429,7 @@ def write_dic(dx: pd.DataFrame, fp: Union[str, Path]) -> None:
 
 
 @pa.check_input(schema=dx_schema)
-def write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
+def write_dicx(dx: pd.DataFrame, fp: str | Path, **kwargs: Any) -> None:
     """
     Write a binary dictionary to a ``.dicx`` file.
 
@@ -455,7 +455,7 @@ def write_dicx(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
 
 
 @pa.check_input(schema=dx_weighted_schema)
-def write_dicx_weighted(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -> None:
+def write_dicx_weighted(dx: pd.DataFrame, fp: str | Path, **kwargs: Any) -> None:
     """
     Write a weighted dictionary to a ``.dicx`` file.
 
@@ -485,7 +485,7 @@ def write_dicx_weighted(dx: pd.DataFrame, fp: Union[str, Path], **kwargs: Any) -
 #######################################################################################
 
 
-def drop_category(dx: pd.DataFrame, categories: Union[str, list[str]]) -> pd.DataFrame:
+def drop_category(dx: pd.DataFrame, categories: str | list[str]) -> pd.DataFrame:
     """
     Remove one or more categories from a dictionary.
 

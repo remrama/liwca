@@ -36,7 +36,7 @@ import functools
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
-from typing import Union, cast
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -197,9 +197,9 @@ def _compute_similarities(
 
 
 def ddr(
-    texts: Union[Iterable[str], pd.Series],
+    texts: Iterable[str] | pd.Series,
     dx: pd.DataFrame,
-    embeddings: Union[str, Mapping[str, ArrayLike]],
+    embeddings: str | Mapping[str, ArrayLike],
     *,
     tokenizer: Callable[[str], list[str]] | None = None,
     precision: int | None = None,

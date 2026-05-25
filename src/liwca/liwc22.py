@@ -1108,7 +1108,7 @@ class Liwc22:
 
     # -- context manager -----------------------------------------------------
 
-    def __enter__(self) -> "Liwc22":
+    def __enter__(self) -> Liwc22:
         if self._auto_open and not self._dry_run and not _is_liwc_running():
             self._liwc_proc = _open_liwc_app(use_license_server=not self._use_gui)
             self._app_owned = True

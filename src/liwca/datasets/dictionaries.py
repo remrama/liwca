@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pooch
@@ -59,7 +60,7 @@ def get_location() -> Path:
     return _get_location(_pup)
 
 
-def path(name: str, **kwargs) -> Path:
+def path(name: str, **kwargs: Any) -> Path:
     """Return the local path to the cached ``.dicx`` for a named dictionary.
 
     Calls the corresponding ``fetch_<name>(**kwargs)`` to ensure the .dicx
@@ -188,7 +189,7 @@ def fetch_empath() -> pd.DataFrame:
     """
 
     def _build(source_path: Path) -> pd.DataFrame:
-        with open(source_path, "r") as f:
+        with open(source_path) as f:
             # It's all tab-separated except one typo: "follows \tstatus"
             data = [x.strip().split("\t") for x in f.readlines()]
         categories = {x[0]: x[1:] for x in data}
