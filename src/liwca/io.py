@@ -244,21 +244,57 @@ def read_dic(fp: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
         )
     header = m.group("header").strip()
     body = m.group("body").strip()
-    cat_ids, cat_names = zip(*[row.split("\t") for row in header.split("\n")])
+    # Strip whitespace from header cells - some upstream .dic files (e.g.
+    # Honor) leave stray spaces inside category names like ``"Overall Honor
+    # Dictionary "``.
+    cat_ids, cat_names = zip(
+        *[
+            (cid.strip(), name.strip())
+            for cid, name, *_ in (row.split("\t") for row in header.split("\n"))
+        ]
+    )
     id_to_name = dict(zip(cat_ids, cat_names))
+    known_ids = set(cat_ids)
 
     # Long→wide pivot via pd.crosstab. Each (term, cat_id) pair becomes a row;
     # crosstab counts them per (DicTerm, Category), giving a binary indicator
-    # matrix. Reindex to preserve the column order from the header.
-    records = [
-        (term, id_to_name[cid])
-        for row in body.split("\n")
-        for term, *ids in [row.split("\t")]
-        for cid in ids
-    ]
+    # matrix. Reindex to preserve the column order from the header. Some
+    # upstream .dic files (e.g. Honor) reference category IDs in the body that
+    # were never declared in the header; we drop those silently and log once.
+    records: list[tuple[str, str]] = []
+    unknown_ids: set[str] = set()
+    for row in body.split("\n"):
+        term, *ids = row.split("\t")
+        if not term.strip():
+            continue
+        for cid in ids:
+            cid = cid.strip()
+            if not cid:
+                continue
+            if cid not in known_ids:
+                unknown_ids.add(cid)
+                continue
+            records.append((term, id_to_name[cid]))
+    if unknown_ids:
+        logger.warning(
+            "Ignored undeclared category ID(s) %s in body of %s", sorted(unknown_ids), fp
+        )
     long_df = pd.DataFrame(records, columns=["DicTerm", "Category"])
+    # Some upstream .dic files list the same term in multiple body rows (e.g.
+    # Honor's ``profession*``), which leaves duplicate (term, category) pairs;
+    # warn the caller, then collapse via .gt(0) so the binary contract holds.
+    duplicates = long_df[long_df.duplicated(keep=False)].drop_duplicates()
+    if not duplicates.empty:
+        pairs = sorted(duplicates.itertuples(index=False, name=None))
+        logger.warning(
+            "Collapsed %d duplicate (term, category) entries in %s: %s",
+            len(pairs),
+            fp,
+            pairs,
+        )
     df = (
         pd.crosstab(long_df["DicTerm"], long_df["Category"])
+        .gt(0)
         .astype("int8")
         .reindex(columns=list(cat_names), fill_value=0)
     )
